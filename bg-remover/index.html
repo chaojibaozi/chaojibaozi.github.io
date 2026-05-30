@@ -7,6 +7,9 @@
     <script src="https://cdn.tailwindcss.com/3.4.14"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.0/dist/bundle.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
@@ -33,6 +36,7 @@
         }
 
         body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
             transition: background-color 0.3s, color 0.3s;
         }
 
@@ -434,9 +438,14 @@
     <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                <p class="text-gray-500 dark:text-gray-400 text-sm">
-                    © 2024 一键抠图系统 - 基于 AI 技术的在线图片背景移除工具
-                </p>
+                <div>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">
+                        © 2024 一键抠图系统 - 基于 AI 技术的在线图片背景移除工具
+                    </p>
+                    <p class="text-gray-400 dark:text-gray-500 text-xs mt-1">
+                        Icons by <a href="https://fontawesome.com" target="_blank" rel="noopener noreferrer" class="hover:text-blue-500 transition-colors">Font Awesome</a> (CC BY 4.0)
+                    </p>
+                </div>
                 <div class="flex gap-4">
                     <a href="#" class="text-gray-500 dark:text-gray-400 text-sm hover:text-blue-500 transition-colors">使用条款</a>
                     <a href="#" class="text-gray-500 dark:text-gray-400 text-sm hover:text-blue-500 transition-colors">隐私政策</a>

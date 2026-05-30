@@ -1610,10 +1610,10 @@ function analyzeMobileSearchTerms(rows) {
 function parseMobileCSV(text) {
     const lines = text.split(/\r?\n/).filter(l => l.trim());
     if (lines.length < 2) return null;
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const headers = parseMobileCSVLine(lines[0]).map(h => h.trim().replace(/^"|"$/g, ''));
     const rows = [];
     for (let i = 1; i < lines.length; i++) {
-        const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const vals = parseMobileCSVLine(lines[i]).map(v => v.trim().replace(/^"|"$/g, ''));
         if (vals.length === headers.length) {
             const row = {};
             headers.forEach((h, idx) => row[h] = vals[idx]);
@@ -1621,6 +1621,30 @@ function parseMobileCSV(text) {
         }
     }
     return rows;
+}
+
+function parseMobileCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+            if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+                current += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            result.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    result.push(current);
+    return result;
 }
 
 // ============================================================

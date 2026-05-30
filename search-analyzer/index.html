@@ -147,7 +147,7 @@
             min-width: 12px !important;
             min-height: 12px !important;
             border-radius: 50% !important;
-            background: #4caf50 !important;
+            background: #f44336 !important;
             color: white !important;
             font-size: 10px !important;
             font-weight: bold !important;
@@ -161,7 +161,6 @@
             box-sizing: border-box !important;
         }
         .word-tag-wrapper:hover .delete-btn { display: block !important; }
-        .word-tag .delete-btn:hover { background: #f44336; }
     </style>
 </head>
 <body>
@@ -1439,42 +1438,72 @@
             CURRENT_ACCOUNT_NAME = extractAccountName(file.name);
             IS_FRESH_ANALYZE = false;
             
-            Papa.parse(file, {
-                header: true, skipEmptyLines: true, encoding: 'GBK',
-                complete: function(results) {
-                    rawData = results.data;
-                    initSelectors(results.meta.fields);
-                    document.getElementById('config-area').classList.remove('hidden');
-                    document.getElementById('extracted-words-area').classList.add('hidden');
-                    sortOrder = null;
-                    document.getElementById('sort-icon').innerText = '';
-                    
-                    // 重置自动提取标志，新文件上传后需要重新提取
-                    HAS_AUTO_EXTRACTED = false;
-                    BRAND_WORDS.clear();
-                    PRODUCT_WORDS.clear();
-                    AUTO_COMPETITOR_WORDS.clear();
-                    AUTO_EXTRACTED_BRAND_WORDS.clear();
-                    AUTO_EXTRACTED_PRODUCT_WORDS.clear();
-                    AUTO_EXTRACTED_COMPETITOR_WORDS.clear();
-                    USER_ADDED_BRAND_WORDS.clear();
-                    USER_ADDED_PRODUCT_WORDS.clear();
-                    USER_ADDED_COMPETITOR_WORDS.clear();
-                    
-                    // 尝试加载该账户的记忆
-                    if (CURRENT_ACCOUNT_NAME) {
-                        const memory = loadMemory(CURRENT_ACCOUNT_NAME);
-                        if (memory) {
-                            restoreFromMemory(memory);
-                            showSuccessToast('文件上传成功！已加载「' + CURRENT_ACCOUNT_NAME + '」的历史识别结果');
-                            return;
-                        }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                let csvText = e.target.result;
+                try {
+                    const bytes = new Uint8Array(csvText);
+                    const encoding = detectEncoding(bytes);
+                    if (encoding !== 'utf-8') {
+                        const decoder = new TextDecoder(encoding, { fatal: false });
+                        csvText = decoder.decode(bytes);
                     }
-                    
-                    showSuccessToast('文件上传成功！已自动匹配相关列');
-                },
-                error: function(err) { alert('文件解析失败：' + err.message); }
-            });
+                } catch (e) {}
+                
+                Papa.parse(csvText, {
+                    header: true, skipEmptyLines: true,
+                    complete: function(results) {
+                        rawData = results.data;
+                        initSelectors(results.meta.fields);
+                        document.getElementById('config-area').classList.remove('hidden');
+                        document.getElementById('extracted-words-area').classList.add('hidden');
+                        sortOrder = null;
+                        document.getElementById('sort-icon').innerText = '';
+                        
+                        // 重置自动提取标志，新文件上传后需要重新提取
+                        HAS_AUTO_EXTRACTED = false;
+                        BRAND_WORDS.clear();
+                        PRODUCT_WORDS.clear();
+                        AUTO_COMPETITOR_WORDS.clear();
+                        AUTO_EXTRACTED_BRAND_WORDS.clear();
+                        AUTO_EXTRACTED_PRODUCT_WORDS.clear();
+                        AUTO_EXTRACTED_COMPETITOR_WORDS.clear();
+                        USER_ADDED_BRAND_WORDS.clear();
+                        USER_ADDED_PRODUCT_WORDS.clear();
+                        USER_ADDED_COMPETITOR_WORDS.clear();
+                        
+                        // 尝试加载该账户的记忆
+                        if (CURRENT_ACCOUNT_NAME) {
+                            const memory = loadMemory(CURRENT_ACCOUNT_NAME);
+                            if (memory) {
+                                restoreFromMemory(memory);
+                                showSuccessToast('文件上传成功！已加载「' + CURRENT_ACCOUNT_NAME + '」的历史识别结果');
+                                return;
+                            }
+                        }
+                        
+                        showSuccessToast('文件上传成功！已自动匹配相关列');
+                    },
+                    error: function(err) { alert('文件解析失败：' + err.message); }
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function detectEncoding(bytes) {
+            if (bytes.length < 2) return 'utf-8';
+            if (bytes[0] === 0xFF && bytes[1] === 0xFE) return 'utf-16le';
+            if (bytes[0] === 0xFE && bytes[1] === 0xFF) return 'utf-16be';
+            if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) return 'utf-8';
+            let gbkScore = 0;
+            for (let i = 0; i < Math.min(bytes.length, 1000); i++) {
+                if (bytes[i] >= 0x81 && bytes[i] <= 0xFE) {
+                    gbkScore++;
+                    i++;
+                }
+            }
+            if (gbkScore > 10) return 'gbk';
+            return 'utf-8';
         }
 
         function renderResultTable() {
@@ -1571,6 +1600,10 @@
             if (!keywordCol || !searchCol) { showErrorToast('请选择关键词列和搜索词列！'); return; }
             
             let processData = rawData;
+            
+            // 重置排序状态
+            sortOrder = null;
+            document.getElementById('sort-icon').innerText = '';
             
             // 构建共现索引（数据驱动语义学习）
             buildCooccurrenceIndex(processData, keywordCol, searchCol);

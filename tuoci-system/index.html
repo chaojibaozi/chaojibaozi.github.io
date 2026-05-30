@@ -738,7 +738,8 @@
             },
 
             saveHistory(seeds, results) {
-                const item = { id: id(), seeds: [...seeds], resultCount: results.length, timestamp: new Date().toISOString(), results: results.slice(0, 100) };
+                const saved = results.slice(0, 100);
+                const item = { id: id(), seeds: [...seeds], resultCount: results.length, savedCount: saved.length, timestamp: new Date().toISOString(), results: saved };
                 const history = [item, ...this.state.history].slice(0, 50);
                 this.state.history = history;
                 Storage.set('history', history);
@@ -957,7 +958,7 @@
                         <div class="history-info">
                             <div class="time">${new Date(h.timestamp).toLocaleString()}</div>
                             <div class="seeds">词根：${h.seeds.slice(0, 3).join('、')}${h.seeds.length > 3 ? '...' : ''}</div>
-                            <div class="count">生成 ${h.resultCount} 个关键词</div>
+                            <div class="count">生成 ${h.resultCount} 个关键词${h.savedCount && h.savedCount < h.resultCount ? '（可查看前' + h.savedCount + '个）' : ''}</div>
                         </div>
                         <button class="btn btn-secondary view-history" data-id="${h.id}" style="padding:8px 16px;font-size:13px;">查看结果</button>
                     </div>
@@ -1104,7 +1105,6 @@
                 document.getElementById('exportBtn').addEventListener('click', () => this.exportToExcel());
 
                 document.querySelectorAll('#tab-results .filter-grid input, #tab-results .filter-grid select').forEach(el => {
-                    el.addEventListener('change', () => this.renderResults());
                     el.addEventListener('input', () => this.renderResults());
                 });
 
