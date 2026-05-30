@@ -2613,6 +2613,9 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
             
             // 非透明背景时填充背景色
             if (state.bgColorEnabled) {
+                // 先填满整个画布背景色，避免圆角外区域变为黑色
+                tempCtx.fillStyle = state.color;
+                tempCtx.fillRect(0, 0, state.width, state.height);
                 if (radius > 0) {
                     tempCtx.beginPath();
                     tempCtx.moveTo(radius, 0);
@@ -2625,12 +2628,7 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
                     tempCtx.lineTo(0, radius);
                     tempCtx.quadraticCurveTo(0, 0, radius, 0);
                     tempCtx.closePath();
-                    tempCtx.fillStyle = state.color;
-                    tempCtx.fill();
                     tempCtx.clip();
-                } else {
-                    tempCtx.fillStyle = state.color;
-                    tempCtx.fillRect(0, 0, state.width, state.height);
                 }
             } else if (radius > 0) {
                 // 透明背景+圆角：只需要裁剪，不填充任何颜色
