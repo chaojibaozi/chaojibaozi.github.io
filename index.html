@@ -584,6 +584,12 @@
         }
         .rank.top3 { background: linear-gradient(135deg, #ffd700, #ffaa00); color: white; }
         .rank.normal { background: #e9ecef; color: #666; }
+
+        .tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+        .tag-blue { background: rgba(102,126,234,0.1); color: #667eea; }
+        .tag-yellow { background: rgba(245,158,11,0.1); color: #d97706; }
+        .tag-green { background: rgba(16,185,129,0.1); color: #059669; }
+        .tag-purple { background: rgba(139,92,246,0.1); color: #7c3aed; }
         
         .summary-box {
             background: #f0f9ff;
@@ -767,8 +773,9 @@
                                     🎬 <b>生成动画GIF</b> — 上传多张图片合成GIF<br>
                                     ✂️ <b>一键抠图</b> — 去除图片背景<br>
                                     📊 <b>关键词分析</b> — 上传SEM数据报表分析<br>
-                                    🔍 <b>搜索词分析</b> — 上传搜索词数据语义匹配<br><br>
-                                    直接告诉我你想做什么，或者点击下方工具栏按钮上传文件~
+                                    🔍 <b>搜索词分析</b> — 上传搜索词数据语义匹配<br>
+                                    🧠 <b>词根拓词</b> — 输入词根智能扩展关键词<br><br>
+                                    直接告诉我你想做什么，或者点击下方工具栏按钮~
                                 </div>
                             </div>
                         </div>
@@ -780,6 +787,7 @@
                             <button class="toolbar-btn" id="uploadBtnGif">🎬 做GIF</button>
                             <button class="toolbar-btn" id="uploadBtnKeyword">📊 关键词分析</button>
                             <button class="toolbar-btn" id="uploadBtnSearch">🔍 搜索词分析</button>
+                            <button class="toolbar-btn" id="uploadBtnTuoci">🧠 词根拓词</button>
                             <input type="file" id="fileInput" style="display:none" accept="image/*">
                             <input type="file" id="fileInputData" style="display:none" accept=".csv,.xlsx,.xls">
                         </div>
@@ -1883,7 +1891,119 @@
         }
         
         // ============================================================
-        // 7. 发送消息 & 意图路由
+        // 7. 内联拓词引擎
+        // ============================================================
+        const InlineTuociEngine = {
+            suffixes: ['价格', '多少钱', '怎么样', '好不好', '哪家好', '推荐', '教程', '方法', '技巧',
+                      '大全', '排行榜', '公司', '品牌', '官网', '电话', '地址', '哪里有', '怎么选',
+                      '平台', 'APP', '软件', '系统', '解决方案', '报价', '批发', '供应商', '厂家'],
+            prefixes: ['专业', '优质', '便宜', '好用', '最新', '热门', '精选', '实惠', '高级',
+                      '经典', '靠谱', '正规', '口碑好', '性价比高'],
+            modifiers: ['和', '与', '对比', '比较', 'vs', 'PK', '还是'],
+
+            classifyIntent(keyword) {
+                const text = keyword.toLowerCase();
+                if (text.includes('价格') || text.includes('多少钱') || text.includes('报价') || text.includes('批发') || text.includes('买')) return '交易型';
+                if (text.includes('怎么样') || text.includes('好不好') || text.includes('对比') || text.includes('比较') || text.includes('哪个好') || text.includes('怎么选')) return '评估型';
+                if (text.includes('什么') || text.includes('怎么') || text.includes('如何') || text.includes('教程') || text.includes('方法') || text.includes('技巧')) return '了解型';
+                if (text.includes('哪家') || text.includes('公司') || text.includes('品牌') || text.includes('供应商') || text.includes('厂家')) return '探索型';
+                const r = Math.random();
+                if (r < 0.35) return '了解型';
+                if (r < 0.65) return '评估型';
+                if (r < 0.85) return '交易型';
+                return '探索型';
+            },
+
+            expandKeywords(text) {
+                const results = [];
+                const seen = new Set();
+                const seeds = text.split('\n').map(w => w.trim()).filter(w => w.length > 0);
+                if (seeds.length === 0) return results;
+                const maxKeywords = 200;
+                const addKeyword = (kw, src, hot) => {
+                    const key = kw.replace(/\s+/g, '');
+                    if (seen.has(key) || results.length >= maxKeywords) return;
+                    seen.add(key);
+                    results.push({
+                        text: kw, source: src || '词根', isHotWord: !!hot,
+                        searchVolume: Math.floor(Math.random() * 10000) + 50,
+                        competition: parseFloat((Math.random() * 0.9 + 0.1).toFixed(2)),
+                        businessValue: this.calculateBusinessValue(kw),
+                        intent: this.classifyIntent(kw),
+                    });
+                };
+                seeds.forEach(seed => {
+                    addKeyword(seed, '词根', false);
+                    this.suffixes.forEach(s => addKeyword(seed + s, '语义扩展', false));
+                    this.prefixes.forEach(p => addKeyword(p + seed, '语义扩展', false));
+                    this.modifiers.forEach(mod => {
+                        seeds.forEach(other => {
+                            if (other !== seed) addKeyword(seed + mod + other, '组合扩展', false);
+                        });
+                    });
+                });
+                return results;
+            },
+
+            calculateBusinessValue(keyword) {
+                let value = 50;
+                const t = keyword.toLowerCase();
+                if (t.includes('价格') || t.includes('多少钱') || t.includes('买')) value += 30;
+                if (t.includes('公司') || t.includes('品牌') || t.includes('供应商')) value += 25;
+                if (t.includes('怎么样') || t.includes('推荐')) value += 20;
+                if (t.includes('专业') || t.includes('官方')) value += 15;
+                if (t.length > 4 && t.length < 10) value += 10;
+                return Math.min(value, 100);
+            }
+        };
+
+        function displayTuociResults(results) {
+            if (!results || results.length === 0) {
+                addAssistantText('⚠️ 未生成关键词，请检查词根是否有效');
+                return;
+            }
+
+            const seeds = results.filter(r => r.source === '词根').map(r => r.text);
+            const seedStr = seeds.length > 3 ? seeds.slice(0, 3).join('、') + '...' : seeds.join('、');
+
+            const tableRows = results.slice(0, 30).map((r, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><strong>${escapeHtml(r.text)}</strong></td>
+                    <td style="font-family:monospace;">${r.searchVolume.toLocaleString()}</td>
+                    <td><span class="tag ${r.intent === '了解型' ? 'tag-blue' : r.intent === '评估型' ? 'tag-yellow' : r.intent === '交易型' ? 'tag-green' : 'tag-purple'}">${r.intent}</span></td>
+                    <td>${r.source}</td>
+                </tr>
+            `).join('');
+
+            const html = `
+                <div class="message-row">
+                    <div class="message-avatar">🤖</div>
+                    <div class="message-bubble">
+                        ✅ 拓词完成！基于词根：${escapeHtml(seedStr)}
+                        <div style="margin:6px 0;font-size:12px;color:#64748b;">共扩展 <strong>${results.length}</strong> 个关键词，显示前 30 条</div>
+                        <div class="result-table-wrap" style="max-height:250px;overflow-y:auto;">
+                            <table class="result-table">
+                                <thead><tr><th>#</th><th>关键词</th><th>搜索量</th><th>搜索意图</th><th>来源</th></tr></thead>
+                                <tbody>${tableRows}</tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top:8px;">
+                            <button onclick="openTuociSubsystem()" class="btn btn-secondary" style="padding:6px 14px;font-size:12px;">📂 在拓词系统中查看更多</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            addMessage('assistant', html);
+        }
+
+        function openTuociSubsystem() {
+            const navItem = document.querySelector('.nav-item[data-page="tuoci-system"]');
+            if (navItem) navItem.click();
+        }
+
+        // ============================================================
+        // 8. 发送消息 & 意图路由
         // ============================================================
         async function sendMessage() {
             const input = document.getElementById('chatInput');
@@ -1892,6 +2012,22 @@
             
             input.value = '';
             adjustInputHeight();
+
+            // 处理 pending 的拓词词根输入
+            if (pendingIntent === 'tuociSystem') {
+                pendingIntent = null;
+                addUserText(text);
+                showTyping();
+                await new Promise(r => setTimeout(r, 100));
+                hideTyping();
+                const results = InlineTuociEngine.expandKeywords(text);
+                if (results.length === 0) {
+                    addAssistantText('⚠️ 未输入有效的词根，请重新输入，每行一个关键词');
+                    return;
+                }
+                displayTuociResults(results);
+                return;
+            }
             
             addUserText(text);
             showTyping();
@@ -1924,21 +2060,9 @@
                     addAssistantText('检测到你的需求是：<b>' + actionLabels[intent.action] + '</b>');
                     
                     if (intent.action === 'tuociSystem') {
-                        addAssistantText('正在跳转到智能拓词系统...');
+                        addAssistantText('请在下方的输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇');
                         hideTyping();
-                        // 模拟点击导航项
-                        const navItem = document.querySelector('.nav-item[data-page="tuoci-system"]');
-                        if (navItem) {
-                            setTimeout(() => navItem.click(), 500);
-                        } else {
-                            // 如果已经在本页，直接切换
-                            const homeItem = document.querySelector('.nav-item[data-page="home"]');
-                            if (homeItem) homeItem.click();
-                            setTimeout(() => {
-                                const targetItem = document.querySelector('.nav-item[data-page="tuoci-system"]');
-                                if (targetItem) targetItem.click();
-                            }, 300);
-                        }
+                        pendingIntent = 'tuociSystem';
                         return;
                     }
                     
@@ -1953,7 +2077,7 @@
                     pendingIntent = intent.action;
                 } else {
                     hideTyping();
-                    addAssistantText('我可以帮你完成以下任务：<br><br>🎬 生成动画GIF — 上传多张图片合成GIF<br>✂️ 一键抠图 — 去除图片背景<br>📊 关键词分析 — 上传SEM数据报表分析<br>🔍 搜索词分析 — 上传搜索词数据语义匹配<br><br>请直接告诉我你想做什么，比如"帮我抠图"或"分析关键词"~');
+                    addAssistantText('我可以帮你完成以下任务：<br><br>🎬 生成动画GIF — 上传多张图片合成GIF<br>✂️ 一键抠图 — 去除图片背景<br>📊 关键词分析 — 上传SEM数据报表分析<br>🔍 搜索词分析 — 上传搜索词数据语义匹配<br>🧠 智能拓词 — 输入词根智能扩展关键词<br><br>请直接告诉我你想做什么，比如"帮我抠图"、"分析关键词"、"帮我拓词"~');
                 }
             } catch (e) {
                 hideTyping();
@@ -2036,6 +2160,11 @@
             pendingIntent = 'analyzeSearchTerms';
             addAssistantText('好的，请上传搜索词数据 👇');
             addUploadPrompt('analyzeSearchTerms', '.csv,.xlsx,.xls', false, '点击此处上传CSV文件（包含搜索词、关键词等列）');
+        });
+        
+        document.getElementById('uploadBtnTuoci').addEventListener('click', () => {
+            pendingIntent = 'tuociSystem';
+            addAssistantText('好的，请在下方输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇<br><small>例如：SEO优化、网站建设、网络营销</small>');
         });
         
         // 拖拽上传支持
