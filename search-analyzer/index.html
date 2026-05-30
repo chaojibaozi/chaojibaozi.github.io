@@ -62,14 +62,6 @@
         .competitor-keyword-area .btn-group { display: flex; gap: 10px; margin-top: 12px; }
         .keyword-config-row { display: flex; gap: 20px; }
         .keyword-config-row > div { flex: 1; }
-        .auth-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; }
-        .auth-box { background: #fff; padding: 30px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
-        .auth-box h3 { margin-bottom: 20px; color: #333; }
-        .auth-box input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; }
-        .auth-box .btn-group { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
-        .auth-box .tips { color: #dc3545; margin-top: 10px; font-size: 14px; }
-        .trial-tips { color: #fd7e14; font-weight: 500; margin-top: 10px; padding: 8px 12px; background: #fff3cd; border-radius: 4px; border: 1px solid #ffeaa7; }
-        .trial-badge { display: inline-block; background: #fd7e14; color: white; font-size: 14px; padding: 4px 10px; border-radius: 4px; margin-left: 12px; vertical-align: middle; }
         .success-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #28a745; color: white; padding: 12px 24px; border-radius: 6px; z-index: 10000; animation: fadeInOut 3s ease-in-out forwards; }
         .error-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #dc3545; color: white; padding: 12px 24px; border-radius: 6px; z-index: 10000; animation: fadeInOut 3s ease-in-out forwards; }
         @keyframes fadeInOut {
@@ -173,20 +165,7 @@
     </style>
 </head>
 <body>
-    <h1><span>🎯 推广运营专用-全行业语义匹配工具 <span id="trialBadge" class="trial-badge">试用版</span></span><span class="copyright-text">——© Super Baozi. All Rights Reserved.</span></h1>
-
-    <div id="authModal" class="auth-modal hidden">
-        <div class="auth-box">
-            <h3 id="authTitle">🔑 激活验证</h3>
-            <p id="authDesc">您的试用次数已用尽，请输入激活码解锁全部功能</p>
-            <input type="text" id="activationCode" placeholder="请输入激活码">
-            <div class="tips" id="authError"></div>
-            <div class="btn-group">
-                <button id="btnVerifyCode">验证激活</button>
-                <button id="btnCloseAuth" style="background-color: #6c757d;">关闭</button>
-            </div>
-        </div>
-    </div>
+    <h1><span>🎯 推广运营专用-全行业语义匹配工具</span><span class="copyright-text">——© Super Baozi. All Rights Reserved.</span></h1>
 
     <div class="card">
         <h3 style="margin-bottom: 12px;">工具说明（全行业零配置通用）</h3>
@@ -197,9 +176,7 @@
             <li>新增功能：支持自定义竞品词库，搜索词命中时标记「涉及竞品词库，待人工判断」</li>
             <li><strong>智能识别：</strong>品牌词从推广计划名称智能识别（如"JP品牌词-..."提取JP），核心产品词从关键词列通过词频+N-gram算法提取，全行业通用</li>
             <li>评分标准：0-3分=业务无关建议加否；3-4分=待人工确认；≥4分=业务相关建议保留</li>
-            <li id="trialNote"><strong>试用说明：</strong>免费试用3次/天，每次最多处理200行数据，激活后解锁全部功能</li>
         </ul>
-        <p id="trialCountTips" class="trial-tips"></p>
     </div>
 
     <div class="card">
@@ -346,23 +323,9 @@
     </div>
 
     <script>
-        const SECRET_KEY = "TY89&*kjhgPOIU7890";
-        const TRIAL_LIMIT_PER_DAY = 3;
-        const TRIAL_MAX_ROWS = 200;
-        const ACTIVATION_VALID_DAYS = 365;
-        const VALID_ACTIVATION_CODES = new Set([
-            "TEST-123456-ACTIVE",
-            "PROMO-789012-2025",
-            "VIP-888888-PRO"
-        ]);
         const STORAGE_KEYS = {
-            trial: "t_" + btoa("trial_count"),
-            trialDate: "td_" + btoa("trial_date"),
-            activated: "a_" + btoa("is_activated"),
-            activateTime: "at_" + btoa("activate_time"),
             custom: "c_" + btoa("custom_keywords"),
-            competitor: "cp_" + btoa("competitor_keywords"),
-            fingerprint: "f_" + btoa("browser_fingerprint")
+            competitor: "cp_" + btoa("competitor_keywords")
         };
 
         let rawData = [];
@@ -394,9 +357,9 @@
 
         function setSimpleStorage(key, value) {
             try {
-                localStorage.setItem(key, encryptData(value.toString()));
+                localStorage.setItem(key, value.toString());
             } catch (e) {
-                sessionStorage.setItem(key, encryptData(value.toString()));
+                sessionStorage.setItem(key, value.toString());
             }
         }
 
@@ -404,126 +367,13 @@
             try {
                 let value = localStorage.getItem(key);
                 if (!value) value = sessionStorage.getItem(key);
-                return value ? decryptData(value) : (key === STORAGE_KEYS.custom || key === STORAGE_KEYS.competitor) ? '' : '0';
+                return value ? value : (key === STORAGE_KEYS.custom || key === STORAGE_KEYS.competitor) ? '' : '0';
             } catch (e) {
                 return (key === STORAGE_KEYS.custom || key === STORAGE_KEYS.competitor) ? '' : '0';
             }
         }
 
-        function checkActivation() {
-            const isActivated = getSimpleStorage(STORAGE_KEYS.activated) === "1";
-            if (!isActivated) return false;
-            const activateTime = parseInt(getSimpleStorage(STORAGE_KEYS.activateTime) || "0");
-            if (!activateTime) return false;
-            const now = new Date().getTime();
-            const expireTime = activateTime + (ACTIVATION_VALID_DAYS * 24 * 60 * 60 * 1000);
-            return now <= expireTime;
-        }
 
-        function activateSuccess() {
-            const now = new Date().getTime();
-            setSimpleStorage(STORAGE_KEYS.activated, 1);
-            setSimpleStorage(STORAGE_KEYS.activateTime, now);
-            document.getElementById("trialBadge").style.display = "none";
-            document.getElementById("trialNote").style.display = "none";
-            document.getElementById("trialCountTips").style.display = "none";
-            forceCloseAuthModal();
-            showSuccessToast("激活成功！已解锁全部功能（有效期1年）");
-            setTimeout(() => window.location.reload(), 1000);
-        }
-
-        function verifyActivationCode(code) {
-            if (!code || code.trim() === '') return { valid: false, message: "激活码不能为空" };
-            const formattedCode = code.trim().toUpperCase().replace(/-/g, "");
-            const validCodeFormatted = Array.from(VALID_ACTIVATION_CODES).map(c => c.toUpperCase().replace(/-/g, ""));
-            if (validCodeFormatted.includes(formattedCode)) return { valid: true, message: "激活码验证成功" };
-            return { valid: false, message: "激活码无效，请检查后重新输入" };
-        }
-
-        function encryptData(data, key = SECRET_KEY) {
-            const encoder = new TextEncoder();
-            const dataBytes = encoder.encode(data);
-            const keyBytes = encoder.encode(key);
-            const encryptedBytes = new Uint8Array(dataBytes.length);
-            for (let i = 0; i < dataBytes.length; i++) {
-                encryptedBytes[i] = dataBytes[i] ^ keyBytes[i % keyBytes.length];
-            }
-            return btoa(String.fromCharCode.apply(null, encryptedBytes));
-        }
-
-        function decryptData(encryptedData, key = SECRET_KEY) {
-            try {
-                const binaryStr = atob(encryptedData);
-                const encryptedBytes = new Uint8Array(binaryStr.length);
-                for (let i = 0; i < binaryStr.length; i++) encryptedBytes[i] = binaryStr.charCodeAt(i);
-                const encoder = new TextEncoder();
-                const keyBytes = encoder.encode(key);
-                const decryptedBytes = new Uint8Array(encryptedBytes.length);
-                for (let i = 0; i < encryptedBytes.length; i++) decryptedBytes[i] = encryptedBytes[i] ^ keyBytes[i % keyBytes.length];
-                return new TextDecoder().decode(decryptedBytes);
-            } catch (e) { return null; }
-        }
-
-        function forceCloseAuthModal() {
-            const modal = document.getElementById("authModal");
-            modal.classList.add("hidden");
-            modal.style.display = "none";
-        }
-
-        function showAuthModal() {
-            const modal = document.getElementById("authModal");
-            modal.classList.remove("hidden");
-            modal.style.display = "flex";
-            document.getElementById("authError").innerText = "";
-            document.getElementById("activationCode").value = "";
-            document.getElementById("activationCode").focus();
-        }
-
-        function updateTrialTips() {
-            const isActivated = checkActivation();
-            const trialBadge = document.getElementById("trialBadge");
-            const trialNote = document.getElementById("trialNote");
-            const trialCountTips = document.getElementById("trialCountTips");
-            if (isActivated) {
-                trialBadge.style.display = "none";
-                trialNote.style.display = "none";
-                trialCountTips.style.display = "none";
-                return;
-            }
-            const count = getTrialCount();
-            trialBadge.style.display = "inline-block";
-            trialNote.style.display = "list-item";
-            if (count < TRIAL_LIMIT_PER_DAY) {
-                trialCountTips.innerText = `💡 今日剩余试用次数：${TRIAL_LIMIT_PER_DAY - count} 次，每次最多处理${TRIAL_MAX_ROWS}行数据`;
-                trialCountTips.style.display = "block";
-            } else {
-                trialCountTips.innerText = `⚠️ 今日试用次数已用尽，请明天再试或输入激活码解锁永久使用`;
-                trialCountTips.style.display = "block";
-                setTimeout(() => showAuthModal(), 500);
-            }
-        }
-
-        function getTodayString() {
-            const now = new Date();
-            return now.getFullYear().toString() + (now.getMonth() + 1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0');
-        }
-
-        function getTrialCount() {
-            const storedDate = getSimpleStorage(STORAGE_KEYS.trialDate);
-            const today = getTodayString();
-            if (storedDate !== today) {
-                setSimpleStorage(STORAGE_KEYS.trialDate, today);
-                setSimpleStorage(STORAGE_KEYS.trial, 0);
-                return 0;
-            }
-            return parseInt(getSimpleStorage(STORAGE_KEYS.trial) || "0");
-        }
-
-        function updateTrialCount() {
-            const count = getTrialCount() + 1;
-            setSimpleStorage(STORAGE_KEYS.trial, count);
-            return count;
-        }
 
         function showSuccessToast(message) {
             const toast = document.createElement('div');
@@ -1694,10 +1544,6 @@
         }
 
         function analyzeData() {
-            const isActivated = checkActivation();
-            const trialCount = getTrialCount();
-            if (!isActivated && trialCount >= TRIAL_LIMIT_PER_DAY) { showAuthModal(); return; }
-            
             // 全新分析模式：重置所有状态，不加载记忆
             if (IS_FRESH_ANALYZE) {
                 HAS_AUTO_EXTRACTED = false;
@@ -1720,11 +1566,6 @@
             if (!keywordCol || !searchCol) { showErrorToast('请选择关键词列和搜索词列！'); return; }
             
             let processData = rawData;
-            if (!isActivated) {
-                processData = rawData.slice(0, TRIAL_MAX_ROWS);
-                updateTrialCount();
-                updateTrialTips();
-            }
             
             // 构建共现索引（数据驱动语义学习）
             buildCooccurrenceIndex(processData, keywordCol, searchCol);
@@ -1830,7 +1671,6 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            updateTrialTips();
             const savedCustom = getSimpleStorage(STORAGE_KEYS.custom);
             if (savedCustom) { document.getElementById('custom-keywords').value = savedCustom; initCustomKeywords(savedCustom); }
             const savedCompetitor = getSimpleStorage(STORAGE_KEYS.competitor);
@@ -1875,13 +1715,6 @@
             document.getElementById('btn-download').addEventListener('click', function() { downloadCSV(false); });
             document.getElementById('btn-download-negative').addEventListener('click', function() { downloadCSV(true); });
             document.getElementById('sort-header').addEventListener('click', sortTable);
-            document.getElementById('btnVerifyCode').addEventListener('click', function() {
-                const code = document.getElementById('activationCode').value;
-                const result = verifyActivationCode(code);
-                if (result.valid) activateSuccess();
-                else document.getElementById('authError').innerText = result.message;
-            });
-            document.getElementById('btnCloseAuth').addEventListener('click', forceCloseAuthModal);
         });
     </script>
 </body>
