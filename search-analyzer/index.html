@@ -1,0 +1,1721 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>推广运营专用-全行业语义匹配工具</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles/common.css">
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px 1rem; 
+            line-height: 1.5; 
+        }
+        .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); padding: 12px; margin-bottom: 8px; }
+        h1 { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; color: white; }
+        .copyright-text { font-size: 11px; color: #999; font-weight: normal; }
+        .upload-area { border: 2px dashed #ccc; padding: 60px 20px; text-align: center; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .upload-area:hover, .upload-area.drag-over { border-color: #165DFF; background-color: #e8f0fe; }
+        .upload-area p { font-size: 1.2rem; color: #666; }
+        .config-area { margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
+        .controls { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+        .control-item { display: flex; flex-direction: column; gap: 6px; }
+        label { font-size: 14px; color: #333; font-weight: 500; }
+        select, button { padding: 10px 16px; border-radius: 6px; border: 1px solid #ddd; font-size: 14px; min-width: 180px; }
+        button { background-color: #165DFF; color: white; border: none; cursor: pointer; font-weight: bold; transition: background 0.3; min-width: 120px; }
+        button:hover { background-color: #0e42c9; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        button:active { transform: scale(0.98); }
+        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+        .result-header h2 { font-size: 1.3rem; color: #333; }
+        .table-wrap { overflow-x: auto; max-height: 600px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        thead { position: sticky; top: 0; z-index: 10; }
+        th, td { border: 1px solid #eee; padding: 12px 16px; text-align: left; white-space: nowrap; }
+        th { background-color: #f5f7fa; font-weight: bold; color: #333; }
+        #sort-header { cursor: pointer; user-select: none; transition: background 0.2; }
+        #sort-header:hover { background-color: #e8f0fe; }
+        .sort-icon { margin-left: 6px; color: #165DFF; font-weight: bold; }
+        td.score-low { color: #dc3545; font-weight: 500; }
+        td.score-high { color: #28a745; font-weight: 500; }
+        td.score-warn { color: #856404; font-weight: 500; }
+        td.competitor { color: #fd7e14; font-weight: 500; }
+        td.custom-keyword { color: #7952b3; font-weight: 500; }
+        td.manual-competitor { color: #e63946; font-weight: 500; }
+        tbody tr:hover { background-color: #f9fafb; }
+        .hidden { display: none !important; }
+        .tips { margin-top: 12px; font-size: 13px; color: #999; }
+        .tips.warn { color: #856404; }
+        .custom-keyword-area textarea { width: 100%; height: 100px; padding: 12px; border-radius: 6px; border: 1px solid #ddd; font-size: 13px; resize: vertical; font-family: inherit; }
+        .custom-keyword-area .btn-group { display: flex; gap: 10px; margin-top: 12px; }
+        .competitor-keyword-area { padding-top: 0; border-top: none; }
+        .competitor-keyword-area textarea { width: 100%; height: 100px; padding: 12px; border-radius: 6px; border: 1px solid #ddd; font-size: 13px; resize: vertical; font-family: inherit; }
+        .competitor-keyword-area .btn-group { display: flex; gap: 10px; margin-top: 12px; }
+        .keyword-config-row { display: flex; gap: 20px; }
+        .keyword-config-row > div { flex: 1; }
+        .success-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #28a745; color: white; padding: 12px 24px; border-radius: 6px; z-index: 10000; animation: fadeInOut 3s ease-in-out forwards; }
+        .error-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #dc3545; color: white; padding: 12px 24px; border-radius: 6px; z-index: 10000; animation: fadeInOut 3s ease-in-out forwards; }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+        .extracted-words-area { margin-top: 20px; padding: 15px; background: #f0f7ff; border-radius: 6px; border: 1px solid #d0e3ff; }
+        .extracted-words-area h4 { color: #165DFF; margin-bottom: 10px; font-size: 14px; }
+        .word-tags { display: flex; flex-wrap: wrap; gap: 8px; min-height: 30px; padding: 5px; border-radius: 4px; }
+        .word-tags.drag-over { background-color: #f0f0f0; border: 2px dashed #165DFF; }
+        .drag-hint { font-size: 11px; color: #999; margin-left: 8px; }
+        .category-header { display: flex; align-items: center; margin-bottom: 4px; gap: 8px; }
+        .category-title { font-size: 13px; color: #666; }
+        .add-word-btn {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 15px !important;
+            height: 15px !important;
+            min-width: 15px !important;
+            border-radius: 50% !important;
+            background: #165DFF !important;
+            color: white !important;
+            font-size: 10px !important;
+            font-weight: bold !important;
+            cursor: pointer !important;
+            border: none !important;
+            line-height: 15px !important;
+            padding: 0 !important;
+            flex-shrink: 0 !important;
+            box-sizing: border-box !important;
+        }
+        .add-word-btn:hover { background: #4080ff; }
+        .clear-all-btn {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            height: 20px !important;
+            min-height: 20px !important;
+            border-radius: 10px !important;
+            background: #ff4d4f !important;
+            color: white !important;
+            font-size: 10px !important;
+            font-weight: bold !important;
+            cursor: pointer !important;
+            border: none !important;
+            padding: 0 6px !important;
+            flex-shrink: 0 !important;
+            box-sizing: border-box !important;
+            line-height: 20px !important;
+        }
+        .clear-all-btn:hover { background: #d9363e !important; }
+        .add-word-input {
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            width: 80px;
+        }
+        .add-word-form {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+        }
+        .word-category { margin-bottom: 12px; padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px; background: #fafafa; }
+        .word-tag-wrapper { position: relative; display: inline-block; margin: 2px; }
+        .word-tag { padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: move; user-select: none; }
+        .word-tag.brand { background: #e3f2fd; color: #1976d2; border: 1px solid #bbdefb; }
+        .word-tag.product { background: #e8f5e9; color: #388e3c; border: 1px solid #c8e6c9; }
+        .word-tag.competitor { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        .word-tag.empty { color: #999; font-style: italic; cursor: default; }
+        .word-tag.dragging { opacity: 0.5; transform: scale(0.9); }
+        .word-tag.user-added { background: #ffcdd2; color: #b71c1c; border: 1px solid #ef9a9a; }
+        .delete-btn {
+            position: absolute !important;
+            top: -4px !important;
+            right: -4px !important;
+            width: 12px !important;
+            height: 12px !important;
+            min-width: 12px !important;
+            min-height: 12px !important;
+            border-radius: 50% !important;
+            background: #4caf50 !important;
+            color: white !important;
+            font-size: 10px !important;
+            font-weight: bold !important;
+            cursor: pointer !important;
+            border: none !important;
+            line-height: 12px !important;
+            text-align: center !important;
+            padding: 0 !important;
+            display: none;
+            z-index: 1;
+            box-sizing: border-box !important;
+        }
+        .word-tag-wrapper:hover .delete-btn { display: block !important; }
+        .word-tag .delete-btn:hover { background: #f44336; }
+    </style>
+</head>
+<body>
+    <h1><span>🎯 推广运营专用-全行业语义匹配工具</span><span class="copyright-text">——© Super Baozi. All Rights Reserved.</span></h1>
+
+    <div class="card">
+        <h3 style="margin-bottom: 12px;">工具说明（全行业零配置通用）</h3>
+        <ul style="padding-left: 20px; line-height: 1.8; font-size: 10px; color: #333;">
+            <li>无需配置任何行业词库，自动识别关键词与搜索词的核心寓意匹配度</li>
+            <li>核心规则：<strong>仅通用词重合、业务主题无关的搜索词，最高不超过3分，自动标记为建议否词</strong></li>
+            <li>新增功能：支持自定义关键词强制标注、消费/转化数同步、自动识别竞品词，完美适配推广数据分析</li>
+            <li>新增功能：支持自定义竞品词库，搜索词命中时标记「涉及竞品词库，待人工判断」</li>
+            <li><strong>智能识别：</strong>品牌词从推广计划名称智能识别（如"JP品牌词-..."提取JP），核心产品词从关键词列通过词频+N-gram算法提取，全行业通用</li>
+            <li>评分标准：0-3分=业务无关建议加否；3-4分=待人工确认；≥4分=业务相关建议保留</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-bottom: 12px;">自定义关键词配置（可选）</h3>
+        <div class="keyword-config-row">
+            <div class="custom-keyword-area">
+                <label>搜索词包含以下关键词时，强制标注为「✅涉及自定义词语，自动通过」（一行输入一个关键词）</label>
+                <textarea id="custom-keywords" placeholder="例如：
+竞品
+同行
+官网
+地址"></textarea>
+                <div class="btn-group">
+                    <button id="btn-save-custom">保存自定义关键词</button>
+                    <button id="btn-clear-custom" style="background-color: #6c757d;">清空</button>
+                </div>
+                <p class="tips">配置会自动保存到浏览器，下次打开无需重复输入；关键词不区分大小写，支持中英文</p>
+            </div>
+
+            <div class="competitor-keyword-area">
+                <label>搜索词包含以下竞品词时，强制标注为「❓涉及竞品词，待人工判断」（一行输入一个关键词）</label>
+                <textarea id="competitor-keywords" placeholder="例如：
+抖音
+淘宝
+京东
+拼多多
+美团
+饿了么"></textarea>
+                <div class="btn-group">
+                    <button id="btn-save-competitor">保存竞品词库</button>
+                    <button id="btn-clear-competitor" style="background-color: #6c757d;">清空</button>
+                </div>
+                <p class="tips">配置会自动保存到浏览器，下次打开无需重复输入；关键词不区分大小写，支持中英文</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="upload-area" id="uploadArea" onclick="document.getElementById('csvFile').click()">
+            <p>点击此处上传 CSV 文件 或 直接拖入文件</p>
+            <p class="tips">支持 Excel/推广后台导出的 GBK/UTF-8 编码 CSV 文件，打开即用无需加载</p>
+            <input type="file" id="csvFile" accept=".csv" style="display: none;">
+        </div>
+        <div id="config-area" class="config-area hidden">
+            <div class="controls">
+                <div class="control-item">
+                    <label>选择 推广计划 列（可选）：</label>
+                    <select id="sel-plan"></select>
+                </div>
+                <div class="control-item">
+                    <label>选择 推广组 列（可选）：</label>
+                    <select id="sel-group"></select>
+                </div>
+                <div class="control-item">
+                    <label>选择 消费 列（可选）：</label>
+                    <select id="sel-cost"></select>
+                </div>
+                <div class="control-item">
+                    <label>选择 转化数 列（可选）：</label>
+                    <select id="sel-convert"></select>
+                </div>
+                <div class="control-item">
+                    <label>选择 关键词 列：</label>
+                    <select id="sel-keyword"></select>
+                </div>
+                <div class="control-item">
+                    <label>选择 搜索词 列：</label>
+                    <select id="sel-search"></select>
+                </div>
+                <button id="btn-analyze" style="margin-top: 18px;">开始分析</button>
+                <button id="btn-fresh-analyze" style="margin-top: 18px; background: #ff9800;">全新分析</button>
+            </div>
+            <div id="extracted-words-area" class="extracted-words-area hidden">
+                <h4>🤖 智能识别结果 <span class="drag-hint">（可拖拽词条重新分类，点击「开始分析」生效）</span></h4>
+                <div class="word-category" data-category="brand">
+                    <div class="category-header">
+                        <span class="category-title">🏷️ 品牌词（+3分）：</span>
+                        <button class="add-word-btn" onclick="showAddWordInput('brand')" title="添加品牌词">+</button>
+                        <button class="clear-all-btn" onclick="clearAllWords('brand')" title="一键清空品牌词">✕全删</button>
+                        <span id="add-word-form-brand" class="add-word-form" style="display:none;">
+                            <input type="text" class="add-word-input" id="add-word-input-brand" placeholder="输入词" onkeypress="handleAddWordKeypress(event, 'brand')">
+                            <button class="add-word-btn" onclick="addWord('brand')">✓</button>
+                            <button class="add-word-btn" onclick="hideAddWordInput('brand')" style="background:#999;">✕</button>
+                        </span>
+                    </div>
+                    <div id="brand-words" class="word-tags" data-category="brand"></div>
+                </div>
+                <div class="word-category" data-category="product">
+                    <div class="category-header">
+                        <span class="category-title">🏷️ 核心产品词（含+2分，缺失-2分）：</span>
+                        <button class="add-word-btn" onclick="showAddWordInput('product')" title="添加产品词">+</button>
+                        <button class="clear-all-btn" onclick="clearAllWords('product')" title="一键清空产品词">✕全删</button>
+                        <span id="add-word-form-product" class="add-word-form" style="display:none;">
+                            <input type="text" class="add-word-input" id="add-word-input-product" placeholder="输入词" onkeypress="handleAddWordKeypress(event, 'product')">
+                            <button class="add-word-btn" onclick="addWord('product')">✓</button>
+                            <button class="add-word-btn" onclick="hideAddWordInput('product')" style="background:#999;">✕</button>
+                        </span>
+                    </div>
+                    <div id="product-words" class="word-tags" data-category="product"></div>
+                </div>
+                <div class="word-category" data-category="competitor">
+                    <div class="category-header">
+                        <span class="category-title">🏷️ 自动识别竞品词：</span>
+                        <button class="add-word-btn" onclick="showAddWordInput('competitor')" title="添加竞品词">+</button>
+                        <button class="clear-all-btn" onclick="clearAllWords('competitor')" title="一键清空竞品词">✕全删</button>
+                        <span id="add-word-form-competitor" class="add-word-form" style="display:none;">
+                            <input type="text" class="add-word-input" id="add-word-input-competitor" placeholder="输入词" onkeypress="handleAddWordKeypress(event, 'competitor')">
+                            <button class="add-word-btn" onclick="addWord('competitor')">✓</button>
+                            <button class="add-word-btn" onclick="hideAddWordInput('competitor')" style="background:#999;">✕</button>
+                        </span>
+                    </div>
+                    <div id="auto-competitor-words" class="word-tags" data-category="competitor"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-area" class="card hidden">
+        <div class="result-header">
+            <h2>分析结果</h2>
+            <div>
+                <button id="btn-download-negative" style="background-color: #dc3545; margin-right: 10px;">⬇️ 导出否词列表</button>
+                <button id="btn-download">⬇️ 下载完整结果</button>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table id="result-table">
+                <thead>
+                    <tr>
+                        <th id="plan-header" class="hidden">推广计划</th>
+                        <th id="group-header" class="hidden">推广组</th>
+                        <th>关键词</th>
+                        <th>搜索词</th>
+                        <th id="sort-header">语义相关度 (0-10级) <span id="sort-icon" class="sort-icon"></span></th>
+                        <th>推广操作建议</th>
+                        <th id="cost-header" class="hidden">消费</th>
+                        <th id="convert-header" class="hidden">转化数</th>
+                        <th>是否为竞品词</th>
+                    </tr>
+                </thead>
+                <tbody id="result-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEYS = {
+            custom: "c_" + btoa("custom_keywords"),
+            competitor: "cp_" + btoa("competitor_keywords")
+        };
+
+        let rawData = [];
+        let finalResult = [];
+        let originalResult = [];
+        let sortOrder = null;
+        let selectedPlanCol = '';
+        let selectedGroupCol = '';
+        let selectedCostCol = '';
+        let selectedConvertCol = '';
+        let CUSTOM_KEYWORDS = new Set();
+        let CUSTOM_COMPETITOR_KEYWORDS = new Set();
+        let BRAND_WORDS = new Set();
+        let PRODUCT_WORDS = new Set();
+        let AUTO_COMPETITOR_WORDS = new Set(); // 自动提取的竞品词
+        let USER_ADDED_BRAND_WORDS = new Set(); // 用户手动添加的品牌词
+        let USER_ADDED_PRODUCT_WORDS = new Set(); // 用户手动添加的产品词
+        let USER_ADDED_COMPETITOR_WORDS = new Set(); // 用户手动添加的竞品词
+        let AUTO_EXTRACTED_BRAND_WORDS = new Set(); // 记录系统自动提取的品牌词
+        let AUTO_EXTRACTED_PRODUCT_WORDS = new Set(); // 记录系统自动提取的产品词
+        let AUTO_EXTRACTED_COMPETITOR_WORDS = new Set(); // 记录系统自动提取的竞品词
+        let HAS_AUTO_EXTRACTED = false; // 标记是否已经自动提取过
+        let CURRENT_ACCOUNT_NAME = ''; // 当前账户名称
+        let IS_FRESH_ANALYZE = false; // 是否全新分析模式
+        const MEMORY_STORAGE_KEY = 'search_analysis_memory'; // localStorage键名
+        const MEMORY_VERSION = 'v2'; // 记忆数据版本号，数据结构变更时递增
+        let CO_OCCURRENCE_INDEX = null;
+        let KEYWORD_BIGRAM_POOL = new Set();
+
+        function setSimpleStorage(key, value) {
+            try {
+                localStorage.setItem(key, value.toString());
+            } catch (e) {
+                sessionStorage.setItem(key, value.toString());
+            }
+        }
+
+        function getSimpleStorage(key) {
+            try {
+                let value = localStorage.getItem(key);
+                if (!value) value = sessionStorage.getItem(key);
+                return value ? value : (key === STORAGE_KEYS.custom || key === STORAGE_KEYS.competitor) ? '' : '0';
+            } catch (e) {
+                return (key === STORAGE_KEYS.custom || key === STORAGE_KEYS.competitor) ? '' : '0';
+            }
+        }
+
+
+
+        function showSuccessToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'success-toast';
+            toast.innerText = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function showErrorToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'error-toast';
+            toast.innerText = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function extractNGrams(str, n) {
+            const grams = new Set();
+            for (let i = 0; i <= str.length - n; i++) grams.add(str.substring(i, i + n));
+            return grams;
+        }
+
+        function jaccardSimilarity(setA, setB) {
+            if (setA.size === 0 && setB.size === 0) return 1;
+            let intersection = 0;
+            for (const item of setA) if (setB.has(item)) intersection++;
+            const union = setA.size + setB.size - intersection;
+            return union === 0 ? 0 : intersection / union;
+        }
+
+        function longestCommonSubstring(str1, str2) {
+            const len1 = str1.length, len2 = str2.length;
+            if (len1 === 0 || len2 === 0) return 0;
+            let maxLen = 0;
+            const dp = new Array(len1 + 1);
+            for (let i = 0; i <= len1; i++) dp[i] = new Array(len2 + 1).fill(0);
+            for (let i = 1; i <= len1; i++) {
+                for (let j = 1; j <= len2; j++) {
+                    if (str1[i - 1] === str2[j - 1]) {
+                        dp[i][j] = dp[i - 1][j - 1] + 1;
+                        maxLen = Math.max(maxLen, dp[i][j]);
+                    }
+                }
+            }
+            return maxLen;
+        }
+
+        function calculateChineseSimilarity(keyword, searchWord) {
+            if (!keyword || !searchWord) return 0;
+            const kw = keyword.toLowerCase().trim();
+            const sw = searchWord.toLowerCase().trim();
+            if (kw === sw) return 1;
+            
+            const kwChars = new Set(kw);
+            const swChars = new Set(sw);
+            const charJaccard = jaccardSimilarity(kwChars, swChars);
+            
+            const kwBigrams = extractNGrams(kw, 2);
+            const swBigrams = extractNGrams(sw, 2);
+            const bigramJaccard = kwBigrams.size > 0 && swBigrams.size > 0 ? jaccardSimilarity(kwBigrams, swBigrams) : 0;
+            
+            const kwTrigrams = extractNGrams(kw, 3);
+            const swTrigrams = extractNGrams(sw, 3);
+            const trigramJaccard = kwTrigrams.size > 0 && swTrigrams.size > 0 ? jaccardSimilarity(kwTrigrams, swTrigrams) : 0;
+            
+            const lcsLen = longestCommonSubstring(kw, sw);
+            const lcsRatio = lcsLen / Math.max(kw.length, sw.length);
+            
+            const weights = { char: 0.2, bigram: 0.35, trigram: 0.15, lcs: 0.3 };
+            let similarity = charJaccard * weights.char + bigramJaccard * weights.bigram + trigramJaccard * weights.trigram + lcsRatio * weights.lcs;
+            
+            if (sw.length <= 3) similarity = charJaccard * 0.5 + bigramJaccard * 0.3 + lcsRatio * 0.2;
+            
+            return Math.max(0, Math.min(1, similarity));
+        }
+
+        function buildCooccurrenceIndex(rows, keywordCol, searchCol) {
+            CO_OCCURRENCE_INDEX = null;
+            KEYWORD_BIGRAM_POOL.clear();
+            if (!rows || rows.length === 0) return;
+            
+            const coMatrix = new Map();
+            const keywordBigramSet = new Set();
+            
+            rows.forEach(row => {
+                const kw = (row[keywordCol] || '').toLowerCase().trim();
+                const sw = (row[searchCol] || '').toLowerCase().trim();
+                if (!kw || !sw) return;
+                
+                const kwGrams = extractNGrams(kw, 2);
+                const swGrams = extractNGrams(sw, 2);
+                
+                kwGrams.forEach(g => keywordBigramSet.add(g));
+                
+                for (const kg of kwGrams) {
+                    if (!coMatrix.has(kg)) coMatrix.set(kg, new Map());
+                    const swMap = coMatrix.get(kg);
+                    for (const sg of swGrams) swMap.set(sg, (swMap.get(sg) || 0) + 1);
+                }
+                
+                for (const sg of swGrams) {
+                    if (!coMatrix.has(sg)) coMatrix.set(sg, new Map());
+                    const kwMap = coMatrix.get(sg);
+                    for (const kg of kwGrams) kwMap.set(kg, (kwMap.get(kg) || 0) + 1);
+                }
+            });
+            
+            const filteredMatrix = new Map();
+            for (const [bigram, relatedMap] of coMatrix) {
+                const filtered = new Map();
+                for (const [related, count] of relatedMap) if (count >= 2) filtered.set(related, count);
+                if (filtered.size > 0) filteredMatrix.set(bigram, filtered);
+            }
+            
+            CO_OCCURRENCE_INDEX = filteredMatrix;
+            KEYWORD_BIGRAM_POOL = keywordBigramSet;
+        }
+
+        function getCooccurrenceBonus(keyword, searchWord) {
+            if (!CO_OCCURRENCE_INDEX || CO_OCCURRENCE_INDEX.size === 0) return 0;
+            const kw = keyword.toLowerCase().trim();
+            const sw = searchWord.toLowerCase().trim();
+            const kwGrams = extractNGrams(kw, 2);
+            const swGrams = extractNGrams(sw, 2);
+            if (kwGrams.size === 0 || swGrams.size === 0) return 0;
+            
+            let totalHits = 0, totalChecks = 0;
+            for (const sg of swGrams) {
+                if (!CO_OCCURRENCE_INDEX.has(sg)) continue;
+                const relatedMap = CO_OCCURRENCE_INDEX.get(sg);
+                for (const kg of kwGrams) {
+                    totalChecks++;
+                    if (relatedMap.has(kg)) totalHits++;
+                }
+            }
+            
+            if (totalChecks === 0) return 0;
+            const hitRate = totalHits / totalChecks;
+            if (hitRate < 0.1) return 0;
+            if (hitRate >= 0.5) return 3;
+            if (hitRate >= 0.3) return 2;
+            return 1;
+        }
+
+        // 辅助函数：计算产品词加分/扣分
+        function getProductWordBonus(swLower) {
+            if (PRODUCT_WORDS.size === 0) return 0;
+            const hasProductWord = Array.from(PRODUCT_WORDS).some(product => swLower.includes(product));
+            return hasProductWord ? 2 : -3; // 包含+2分，不包含-3分
+        }
+        
+        function calculateSemanticScore(keyword, searchWord) {
+            if (!keyword || !searchWord) return 0;
+            const kwLower = keyword.toLowerCase().trim();
+            const swLower = searchWord.toLowerCase().trim();
+
+            // 1. 竞品词检测（最高优先级）
+            if (checkCompetitorWord(searchWord) || checkCustomCompetitorKeyword(searchWord)) {
+                // 即使是竞品词，也要检查产品词
+                let score = 4;
+                const productBonus = getProductWordBonus(swLower);
+                return Math.max(0, Math.min(10, score + productBonus));
+            }
+            
+            // 2. 完全匹配
+            if (kwLower === swLower) {
+                let score = 10;
+                // 完全匹配也要检查产品词
+                const productBonus = getProductWordBonus(swLower);
+                score = Math.max(0, Math.min(10, score + productBonus));
+                return Math.round(score);
+            }
+            
+            // 3. 包含关系（关键词包含搜索词或搜索词包含关键词）
+            const hasIncludeRelation = kwLower.includes(swLower) || swLower.includes(kwLower);
+            if (hasIncludeRelation) {
+                let score = 9;
+                // 包含关系也要检查产品词
+                const productBonus = getProductWordBonus(swLower);
+                score = Math.max(0, Math.min(10, score + productBonus));
+                return Math.round(score);
+            }
+            
+            // 4. 品牌词检测
+            const hasBrandWord = Array.from(BRAND_WORDS).some(brand => swLower.includes(brand));
+            if (hasBrandWord) {
+                // 搜索词包含品牌词，基础分6分，品牌词加分2分
+                let brandScore = 6 + 2; // 8分基础
+                // 语义相似度额外加分
+                const chineseSim = calculateChineseSimilarity(kwLower, swLower);
+                if (chineseSim > 0.5) {
+                    brandScore = Math.min(10, brandScore + Math.round(chineseSim * 2));
+                }
+                // 品牌词路径也要检查产品词
+                const productBonus = getProductWordBonus(swLower);
+                brandScore = Math.max(0, Math.min(10, brandScore + productBonus));
+                return Math.round(brandScore);
+            }
+            
+            // 5. 语义相似度基础评分
+            const chineseSim = calculateChineseSimilarity(kwLower, swLower);
+            let baseScore = chineseSim * 7;
+            
+            let bonusScore = 0;
+            
+            // 产品词加分/扣分
+            bonusScore += getProductWordBonus(swLower);
+            
+            // 共现索引加分
+            const cooccurBonus = getCooccurrenceBonus(kwLower, swLower);
+            bonusScore += cooccurBonus;
+            
+            let finalScore = Math.min(Math.max(baseScore + bonusScore, 0), 10);
+            
+            // 通用词过滤
+            const swWords = swLower.split(/[\s\-_,，.。！!?？;；:]+/).filter(w => w.length > 0);
+            if (swWords.length > 0 && swWords.every(w => UNIVERSAL_LOW_WORDS.has(w))) {
+                finalScore = Math.min(finalScore, 3);
+            }
+            
+            return Math.max(0, Math.round(finalScore));
+        }
+
+        function extractBrandAndProductWords(keywords, plans, groups) {
+            // 如果已经自动提取过，不再重新提取，保留用户的修改
+            if (HAS_AUTO_EXTRACTED) {
+                displayExtractedWords();
+                return;
+            }
+            
+            BRAND_WORDS.clear();
+            PRODUCT_WORDS.clear();
+            AUTO_EXTRACTED_BRAND_WORDS.clear();
+            AUTO_EXTRACTED_PRODUCT_WORDS.clear();
+            
+            if ((!keywords || keywords.length === 0) && (!plans || plans.length === 0) && (!groups || groups.length === 0)) return;
+
+            // ========== 核心产品词：只从关键词列中通过词频分析提取 ==========
+            const productCandidateFreq = {};
+            (keywords || []).forEach(kw => {
+                if (!kw || kw.trim() === '') return;
+                const kwStr = kw.toLowerCase().trim();
+                const candidates = extractKeywordCandidates(kwStr);
+                candidates.forEach(word => productCandidateFreq[word] = (productCandidateFreq[word] || 0) + 1);
+            });
+
+            // ========== 品牌词：从推广计划名称和推广组名称中智能识别 ==========
+            const uniquePlans = [...new Set((plans || []).filter(p => p && p.trim() !== ''))];
+            uniquePlans.forEach(plan => {
+                if (!plan) return;
+                const planStr = plan.trim();
+                
+                const match1 = planStr.match(/^(.+?)品牌词[-_\s]/i);
+                if (match1) {
+                    const brand = match1[1].trim();
+                    if (brand.length >= 1 && brand.length <= 10) {
+                        BRAND_WORDS.add(brand.toLowerCase());
+                        AUTO_EXTRACTED_BRAND_WORDS.add(brand.toLowerCase());
+                    }
+                    return;
+                }
+                
+                const match2 = planStr.match(/^(.+?)品牌[-_\s]/i);
+                if (match2) {
+                    const brand = match2[1].trim();
+                    if (brand.length >= 1 && brand.length <= 10) {
+                        BRAND_WORDS.add(brand.toLowerCase());
+                        AUTO_EXTRACTED_BRAND_WORDS.add(brand.toLowerCase());
+                    }
+                }
+            });
+
+            // 从包含"品牌"的推广组关键词中提取
+            const brandGroupKeywords = [];
+            for (let i = 0; i < Math.min((keywords || []).length, (groups || []).length); i++) {
+                if (keywords[i] && groups[i]) {
+                    const groupLower = groups[i].toLowerCase();
+                    if (groupLower.includes('品牌')) {
+                        brandGroupKeywords.push(keywords[i].toLowerCase().trim());
+                    }
+                }
+            }
+            
+            if (brandGroupKeywords.length >= 2) {
+                const ngramFreq = {};
+                brandGroupKeywords.forEach(kw => {
+                    for (let n = 2; n <= 6 && n <= kw.length; n++) {
+                        for (let i = 0; i <= kw.length - n; i++) {
+                            const substr = kw.substring(i, i + n);
+                            const chineseChars = substr.match(/[\u4e00-\u9fa5]/g);
+                            const englishChars = substr.match(/[a-z]/g);
+                            if ((chineseChars && chineseChars.length >= 2) || 
+                                (englishChars && englishChars.length >= 2)) {
+                                ngramFreq[substr] = (ngramFreq[substr] || 0) + 1;
+                            }
+                        }
+                    }
+                });
+                
+                const ngramCoverage = {};
+                Object.keys(ngramFreq).forEach(ngram => {
+                    let count = 0;
+                    brandGroupKeywords.forEach(kw => {
+                        if (kw.includes(ngram)) count++;
+                    });
+                    ngramCoverage[ngram] = count / brandGroupKeywords.length;
+                });
+                
+                const minCoverage = brandGroupKeywords.length <= 3 ? 0.3 : 0.5;
+                
+                Object.entries(ngramFreq)
+                    .filter(([ngram, freq]) => {
+                        if (freq < 2) return false;
+                        if (/^\d+$/.test(ngram)) return false;
+                        if (ngramCoverage[ngram] < minCoverage) return false;
+                        if (GENERIC_BUSINESS_WORDS.has(ngram) || UNIVERSAL_LOW_WORDS.has(ngram)) return false;
+                        return true;
+                    })
+                    .sort((a, b) => {
+                        const coverageDiff = ngramCoverage[b[0]] - ngramCoverage[a[0]];
+                        if (coverageDiff !== 0) return coverageDiff;
+                        return b[1] - a[1];
+                    })
+                    .slice(0, 5)
+                    .forEach(([ngram]) => {
+                        BRAND_WORDS.add(ngram);
+                        AUTO_EXTRACTED_BRAND_WORDS.add(ngram);
+                    });
+            }
+
+            const allKwCandidates = {};
+            (keywords || []).forEach(kw => {
+                if (!kw || kw.trim() === '') return;
+                const kwStr = kw.toLowerCase().trim();
+                const candidates = extractKeywordCandidates(kwStr);
+                candidates.forEach(word => allKwCandidates[word] = (allKwCandidates[word] || 0) + 1);
+            });
+            
+            Object.entries(allKwCandidates).forEach(([word, freq]) => {
+                if (isLikelyBrandWord(word)) {
+                    BRAND_WORDS.add(word);
+                    AUTO_EXTRACTED_BRAND_WORDS.add(word);
+                }
+            });
+
+            if (Object.keys(productCandidateFreq).length === 0) return;
+
+            const sortedTerms = Object.entries(productCandidateFreq)
+                .sort((a, b) => b[1] - a[1])
+                .filter(([word, freq]) => {
+                    if (word.length < 2) return false;
+                    if (/^\d+$/.test(word)) return false;
+                    if (GENERIC_BUSINESS_WORDS.has(word)) return false;
+                    if (UNIVERSAL_LOW_WORDS.has(word)) return false;
+                    if (COMPETITOR_WORDS.has(word)) return false;
+                    if (word.includes('品牌词') || word.includes('牌词')) return false;
+                    if (/^[\u4e00-\u9fa5]{2,}$/.test(word) && !word.match(/[a-z0-9]/)) {
+                        const regionChars = ['京', '津', '沪', '渝', '冀', '豫', '云', '辽', '黑', '湘', '皖', '鲁', '新', '苏', '浙', '赣', '鄂', '桂', '甘', '晋', '蒙', '陕', '吉', '闽', '贵', '粤', '青', '藏', '川', '宁', '琼'];
+                        const regionCount = regionChars.filter(r => word.includes(r)).length;
+                        if (regionCount >= 3) return false;
+                    }
+                    const totalKwCount = (keywords || []).filter(k => k && k.trim()).length;
+                    if (totalKwCount <= 5) return freq >= 1;
+                    return freq >= 2;
+                });
+
+            sortedTerms.forEach(([word, freq]) => {
+                if (BRAND_WORDS.has(word)) return;
+                const maxProductCount = Math.min(10, Math.max(2, Math.floor(sortedTerms.length * 0.6)));
+                if (PRODUCT_WORDS.size < maxProductCount) {
+                    PRODUCT_WORDS.add(word);
+                    AUTO_EXTRACTED_PRODUCT_WORDS.add(word);
+                }
+            });
+
+            extractAutoCompetitorWords(keywords, plans, groups);
+            
+            // 标记已经自动提取过
+            HAS_AUTO_EXTRACTED = true;
+
+            displayExtractedWords();
+        }
+
+        // 自动从包含"竞品"的计划/推广组中提取竞品词
+        function extractAutoCompetitorWords(keywords, plans, groups) {
+            // 如果已经自动提取过，不再重新提取
+            if (HAS_AUTO_EXTRACTED) return;
+            
+            AUTO_COMPETITOR_WORDS.clear();
+            AUTO_EXTRACTED_COMPETITOR_WORDS.clear();
+            if (!keywords || keywords.length === 0) return;
+
+            const competitorGroupKeywords = [];
+            
+            // 从推广计划中筛选包含"竞品"的关键词
+            for (let i = 0; i < Math.min((keywords || []).length, (plans || []).length); i++) {
+                if (keywords[i] && plans[i]) {
+                    const planLower = plans[i].toLowerCase();
+                    if (planLower.includes('竞品')) {
+                        competitorGroupKeywords.push(keywords[i].toLowerCase().trim());
+                    }
+                }
+            }
+            
+            // 从推广组中筛选包含"竞品"的关键词
+            for (let i = 0; i < Math.min((keywords || []).length, (groups || []).length); i++) {
+                if (keywords[i] && groups[i]) {
+                    const groupLower = groups[i].toLowerCase();
+                    if (groupLower.includes('竞品')) {
+                        competitorGroupKeywords.push(keywords[i].toLowerCase().trim());
+                    }
+                }
+            }
+            
+            // 去重
+            const uniqueCompetitorKeywords = [...new Set(competitorGroupKeywords)];
+            if (uniqueCompetitorKeywords.length < 2) return;
+
+            // N-gram频率分析
+            const ngramFreq = {};
+            uniqueCompetitorKeywords.forEach(kw => {
+                for (let n = 2; n <= 6 && n <= kw.length; n++) {
+                    for (let i = 0; i <= kw.length - n; i++) {
+                        const substr = kw.substring(i, i + n);
+                        const chineseChars = substr.match(/[\u4e00-\u9fa5]/g);
+                        const englishChars = substr.match(/[a-z]/g);
+                        if ((chineseChars && chineseChars.length >= 2) || 
+                            (englishChars && englishChars.length >= 2)) {
+                            ngramFreq[substr] = (ngramFreq[substr] || 0) + 1;
+                        }
+                    }
+                }
+            });
+            
+            // 计算覆盖率
+            const ngramCoverage = {};
+            Object.keys(ngramFreq).forEach(ngram => {
+                let count = 0;
+                uniqueCompetitorKeywords.forEach(kw => {
+                    if (kw.includes(ngram)) count++;
+                });
+                ngramCoverage[ngram] = count / uniqueCompetitorKeywords.length;
+            });
+            
+            // 筛选高频高覆盖率的子串作为竞品词
+            const minCoverage = uniqueCompetitorKeywords.length <= 3 ? 0.3 : 0.5;
+            
+            Object.entries(ngramFreq)
+                .filter(([ngram, freq]) => {
+                    if (freq < 2) return false;
+                    if (/^\d+$/.test(ngram)) return false;
+                    if (ngramCoverage[ngram] < minCoverage) return false;
+                    if (GENERIC_BUSINESS_WORDS.has(ngram) || UNIVERSAL_LOW_WORDS.has(ngram)) return false;
+                    // 排除已识别的品牌词和产品词
+                    if (BRAND_WORDS.has(ngram) || PRODUCT_WORDS.has(ngram)) return false;
+                    return true;
+                })
+                .sort((a, b) => {
+                    const coverageDiff = ngramCoverage[b[0]] - ngramCoverage[a[0]];
+                    if (coverageDiff !== 0) return coverageDiff;
+                    return b[1] - a[1];
+                })
+                .slice(0, 5)
+                .forEach(([ngram]) => {
+                    let isBrandRelated = false;
+                    for (const brand of BRAND_WORDS) {
+                        if (ngram.includes(brand) || brand.includes(ngram)) {
+                            isBrandRelated = true;
+                            break;
+                        }
+                    }
+                    if (!isBrandRelated) {
+                        AUTO_COMPETITOR_WORDS.add(ngram);
+                        AUTO_EXTRACTED_COMPETITOR_WORDS.add(ngram);
+                    }
+                });
+        }
+
+        function extractKeywordCandidates(text) {
+            const candidates = new Set();
+            const separator = /[\s\-_+,，.。！!?？;；:：、\/\\()（）【】\[\]{}"'「」~`]+/;
+            const segments = text.split(separator).filter(s => s.length > 0);
+            
+            segments.forEach(segment => {
+                if (segment.length < 2) return;
+                const hasChinese = /[\u4e00-\u9fa5]/.test(segment);
+                const hasLatin = /[a-z]/.test(segment);
+                
+                if (hasChinese || hasLatin) {
+                    if (segment.length >= 2 && segment.length <= 30) candidates.add(segment);
+                    
+                    const chineseChars = segment.match(/[\u4e00-\u9fa5]{2,}/g);
+                    if (chineseChars) {
+                        chineseChars.forEach(cc => {
+                            if (cc.length >= 2 && cc.length <= 8) candidates.add(cc);
+                            for (let i = 0; i < cc.length - 1; i++) {
+                                const bigram = cc.substring(i, i + 2);
+                                if (!GENERIC_BUSINESS_WORDS.has(bigram) && !UNIVERSAL_LOW_WORDS.has(bigram)) candidates.add(bigram);
+                            }
+                            for (let i = 0; i < cc.length - 2; i++) candidates.add(cc.substring(i, i + 3));
+                        });
+                    }
+                    
+                    const engParts = segment.match(/[a-z]{2,}/g);
+                    if (engParts) engParts.forEach(ep => { if (ep.length >= 2 && !/^[a-z]{1,2}$/i.test(ep)) candidates.add(ep); });
+                }
+            });
+            return candidates;
+        }
+
+        function isLikelyBrandWord(word) {
+            if (/^[a-z]{2,6}$/i.test(word)) return true;
+            if (/^[a-z]+\d+[a-z]*$/i.test(word)) return true;
+            if (/^[a-z\d]{3,12}$/i.test(word) && /[a-z]/.test(word) && /\d/.test(word)) return true;
+            return false;
+        }
+
+        const GENERIC_BUSINESS_WORDS = new Set([
+            '公司', '企业', '有限', '科技', '网络', '信息', '服务', '咨询',
+            '在线', '下单', '打样', '生产', '定制', '批发', '零售', '销售',
+            '专业', '优质', '高效', '快速', '精准', '全面', '完善',
+            '中国', '北京', '上海', '广州', '深圳', '杭州', '南京', '武汉',
+            '成都', '重庆', '天津', '苏州', '宁波', '厦门', '青岛', '大连',
+            '全国', '地区', '本地', '附近', '远程', '线上', '线下',
+            '价格', '报价', '费用', '多少钱', '收费', '成本',
+            '什么', '怎么', '如何', '哪个', '哪些', '哪里',
+            '推荐', '排行', '排名', '排名榜', '十大', '哪个好',
+            '作用', '功效', '效果', '副作用', '禁忌',
+            '症状', '原因', '治疗', '预防', '护理',
+            '官网', '官方', '首页', '入口', '平台', '网站',
+            '电话', '地址', '联系方式', '客服',
+            '加盟', '代理', '招商', '合作',
+            '品牌', '品牌词', '竞品', '竞品词'
+        ]);
+
+        // ========== 添加词语功能 ==========
+        function showAddWordInput(category) {
+            document.getElementById(`add-word-form-${category}`).style.display = 'inline-flex';
+            document.querySelector(`.word-category[data-category="${category}"] .add-word-btn`).style.display = 'none';
+            setTimeout(() => document.getElementById(`add-word-input-${category}`).focus(), 100);
+        }
+
+        function hideAddWordInput(category) {
+            document.getElementById(`add-word-form-${category}`).style.display = 'none';
+            document.querySelector(`.word-category[data-category="${category}"] .add-word-btn`).style.display = 'inline-flex';
+            document.getElementById(`add-word-input-${category}`).value = '';
+        }
+
+        function handleAddWordKeypress(event, category) {
+            if (event.key === 'Enter') {
+                addWord(category);
+            }
+        }
+
+        function addWord(category) {
+            const input = document.getElementById(`add-word-input-${category}`);
+            const word = input.value.trim();
+            
+            if (!word) {
+                hideAddWordInput(category);
+                return;
+            }
+            
+            const wordLower = word.toLowerCase();
+            
+            // 添加到对应集合并标记为用户添加
+            switch (category) {
+                case 'brand':
+                    BRAND_WORDS.add(wordLower);
+                    USER_ADDED_BRAND_WORDS.add(wordLower);
+                    break;
+                case 'product':
+                    PRODUCT_WORDS.add(wordLower);
+                    USER_ADDED_PRODUCT_WORDS.add(wordLower);
+                    break;
+                case 'competitor':
+                    AUTO_COMPETITOR_WORDS.add(wordLower);
+                    USER_ADDED_COMPETITOR_WORDS.add(wordLower);
+                    break;
+            }
+            
+            // 重新渲染显示
+            displayExtractedWords();
+            
+            // 清空输入并隐藏表单
+            input.value = '';
+            hideAddWordInput(category);
+        }
+
+        // 删除词语功能
+        function deleteWord(word, category) {
+            // 从对应集合移除
+            switch (category) {
+                case 'brand':
+                    BRAND_WORDS.delete(word);
+                    USER_ADDED_BRAND_WORDS.delete(word);
+                    break;
+                case 'product':
+                    PRODUCT_WORDS.delete(word);
+                    USER_ADDED_PRODUCT_WORDS.delete(word);
+                    break;
+                case 'competitor':
+                    AUTO_COMPETITOR_WORDS.delete(word);
+                    USER_ADDED_COMPETITOR_WORDS.delete(word);
+                    break;
+            }
+            // 重新渲染显示
+            displayExtractedWords();
+        }
+
+        // 一键清空某个分类的所有词
+        function clearAllWords(category) {
+            if (!confirm('确定要清空该分类下的所有词吗？')) return;
+            
+            switch (category) {
+                case 'brand':
+                    BRAND_WORDS.clear();
+                    USER_ADDED_BRAND_WORDS.clear();
+                    AUTO_EXTRACTED_BRAND_WORDS.clear();
+                    break;
+                case 'product':
+                    PRODUCT_WORDS.clear();
+                    USER_ADDED_PRODUCT_WORDS.clear();
+                    AUTO_EXTRACTED_PRODUCT_WORDS.clear();
+                    break;
+                case 'competitor':
+                    AUTO_COMPETITOR_WORDS.clear();
+                    USER_ADDED_COMPETITOR_WORDS.clear();
+                    AUTO_EXTRACTED_COMPETITOR_WORDS.clear();
+                    break;
+            }
+            
+            // 重新渲染显示
+            displayExtractedWords();
+            
+            // 保存删除后的设置到记忆
+            if (CURRENT_ACCOUNT_NAME) {
+                saveMemory(CURRENT_ACCOUNT_NAME);
+                showSuccessToast('已清空并保存设置');
+            } else {
+                showSuccessToast('已清空');
+            }
+        }
+
+        // ========== 拖拽排序功能 ==========
+        let draggedElement = null;
+
+        function initDragEvents(tag) {
+            tag.addEventListener('dragstart', handleDragStart);
+            tag.addEventListener('dragend', handleDragEnd);
+        }
+
+        function handleDragStart(e) {
+            draggedElement = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', e.target.dataset.word);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            draggedElement = null;
+            // 移除所有拖拽悬停样式
+            document.querySelectorAll('.word-tags.drag-over').forEach(el => {
+                el.classList.remove('drag-over');
+            });
+        }
+
+        function initDropZones() {
+            const containers = document.querySelectorAll('.word-tags');
+            containers.forEach(container => {
+                container.addEventListener('dragover', handleDragOver);
+                container.addEventListener('dragenter', handleDragEnter);
+                container.addEventListener('dragleave', handleDragLeave);
+                container.addEventListener('drop', handleDrop);
+            });
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDragEnter(e) {
+            e.preventDefault();
+            if (e.target.classList.contains('word-tags')) {
+                e.target.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            if (e.target.classList.contains('word-tags') && !e.target.contains(e.relatedTarget)) {
+                e.target.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.target.classList.remove('drag-over');
+            
+            if (!draggedElement || !e.target.classList.contains('word-tags')) return;
+            
+            const word = draggedElement.dataset.word;
+            const oldCategory = draggedElement.dataset.category;
+            const newCategory = e.target.dataset.category;
+            
+            // 如果拖拽到不同分类
+            if (oldCategory !== newCategory) {
+                // 判断该词是否为用户添加的
+                let isUserAdded = false;
+                switch (oldCategory) {
+                    case 'brand': isUserAdded = USER_ADDED_BRAND_WORDS.has(word); break;
+                    case 'product': isUserAdded = USER_ADDED_PRODUCT_WORDS.has(word); break;
+                    case 'competitor': isUserAdded = USER_ADDED_COMPETITOR_WORDS.has(word); break;
+                }
+                
+                // 从原分类完全移除（主集合 + 所有标记）
+                switch (oldCategory) {
+                    case 'brand':
+                        BRAND_WORDS.delete(word);
+                        USER_ADDED_BRAND_WORDS.delete(word);
+                        AUTO_EXTRACTED_BRAND_WORDS.delete(word);
+                        break;
+                    case 'product':
+                        PRODUCT_WORDS.delete(word);
+                        USER_ADDED_PRODUCT_WORDS.delete(word);
+                        AUTO_EXTRACTED_PRODUCT_WORDS.delete(word);
+                        break;
+                    case 'competitor':
+                        AUTO_COMPETITOR_WORDS.delete(word);
+                        USER_ADDED_COMPETITOR_WORDS.delete(word);
+                        AUTO_EXTRACTED_COMPETITOR_WORDS.delete(word);
+                        break;
+                }
+                
+                // 添加到新分类（保留用户添加标记）
+                switch (newCategory) {
+                    case 'brand':
+                        BRAND_WORDS.add(word);
+                        if (isUserAdded) USER_ADDED_BRAND_WORDS.add(word);
+                        break;
+                    case 'product':
+                        PRODUCT_WORDS.add(word);
+                        if (isUserAdded) USER_ADDED_PRODUCT_WORDS.add(word);
+                        break;
+                    case 'competitor':
+                        AUTO_COMPETITOR_WORDS.add(word);
+                        if (isUserAdded) USER_ADDED_COMPETITOR_WORDS.add(word);
+                        break;
+                }
+                
+                // 重新渲染显示
+                displayExtractedWords();
+            }
+        }
+
+        function displayExtractedWords() {
+            const area = document.getElementById('extracted-words-area');
+            const brandContainer = document.getElementById('brand-words');
+            const productContainer = document.getElementById('product-words');
+            const competitorContainer = document.getElementById('auto-competitor-words');
+            area.querySelector('h4').innerHTML = '🤖 智能识别结果 <span class="drag-hint">（可拖拽词条重新分类，点击「开始分析」生效）</span>';
+            brandContainer.innerHTML = '';
+            productContainer.innerHTML = '';
+            if (competitorContainer) competitorContainer.innerHTML = '';
+            
+            // 创建词语标签（带删除按钮和用户添加标识）
+            function createWordTag(word, category, isUserAdded = false) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'word-tag-wrapper';
+                
+                const tag = document.createElement('span');
+                tag.className = `word-tag ${category}`;
+                if (isUserAdded) {
+                    tag.classList.add('user-added');
+                }
+                tag.textContent = word;
+                tag.draggable = true;
+                tag.dataset.word = word;
+                tag.dataset.category = category;
+                initDragEvents(tag);
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = '-';
+                deleteBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    deleteWord(word, category);
+                };
+                
+                wrapper.appendChild(tag);
+                wrapper.appendChild(deleteBtn);
+                return wrapper;
+            }
+            
+            // 分离自动提取的词和用户添加的词
+            const autoBrandWords = [...BRAND_WORDS].filter(w => !USER_ADDED_BRAND_WORDS.has(w));
+            const userBrandWords = [...USER_ADDED_BRAND_WORDS];
+            const autoProductWords = [...PRODUCT_WORDS].filter(w => !USER_ADDED_PRODUCT_WORDS.has(w));
+            const userProductWords = [...USER_ADDED_PRODUCT_WORDS];
+            const autoCompetitorWords = [...AUTO_COMPETITOR_WORDS].filter(w => !USER_ADDED_COMPETITOR_WORDS.has(w));
+            const userCompetitorWords = [...USER_ADDED_COMPETITOR_WORDS];
+            
+            // 品牌词
+            if (BRAND_WORDS.size > 0) {
+                autoBrandWords.forEach(word => {
+                    brandContainer.appendChild(createWordTag(word, 'brand', false));
+                });
+                userBrandWords.forEach(word => {
+                    brandContainer.appendChild(createWordTag(word, 'brand', true));
+                });
+            } else {
+                const empty = document.createElement('span');
+                empty.className = 'word-tag empty';
+                empty.textContent = '未识别到品牌词';
+                brandContainer.appendChild(empty);
+            }
+            
+            // 核心产品词
+            if (PRODUCT_WORDS.size > 0) {
+                autoProductWords.forEach(word => {
+                    productContainer.appendChild(createWordTag(word, 'product', false));
+                });
+                userProductWords.forEach(word => {
+                    productContainer.appendChild(createWordTag(word, 'product', true));
+                });
+            } else {
+                const empty = document.createElement('span');
+                empty.className = 'word-tag empty';
+                empty.textContent = '未识别到产品词';
+                productContainer.appendChild(empty);
+            }
+            
+            // 竞品词
+            if (competitorContainer) {
+                if (AUTO_COMPETITOR_WORDS.size > 0) {
+                    autoCompetitorWords.forEach(word => {
+                        competitorContainer.appendChild(createWordTag(word, 'competitor', false));
+                    });
+                    userCompetitorWords.forEach(word => {
+                        competitorContainer.appendChild(createWordTag(word, 'competitor', true));
+                    });
+                } else {
+                    const empty = document.createElement('span');
+                    empty.className = 'word-tag empty';
+                    empty.textContent = '未识别到竞品词（需计划/组名含"竞品"）';
+                    competitorContainer.appendChild(empty);
+                }
+            }
+            
+            // 初始化拖拽事件
+            initDropZones();
+            area.classList.remove('hidden');
+        }
+
+        function initCustomKeywords(inputText) {
+            CUSTOM_KEYWORDS.clear();
+            if (!inputText || inputText.trim() === '') return;
+            inputText.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).forEach(line => CUSTOM_KEYWORDS.add(line.toLowerCase()));
+        }
+
+        function initCompetitorKeywords(inputText) {
+            CUSTOM_COMPETITOR_KEYWORDS.clear();
+            if (!inputText || inputText.trim() === '') return;
+            inputText.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).forEach(line => CUSTOM_COMPETITOR_KEYWORDS.add(line.toLowerCase()));
+        }
+
+        function checkCustomKeyword(searchWord) {
+            if (CUSTOM_KEYWORDS.size === 0) return false;
+            const searchLower = searchWord.toLowerCase();
+            for (const keyword of CUSTOM_KEYWORDS) if (searchLower.includes(keyword)) return true;
+            return false;
+        }
+
+        function checkCustomCompetitorKeyword(searchWord) {
+            if (CUSTOM_COMPETITOR_KEYWORDS.size === 0) return false;
+            const searchLower = searchWord.toLowerCase();
+            for (const keyword of CUSTOM_COMPETITOR_KEYWORDS) if (searchLower.includes(keyword)) return true;
+            return false;
+        }
+
+        const COMPETITOR_WORDS = new Set([
+            'tiktok', '抖音', 'ozon', 'shopee', 'lazada', 'temu', '美客多', 'ebay', 'avito',
+            'amazon', '亚马逊', 'wish', '速卖通', 'aliexpress', 'shein', '希音',
+            '淘宝', '天猫', '京东', '拼多多', 'pdd', '抖音电商', '快手电商', '小红书',
+            '得物', '唯品会', '苏宁', '国美', '当当', '1688', '阿里巴巴',
+            '新东方', '学而思', '高途', '作业帮', '猿辅导', '中公', '华图', '粉笔',
+            '中信建投', '永安期货', '国泰君安', '银河期货', '广发期货', '华泰期货',
+            '招商银行', '工商银行', '建设银行', '农业银行', '中国银行', '平安银行',
+            '支付宝', '微信支付', '连连支付', 'PayPal',
+            '美团', '饿了么', '大众点评', '百度', '高德', '滴滴', '哈啰'
+        ]);
+
+        const UNIVERSAL_LOW_WORDS = new Set([
+            '吗', '呢', '啊', '吧', '呀',
+            '首页', '教程', '流程', '方法', '技巧', '步骤', '下载',
+            '安装', '使用', '查看', '点击', '详情', '成功', '失败', '办理', '申请', '审核', '通过',
+            '充值', '开通', '关闭', '启用', '停用', '修改', '编辑',
+            '删除', '保存', '分享', '转发', '收藏', '点赞', '评论', '关注', '私信', '客服', '电话',
+            '地址', '联系方式', '时间', '免费', '付费', '会员',
+            '正规', '靠谱', '最新', '2024', '2025', '大全', '汇总',
+            '入门', '基础', '进阶', '高级', '专业', '详细', '完整', '简单', '快速', '高效', '精准',
+            '电脑版', '网页版', '手机版', 'APP', '小程序', '公众号', '中文版', '官方版', '最新版',
+            '已', '了', '的', '和', '与', '或', '及', '之', '于', '以', '为', '在', '有', '无',
+            '不', '也', '都', '就', '才', '还', '又', '很', '非常', '太', '更', '我', '你', '他',
+            '这', '那', '哪', '个', '款', '家', '种', '里', '中', '上', '下', '前', '后', '左', '右',
+            '存入', '零钱', '微信', '支付宝', '银行卡', '账户', '账号', '密码', '验证码', '短信', '邮件'
+        ]);
+
+        function checkCompetitorWord(searchWord) {
+            if (!searchWord) return false;
+            const searchLower = searchWord.toLowerCase();
+            // 检查内置竞品词库
+            for (const word of COMPETITOR_WORDS) if (searchLower.includes(word.toLowerCase())) return true;
+            // 检查自动提取的竞品词
+            for (const word of AUTO_COMPETITOR_WORDS) if (searchLower.includes(word.toLowerCase())) return true;
+            return false;
+        }
+
+        function autoMatchColumns(fields) {
+            const matchRules = {
+                plan: ['计划', '推广计划', 'plan', 'campaign'],
+                group: ['推广组', '单元', '组', 'unit', 'group'],
+                cost: ['消费', '花费', '金额', 'cost', 'expense', '总费用'],
+                convert: ['转化', '转化数', '转化量', 'convert', 'conversion'],
+                keyword: ['关键词', 'key', 'keyword'],
+                search: ['搜索词', '搜索', 'search', 'query']
+            };
+            const lowerFields = fields.map(f => f.toLowerCase().trim());
+            
+            const planCol = fields.find((f, idx) => matchRules.plan.some(rule => lowerFields[idx].includes(rule.toLowerCase())));
+            if (planCol) { document.getElementById('sel-plan').value = planCol; selectedPlanCol = planCol; document.getElementById('plan-header').classList.remove('hidden'); }
+            
+            const groupCol = fields.find((f, idx) => matchRules.group.some(rule => lowerFields[idx].includes(rule.toLowerCase())));
+            if (groupCol) { document.getElementById('sel-group').value = groupCol; selectedGroupCol = groupCol; document.getElementById('group-header').classList.remove('hidden'); }
+            
+            const costCol = fields.find((f, idx) => matchRules.cost.some(rule => lowerFields[idx].includes(rule.toLowerCase())));
+            if (costCol) { document.getElementById('sel-cost').value = costCol; selectedCostCol = costCol; document.getElementById('cost-header').classList.remove('hidden'); }
+            
+            const convertCol = fields.find((f, idx) => matchRules.convert.some(rule => lowerFields[idx].includes(rule.toLowerCase())));
+            if (convertCol) { document.getElementById('sel-convert').value = convertCol; selectedConvertCol = convertCol; document.getElementById('convert-header').classList.remove('hidden'); }
+            
+            const keywordCol = fields.find((f, idx) => matchRules.keyword.some(rule => lowerFields[idx].includes(rule.toLowerCase())));
+            if (keywordCol) document.getElementById('sel-keyword').value = keywordCol;
+            
+            const searchCol = fields.find((f, idx) => matchRules.search.some(rule => lowerFields[idx].includes(rule.toLowerCase())));
+            if (searchCol) document.getElementById('sel-search').value = searchCol;
+        }
+
+        function initSelectors(fields) {
+            ['sel-plan', 'sel-group', 'sel-cost', 'sel-convert', 'sel-keyword', 'sel-search'].forEach(id => {
+                const sel = document.getElementById(id);
+                sel.innerHTML = '<option value="">-- 请选择 --</option>';
+                fields.forEach(field => {
+                    if (field) {
+                        const option = document.createElement('option');
+                        option.value = field;
+                        option.textContent = field;
+                        sel.appendChild(option);
+                    }
+                });
+            });
+            autoMatchColumns(fields);
+        }
+
+        // ========== 记忆功能：保存/加载智能识别结果 ==========
+        
+        // 从文件名提取账户名称（日期之前的部分）
+        function extractAccountName(fileName) {
+            if (!fileName) return '';
+            let name = fileName.replace(/\.csv$/i, '');
+            const datePattern = /[_\-\s](\d{4}[-_]?\d{2}[-_]?\d{2})/;
+            const match = name.match(datePattern);
+            if (match) {
+                return name.substring(0, match.index).trim();
+            }
+            return name.trim();
+        }
+        
+        function saveMemory(accountName) {
+            if (!accountName) return;
+            try {
+                const memory = loadAllMemory();
+                memory[accountName] = {
+                    version: MEMORY_VERSION, // 保存版本号
+                    brandWords: [...BRAND_WORDS],
+                    productWords: [...PRODUCT_WORDS],
+                    competitorWords: [...AUTO_COMPETITOR_WORDS],
+                    userAddedBrandWords: [...USER_ADDED_BRAND_WORDS],
+                    userAddedProductWords: [...USER_ADDED_PRODUCT_WORDS],
+                    userAddedCompetitorWords: [...USER_ADDED_COMPETITOR_WORDS],
+                    autoExtractedBrandWords: [...AUTO_EXTRACTED_BRAND_WORDS],
+                    autoExtractedProductWords: [...AUTO_EXTRACTED_PRODUCT_WORDS],
+                    autoExtractedCompetitorWords: [...AUTO_EXTRACTED_COMPETITOR_WORDS],
+                    savedAt: new Date().toISOString()
+                };
+                localStorage.setItem(MEMORY_STORAGE_KEY, JSON.stringify(memory));
+            } catch (e) {
+                console.warn('保存记忆失败:', e);
+            }
+        }
+        
+        function loadAllMemory() {
+            try {
+                const data = localStorage.getItem(MEMORY_STORAGE_KEY);
+                return data ? JSON.parse(data) : {};
+            } catch (e) {
+                return {};
+            }
+        }
+        
+        function loadMemory(accountName) {
+            if (!accountName) return null;
+            const memory = loadAllMemory();
+            const accountData = memory[accountName];
+            if (!accountData) return null;
+            // 检查版本号，版本不匹配则返回null（需要重新提取）
+            if (accountData.version !== MEMORY_VERSION) {
+                console.log('记忆数据版本不匹配，需要重新提取');
+                return null;
+            }
+            return accountData;
+        }
+        
+        function restoreFromMemory(memoryData) {
+            if (!memoryData) return false;
+            BRAND_WORDS.clear();
+            PRODUCT_WORDS.clear();
+            AUTO_COMPETITOR_WORDS.clear();
+            USER_ADDED_BRAND_WORDS.clear();
+            USER_ADDED_PRODUCT_WORDS.clear();
+            USER_ADDED_COMPETITOR_WORDS.clear();
+            AUTO_EXTRACTED_BRAND_WORDS.clear();
+            AUTO_EXTRACTED_PRODUCT_WORDS.clear();
+            AUTO_EXTRACTED_COMPETITOR_WORDS.clear();
+            
+            (memoryData.brandWords || []).forEach(w => BRAND_WORDS.add(w));
+            (memoryData.productWords || []).forEach(w => PRODUCT_WORDS.add(w));
+            (memoryData.competitorWords || []).forEach(w => AUTO_COMPETITOR_WORDS.add(w));
+            (memoryData.userAddedBrandWords || []).forEach(w => USER_ADDED_BRAND_WORDS.add(w));
+            (memoryData.userAddedProductWords || []).forEach(w => USER_ADDED_PRODUCT_WORDS.add(w));
+            (memoryData.userAddedCompetitorWords || []).forEach(w => USER_ADDED_COMPETITOR_WORDS.add(w));
+            (memoryData.autoExtractedBrandWords || []).forEach(w => AUTO_EXTRACTED_BRAND_WORDS.add(w));
+            (memoryData.autoExtractedProductWords || []).forEach(w => AUTO_EXTRACTED_PRODUCT_WORDS.add(w));
+            (memoryData.autoExtractedCompetitorWords || []).forEach(w => AUTO_EXTRACTED_COMPETITOR_WORDS.add(w));
+            
+            HAS_AUTO_EXTRACTED = true;
+            displayExtractedWords();
+            return true;
+        }
+
+        function parseFile(file) {
+            if (!file) return;
+            if (!file.name.endsWith('.csv')) { alert('只支持 CSV 格式文件，请上传正确的文件'); return; }
+            
+            // 提取账户名称
+            CURRENT_ACCOUNT_NAME = extractAccountName(file.name);
+            IS_FRESH_ANALYZE = false;
+            
+            Papa.parse(file, {
+                header: true, skipEmptyLines: true, encoding: 'GBK',
+                complete: function(results) {
+                    rawData = results.data;
+                    initSelectors(results.meta.fields);
+                    document.getElementById('config-area').classList.remove('hidden');
+                    document.getElementById('extracted-words-area').classList.add('hidden');
+                    sortOrder = null;
+                    document.getElementById('sort-icon').innerText = '';
+                    
+                    // 重置自动提取标志，新文件上传后需要重新提取
+                    HAS_AUTO_EXTRACTED = false;
+                    BRAND_WORDS.clear();
+                    PRODUCT_WORDS.clear();
+                    AUTO_COMPETITOR_WORDS.clear();
+                    AUTO_EXTRACTED_BRAND_WORDS.clear();
+                    AUTO_EXTRACTED_PRODUCT_WORDS.clear();
+                    AUTO_EXTRACTED_COMPETITOR_WORDS.clear();
+                    USER_ADDED_BRAND_WORDS.clear();
+                    USER_ADDED_PRODUCT_WORDS.clear();
+                    USER_ADDED_COMPETITOR_WORDS.clear();
+                    
+                    // 尝试加载该账户的记忆
+                    if (CURRENT_ACCOUNT_NAME) {
+                        const memory = loadMemory(CURRENT_ACCOUNT_NAME);
+                        if (memory) {
+                            restoreFromMemory(memory);
+                            showSuccessToast('文件上传成功！已加载「' + CURRENT_ACCOUNT_NAME + '」的历史识别结果');
+                            return;
+                        }
+                    }
+                    
+                    showSuccessToast('文件上传成功！已自动匹配相关列');
+                },
+                error: function(err) { alert('文件解析失败：' + err.message); }
+            });
+        }
+
+        function renderResultTable() {
+            const tbody = document.getElementById('result-tbody');
+            tbody.innerHTML = '';
+            finalResult.forEach(row => {
+                const tr = document.createElement('tr');
+                if (selectedPlanCol) { const td = document.createElement('td'); td.textContent = row.plan; tr.appendChild(td); }
+                if (selectedGroupCol) { const td = document.createElement('td'); td.textContent = row.group; tr.appendChild(td); }
+                const kwTd = document.createElement('td'); kwTd.textContent = row.keyword; tr.appendChild(kwTd);
+                const swTd = document.createElement('td'); swTd.textContent = row.search; tr.appendChild(swTd);
+                const scoreTd = document.createElement('td'); scoreTd.textContent = row.score;
+                if (row.score <= 3) scoreTd.className = 'score-low';
+                else if (row.score <= 4) scoreTd.className = 'score-warn';
+                else scoreTd.className = 'score-high';
+                tr.appendChild(scoreTd);
+                const suggestTd = document.createElement('td'); suggestTd.textContent = row.suggestion;
+                if (row.suggestion.includes('自定义')) suggestTd.className = 'custom-keyword';
+                else if (row.suggestion.includes('竞品词库')) suggestTd.className = 'manual-competitor';
+                else if (row.suggestion.includes('竞品词')) suggestTd.className = 'competitor';
+                tr.appendChild(suggestTd);
+                if (selectedCostCol) { const td = document.createElement('td'); td.textContent = row.cost; tr.appendChild(td); }
+                if (selectedConvertCol) { const td = document.createElement('td'); td.textContent = row.convert; tr.appendChild(td); }
+                const competitorTd = document.createElement('td'); competitorTd.textContent = row.isCompetitor ? '是' : '否';
+                if (row.isCompetitor) competitorTd.className = 'competitor';
+                tr.appendChild(competitorTd);
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 检测高消费低转化词
+        function checkHighCostLowConvert(cost, convert, allCosts, allConverts) {
+            if (!cost || allCosts.length === 0) return false;
+            
+            const costValue = parseFloat(cost) || 0;
+            const convertValue = parseFloat(convert) || 0;
+            
+            // 按消费排序，计算前10%阈值
+            const sortedCosts = [...allCosts].sort((a, b) => b - a);
+            const top10PercentIndex = Math.ceil(sortedCosts.length * 0.1);
+            const top10PercentThreshold = sortedCosts[top10PercentIndex - 1] || 0;
+            
+            // 判断是否高消费（前10%）
+            const isHighCost = costValue >= top10PercentThreshold && costValue > 0;
+            if (!isHighCost) return false;
+            
+            // 计算整体平均转化成本
+            const totalCost = allCosts.reduce((sum, c) => sum + c, 0);
+            const totalConvert = allConverts.reduce((sum, c) => sum + c, 0);
+            const avgConvertCost = totalConvert > 0 ? totalCost / totalConvert : Infinity;
+            
+            // 条件1：0转化
+            if (convertValue === 0) return true;
+            
+            // 条件2：转化成本高于整体平均
+            if (convertValue > 0) {
+                const currentConvertCost = costValue / convertValue;
+                if (currentConvertCost > avgConvertCost) return true;
+            }
+            
+            return false;
+        }
+
+        function generateSuggestion(score, hasCustomKeyword, hasCompetitorKeyword, searchWord, isHighCostLowConvert = false) {
+            if (hasCustomKeyword) return '✅涉及自定义词语，自动通过';
+            if (hasCompetitorKeyword) return '❓涉及竞品词库，待人工判断';
+            if (checkCompetitorWord(searchWord)) return '❓涉及竞品词，待人工判断';
+            if (isHighCostLowConvert) return '❓涉及高消费低转化词';
+            if (score <= 3) return '❌业务无关，建议加否';
+            if (score <= 4) return '⚠️待人工确认';
+            return '✅业务相关，建议保留';
+        }
+
+        function analyzeData() {
+            // 全新分析模式：重置所有状态，不加载记忆
+            if (IS_FRESH_ANALYZE) {
+                HAS_AUTO_EXTRACTED = false;
+                BRAND_WORDS.clear();
+                PRODUCT_WORDS.clear();
+                AUTO_COMPETITOR_WORDS.clear();
+                AUTO_EXTRACTED_BRAND_WORDS.clear();
+                AUTO_EXTRACTED_PRODUCT_WORDS.clear();
+                AUTO_EXTRACTED_COMPETITOR_WORDS.clear();
+                USER_ADDED_BRAND_WORDS.clear();
+                USER_ADDED_PRODUCT_WORDS.clear();
+                USER_ADDED_COMPETITOR_WORDS.clear();
+                IS_FRESH_ANALYZE = false;
+            }
+            const keywordCol = document.getElementById('sel-keyword').value;
+            const searchCol = document.getElementById('sel-search').value;
+            const planCol = document.getElementById('sel-plan').value;
+            const groupCol = document.getElementById('sel-group').value;
+            
+            if (!keywordCol || !searchCol) { showErrorToast('请选择关键词列和搜索词列！'); return; }
+            
+            let processData = rawData;
+            
+            // 构建共现索引（数据驱动语义学习）
+            buildCooccurrenceIndex(processData, keywordCol, searchCol);
+            
+            // 提取品牌词和产品词
+            const keywords = processData.map(row => row[keywordCol]).filter(kw => kw && kw.trim() !== '');
+            const plans = planCol ? processData.map(row => row[planCol]).filter(p => p) : [];
+            const groups = groupCol ? processData.map(row => row[groupCol]).filter(g => g) : [];
+            extractBrandAndProductWords(keywords, plans, groups);
+            
+            // 预计算所有消费和转化数据（用于高消费低转化词检测）
+            const allCosts = [];
+            const allConverts = [];
+            processData.forEach(row => {
+                const costValue = parseFloat(row[selectedCostCol]) || 0;
+                const convertValue = parseFloat(row[selectedConvertCol]) || 0;
+                if (costValue > 0) {
+                    allCosts.push(costValue);
+                    allConverts.push(convertValue);
+                }
+            });
+            
+            finalResult = [];
+            processData.forEach(row => {
+                const keyword = row[keywordCol] || '';
+                const searchWord = row[searchCol] || '';
+                const hasCustomKeyword = checkCustomKeyword(searchWord);
+                const hasCompetitorKeyword = checkCustomCompetitorKeyword(searchWord);
+                const isCompetitor = checkCompetitorWord(searchWord) || hasCompetitorKeyword;
+                const score = calculateSemanticScore(keyword, searchWord);
+                
+                // 检测高消费低转化词
+                const isHighCostLowConvert = checkHighCostLowConvert(
+                    row[selectedCostCol], 
+                    row[selectedConvertCol], 
+                    allCosts, 
+                    allConverts
+                );
+                
+                const suggestion = generateSuggestion(score, hasCustomKeyword, hasCompetitorKeyword, searchWord, isHighCostLowConvert);
+                
+                finalResult.push({
+                    plan: row[selectedPlanCol] || '',
+                    group: row[selectedGroupCol] || '',
+                    keyword: keyword,
+                    search: searchWord,
+                    score: score,
+                    suggestion: suggestion,
+                    cost: row[selectedCostCol] || '',
+                    convert: row[selectedConvertCol] || '',
+                    isCompetitor: isCompetitor,
+                    isHighCostLowConvert: isHighCostLowConvert
+                });
+            });
+            
+            originalResult = [...finalResult];
+            document.getElementById('result-area').classList.remove('hidden');
+            renderResultTable();
+            
+            // 保存当前智能识别结果到记忆
+            if (CURRENT_ACCOUNT_NAME) {
+                saveMemory(CURRENT_ACCOUNT_NAME);
+            }
+            
+            showSuccessToast(`分析完成！共处理 ${finalResult.length} 条数据`);
+        }
+
+        function downloadCSV(isNegativeOnly = false) {
+            let data = finalResult;
+            if (isNegativeOnly) data = finalResult.filter(row => row.score <= 3);
+            const headers = [];
+            if (selectedPlanCol) headers.push('推广计划');
+            if (selectedGroupCol) headers.push('推广组');
+            headers.push('关键词', '搜索词', '语义相关度', '推广操作建议');
+            if (selectedCostCol) headers.push('消费');
+            if (selectedConvertCol) headers.push('转化数');
+            headers.push('是否为竞品词');
+            
+            const csvContent = [headers.join(','), ...data.map(row => {
+                const rowData = [];
+                if (selectedPlanCol) rowData.push(`"${row.plan}"`);
+                if (selectedGroupCol) rowData.push(`"${row.group}"`);
+                rowData.push(`"${row.keyword}"`, `"${row.search}"`, `"${row.score}"`, `"${row.suggestion}"`);
+                if (selectedCostCol) rowData.push(`"${row.cost}"`);
+                if (selectedConvertCol) rowData.push(`"${row.convert}"`);
+                rowData.push(`"${row.isCompetitor ? '是' : '否'}"`);
+                return rowData.join(',');
+            })].join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=GBK' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = isNegativeOnly ? '否词列表.csv' : '语义匹配分析结果.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function sortTable() {
+            if (sortOrder === 'asc') { finalResult.sort((a, b) => b.score - a.score); sortOrder = 'desc'; document.getElementById('sort-icon').innerText = '↓'; }
+            else { finalResult.sort((a, b) => a.score - b.score); sortOrder = 'asc'; document.getElementById('sort-icon').innerText = '↑'; }
+            renderResultTable();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedCustom = getSimpleStorage(STORAGE_KEYS.custom);
+            if (savedCustom) { document.getElementById('custom-keywords').value = savedCustom; initCustomKeywords(savedCustom); }
+            const savedCompetitor = getSimpleStorage(STORAGE_KEYS.competitor);
+            if (savedCompetitor) { document.getElementById('competitor-keywords').value = savedCompetitor; initCompetitorKeywords(savedCompetitor); }
+            
+            document.getElementById('csvFile').addEventListener('change', function(e) { const file = e.target.files[0]; if (file) parseFile(file); });
+            
+            const uploadArea = document.getElementById('uploadArea');
+            uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+            uploadArea.addEventListener('dragleave', function() { uploadArea.classList.remove('drag-over'); });
+            uploadArea.addEventListener('drop', function(e) { e.preventDefault(); uploadArea.classList.remove('drag-over'); const file = e.dataTransfer.files[0]; if (file) parseFile(file); });
+            
+            document.getElementById('btn-save-custom').addEventListener('click', function() {
+                const text = document.getElementById('custom-keywords').value;
+                setSimpleStorage(STORAGE_KEYS.custom, text);
+                initCustomKeywords(text);
+                showSuccessToast('自定义关键词保存成功！');
+            });
+            document.getElementById('btn-clear-custom').addEventListener('click', function() {
+                document.getElementById('custom-keywords').value = '';
+                setSimpleStorage(STORAGE_KEYS.custom, '');
+                CUSTOM_KEYWORDS.clear();
+                showSuccessToast('自定义关键词已清空！');
+            });
+            document.getElementById('btn-save-competitor').addEventListener('click', function() {
+                const text = document.getElementById('competitor-keywords').value;
+                setSimpleStorage(STORAGE_KEYS.competitor, text);
+                initCompetitorKeywords(text);
+                showSuccessToast('竞品词库保存成功！');
+            });
+            document.getElementById('btn-clear-competitor').addEventListener('click', function() {
+                document.getElementById('competitor-keywords').value = '';
+                setSimpleStorage(STORAGE_KEYS.competitor, '');
+                CUSTOM_COMPETITOR_KEYWORDS.clear();
+                showSuccessToast('竞品词库已清空！');
+            });
+            document.getElementById('btn-analyze').addEventListener('click', analyzeData);
+            document.getElementById('btn-fresh-analyze').addEventListener('click', function() {
+                IS_FRESH_ANALYZE = true;
+                analyzeData();
+            });
+            document.getElementById('btn-download').addEventListener('click', function() { downloadCSV(false); });
+            document.getElementById('btn-download-negative').addEventListener('click', function() { downloadCSV(true); });
+            document.getElementById('sort-header').addEventListener('click', sortTable);
+        });
+    </script>
+</body>
+</html>
