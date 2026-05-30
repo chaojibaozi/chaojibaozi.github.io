@@ -19,38 +19,30 @@
         /* 抽屉式导航栏 - 固定浮层 */
         .sidebar {
             position: fixed;
-            left: 8px;
-            top: 8px;
-            bottom: 8px;
+            left: 0;
+            top: 0;
             width: 70px;
-            border-radius: 12px;
+            height: 100vh;
             background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
             z-index: 9999;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+            border-radius: 0 12px 12px 0;
         }
         
         .sidebar:hover {
-            width: 208px;
+            width: 210px;
         }
         
         .sidebar-header {
-            padding: 20px 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-        }
-        
-        .sidebar:hover .sidebar-header {
-            flex-direction: row;
             padding: 20px 15px;
+            display: flex;
             align-items: center;
             gap: 12px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
         }
         
         .sidebar-icon {
@@ -79,48 +71,32 @@
         }
         
         .nav-menu {
-            padding: 12px 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        
-        .sidebar:hover .nav-menu {
-            padding: 12px 10px;
-            align-items: stretch;
+            padding: 20px 10px;
         }
         
         .nav-item {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 4px;
-            padding: 10px 0;
-            margin-bottom: 4px;
+            gap: 12px;
+            padding: 14px 12px;
+            margin-bottom: 8px;
             border-radius: 10px;
             cursor: pointer;
             transition: all 0.3s ease;
-            color: rgba(0, 0, 0, 0.55);
+            color: #334155;
             text-decoration: none;
             user-select: none;
-            width: 50px;
         }
         
-        .sidebar:hover .nav-item {
-            flex-direction: row;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 12px;
-            width: auto;
-        }
-        
-        .nav-item:hover, .nav-item.active {
+        .nav-item:hover {
             background: rgba(102, 126, 234, 0.15);
             color: #667eea;
         }
         
         .nav-item.active {
             background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            font-weight: 600;
         }
         
         .nav-item.dragging {
@@ -151,18 +127,12 @@
             white-space: nowrap;
             opacity: 0;
             transition: opacity 0.3s ease 0.1s;
-            font-size: 13px;
+            font-size: 15px;
             font-weight: 500;
-            color: rgba(0, 0, 0, 0.55);
         }
         
         .sidebar:hover .nav-item-text {
             opacity: 1;
-            font-size: 15px;
-        }
-
-        .sidebar:hover .nav-item {
-            color: rgba(0, 0, 0, 0.7);
         }
         
         .drag-hint {
@@ -177,26 +147,13 @@
             opacity: 1;
         }
         
-        .sidebar::-webkit-scrollbar {
-            width: 4px;
-        }
-        
-        .sidebar::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        
-        .sidebar::-webkit-scrollbar-thumb {
-            background: rgba(0, 0, 0, 0.1);
-            border-radius: 2px;
-        }
-        
         /* 主内容区域 - iframe容器 */
         .content-frame {
-            width: calc(100% - 86px);
+            width: calc(100% - 70px);
             height: 100vh;
             border: none;
             display: block;
-            margin-left: 86px;
+            margin-left: 70px;
             opacity: 0;
             transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -209,8 +166,8 @@
         .transition-overlay {
             position: fixed;
             top: 0;
-            left: 86px;
-            width: calc(100% - 86px);
+            left: 70px;
+            width: calc(100% - 70px);
             height: 100vh;
             background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
             pointer-events: none;
@@ -228,8 +185,7 @@
             display: flex;
             flex-direction: column;
             height: 100vh;
-            padding-left: 86px;
-            padding-right: 8px;
+            padding-left: 70px;
         }
         
         .welcome-content {
@@ -439,7 +395,7 @@
     <nav class="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-icon">🚀</div>
-            <div class="sidebar-title">推广优化狮系统</div>
+            <div class="sidebar-title">整合系统</div>
         </div>
         <div class="nav-menu" id="navMenu">
             <!-- 导航项将由JS动态生成 -->
