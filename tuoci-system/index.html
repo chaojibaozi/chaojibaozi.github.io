@@ -563,7 +563,6 @@
                 this.setState({ isLoading: true, progress: 0, results: [] });
                 document.getElementById('loadingState').style.display = 'block';
                 document.getElementById('startBtnWrap').style.display = 'none';
-                document.getElementById('startSection').querySelector('h2').style.display = 'none';
 
                 let allResults = [];
                 for (let i = 0; i < seeds.length; i++) {
@@ -599,7 +598,6 @@
                 setTimeout(() => {
                     document.getElementById('loadingState').style.display = 'none';
                     document.getElementById('startBtnWrap').style.display = 'block';
-                    document.getElementById('startSection').querySelector('h2').style.display = 'block';
                     this.switchTab('results');
                     this.renderResults();
                 }, 300);
