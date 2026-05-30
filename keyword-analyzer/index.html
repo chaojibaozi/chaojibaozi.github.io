@@ -624,17 +624,18 @@
 
             const dailyTotalConversion = {};
             dates.forEach(date => {
-                let total = 0;
+                let convTotal = 0;
                 top20Keywords.forEach(k => {
                     const dayData = k.dailyData.get(date);
                     if (dayData) {
-                        total += dayData.conversion;
+                        convTotal += dayData.conversion;
                     }
                 });
-                dailyTotalConversion[date] = total;
+                dailyTotalConversion[date] = convTotal;
             });
 
-            const series = top20Keywords.map((keyword, idx) => {
+            const allSeries = [];
+            top20Keywords.forEach((keyword, idx) => {
                 const data = dates.map(date => {
                     const dayData = keyword.dailyData.get(date);
                     if (dayData) {
@@ -675,7 +676,7 @@
                 legendSelected[legendName] = true;
                 legendItemNames.push(legendName);
 
-                return {
+                allSeries.push({
                     name: legendName,
                     type: 'line',
                     smooth: true,
@@ -689,7 +690,25 @@
                     },
                     lineStyle: { width: 2 },
                     showSymbol: true
-                };
+                });
+
+                const costData = dates.map(date => {
+                    const dayData = keyword.dailyData.get(date);
+                    return dayData ? dayData.cost : 0;
+                });
+
+                allSeries.push({
+                    name: legendName,
+                    type: 'line',
+                    yAxisIndex: 1,
+                    data: costData,
+                    lineStyle: { width: 0 },
+                    symbol: 'none',
+                    silent: true,
+                    hoverAnimation: false,
+                    emphasis: { disabled: true },
+                    z: 0
+                });
             });
 
             const option = {
@@ -727,10 +746,10 @@
                 },
                 grid: {
                     left: '4%',
-                    right: 320,
+                    right: 340,
                     bottom: '20%',
                     top: '6%',
-                    containLabel: true
+                    containLabel: false
                 },
                 xAxis: {
                     type: 'category',
@@ -759,14 +778,28 @@
                     axisLine: { lineStyle: { color: '#aaa', width: 1.5 } },
                     axisTick: { alignWithLabel: true, length: 5 }
                 },
-                yAxis: {
-                    type: 'value',
-                    name: '转化数',
-                    nameTextStyle: { color: '#555', fontSize: 12, padding: [0, 0, 0, -20] },
-                    minInterval: 1,
-                    axisLabel: { color: '#666', fontSize: 11 },
-                    splitLine: { lineStyle: { color: '#f0f0f0', type: 'dashed' } }
-                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '转化数',
+                        nameTextStyle: { color: '#555', fontSize: 12, padding: [0, 0, 0, -20] },
+                        minInterval: 1,
+                        axisLabel: { color: '#666', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#f0f0f0', type: 'dashed' } }
+                    },
+                    {
+                        type: 'value',
+                        name: '消费金额',
+                        nameTextStyle: { color: '#f97316', fontSize: 12, padding: [0, 0, 0, 0] },
+                        axisLabel: {
+                            color: '#f97316',
+                            fontSize: 11,
+                            formatter: function(val) { return val.toFixed(0); }
+                        },
+                        splitLine: { show: false },
+                        axisLine: { lineStyle: { color: '#f97316' } }
+                    }
+                ],
                 dataZoom: [
                     {
                         type: 'inside',
@@ -792,7 +825,7 @@
                     '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
                     '#ec4899', '#f43f5e', '#e11d48', '#be123c', '#9f1239'
                 ],
-                series: series,
+                series: allSeries,
                 animationDuration: 1000,
                 animationEasing: 'cubicOut'
             };
@@ -984,6 +1017,99 @@
             div.textContent = text;
             return div.innerHTML;
         }
+
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.source === 'hub' && e.data.action === 'analyzeKeywords') {
+                try {
+                    const payload = e.data.payload || {};
+                    let csvData = payload.csvData;
+                    let jsonData;
+
+                    if (typeof csvData === 'string') {
+                        const workbook = XLSX.read(csvData, { type: 'string' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                    } else if (Array.isArray(csvData)) {
+                        jsonData = csvData;
+                    } else {
+                        throw new Error('无效的数据格式，请提供CSV字符串或对象数组');
+                    }
+
+                    if (!jsonData || jsonData.length === 0) {
+                        throw new Error('数据为空');
+                    }
+
+                    const keywordStats = {};
+                    let totalImpressions = 0, totalClicks = 0, totalCost = 0;
+
+                    jsonData.forEach(row => {
+                        const keyword = String(
+                            getValue(row, ['关键词', '搜索词', 'SearchTerm', 'Keyword', 'search_term', 'searchWord']) || ''
+                        ).trim();
+                        if (!keyword) return;
+
+                        const impressions = parseInt(getValue(row, ['展示次数', '展现', '展现量', '展示', 'Impressions', 'impressions', '曝光'])) || 0;
+                        const clicks = parseInt(getValue(row, ['点击次数', '点击', 'Clicks', 'clicks', '点击量'])) || 0;
+                        const cost = parseFloat(getValue(row, ['总费用', '消费', '费用', 'Cost', 'cost', '总消费', '花费', '金额'])) || 0;
+
+                        if (!keywordStats[keyword]) {
+                            keywordStats[keyword] = { keyword: keyword, count: 0, impressions: 0, clicks: 0, cost: 0 };
+                        }
+                        keywordStats[keyword].count += 1;
+                        keywordStats[keyword].impressions += impressions;
+                        keywordStats[keyword].clicks += clicks;
+                        keywordStats[keyword].cost += cost;
+
+                        totalImpressions += impressions;
+                        totalClicks += clicks;
+                        totalCost += cost;
+                    });
+
+                    const statsArray = Object.values(keywordStats);
+                    statsArray.sort((a, b) => b.count - a.count);
+
+                    const keywordStatsResult = statsArray.map(k => ({
+                        keyword: k.keyword,
+                        count: k.count,
+                        impressions: k.impressions,
+                        clicks: k.clicks,
+                        cost: k.cost,
+                        ctr: k.impressions > 0 ? (k.clicks / k.impressions * 100) : 0,
+                        avgCpc: k.clicks > 0 ? (k.cost / k.clicks) : 0
+                    }));
+
+                    const topKeywords = statsArray.slice(0, 20).map(k => ({
+                        keyword: k.keyword,
+                        count: k.count
+                    }));
+
+                    const result = {
+                        source: 'subsystem',
+                        action: 'result',
+                        id: e.data.id,
+                        data: {
+                            summary: {
+                                totalKeywords: statsArray.length,
+                                totalImpressions: totalImpressions,
+                                totalClicks: totalClicks,
+                                totalCost: totalCost
+                            },
+                            keywordStats: keywordStatsResult,
+                            topKeywords: topKeywords
+                        }
+                    };
+
+                    e.source.postMessage(result, '*');
+                } catch (error) {
+                    e.source.postMessage({
+                        source: 'subsystem',
+                        action: 'result',
+                        id: e.data.id,
+                        error: error.message
+                    }, '*');
+                }
+            }
+        });
     </script>
 </body>
 </html>
