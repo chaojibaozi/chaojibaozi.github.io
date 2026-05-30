@@ -276,52 +276,6 @@
             user-select: none !important;
         }
         
-        /* 水平可拖拽分隔条 - 输入区域 */
-        .input-divider {
-            height: 8px;
-            flex-shrink: 0;
-            cursor: row-resize;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background-color 0.15s ease;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-        
-        .input-divider::before {
-            content: '';
-            width: 32px;
-            height: 3px;
-            border-radius: 2px;
-            background: #cbd5e1;
-            box-shadow: 0 -4px 0 #cbd5e1, 0 4px 0 #cbd5e1;
-            transition: background 0.15s ease, box-shadow 0.15s ease;
-        }
-        
-        .input-divider:hover::before,
-        .input-divider.active::before {
-            background: #667eea;
-            box-shadow: 0 -4px 0 #667eea, 0 4px 0 #667eea;
-        }
-        
-        .input-divider:hover,
-        .input-divider.active {
-            background: rgba(102, 126, 234, 0.08);
-        }
-        
-        .input-divider.active {
-            background: rgba(102, 126, 234, 0.15);
-        }
-        
-        body.dragging-input,
-        body.dragging-input * {
-            cursor: row-resize !important;
-            -webkit-user-select: none !important;
-            user-select: none !important;
-        }
-        
         .result-header {
             padding: 12px 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -828,7 +782,7 @@
             display: flex;
             flex-direction: column;
             overflow-y: auto;
-            min-height: 0;
+            min-height: 150px;
         }
         
         .input-toolbar {
@@ -954,15 +908,6 @@
             .result-output { padding: 12px 16px; }
         }
     </style>
-    <script>
-var _hmt = _hmt || [];
-(function() {
-  var hm = document.createElement("script");
-  hm.src = "https://hm.baidu.com/hm.js?xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
-  var s = document.getElementsByTagName("script")[0]; 
-  s.parentNode.insertBefore(hm, s);
-})();
-</script>
 </head>
 <body>
     <!-- 抽屉式导航栏 - 固定浮层 -->
@@ -1015,8 +960,6 @@ var _hmt = _hmt || [];
                                 </div>
                             </div>
                         </div>
-                        
-                        <div class="input-divider" id="inputDivider"></div>
                         
                         <div class="chat-input-wrapper" id="chatInputWrapper">
                             <div class="chat-input-area">
@@ -1610,13 +1553,82 @@ var _hmt = _hmt || [];
             `);
         }
         
-        function addAssistantText(text) {
-            return addMessage('assistant', `
-                <div class="message-row">
-                    <div class="message-avatar">🤖</div>
-                    <div class="message-bubble">${text.replace(/\n/g, '<br>')}</div>
-                </div>
-            `);
+        let streamingTimer = null;
+
+        function addAssistantText(html) {
+            if (streamingTimer) {
+                clearTimeout(streamingTimer);
+                streamingTimer = null;
+            }
+
+            const messagesEl = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'chat-message assistant-message';
+            const row = document.createElement('div');
+            row.className = 'message-row';
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = '🤖';
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            row.appendChild(avatar);
+            row.appendChild(bubble);
+            div.appendChild(row);
+            messagesEl.appendChild(div);
+
+            const tokens = [];
+            let remaining = html;
+            while (remaining.length > 0) {
+                const tagStart = remaining.indexOf('<');
+                if (tagStart === 0) {
+                    const tagEnd = remaining.indexOf('>');
+                    if (tagEnd !== -1) {
+                        tokens.push({ t: 'tag', v: remaining.substring(0, tagEnd + 1) });
+                        remaining = remaining.substring(tagEnd + 1);
+                        continue;
+                    }
+                }
+                if (tagStart > 0) {
+                    tokens.push({ t: 'text', v: remaining.substring(0, tagStart) });
+                    remaining = remaining.substring(tagStart);
+                } else if (tagStart === -1) {
+                    tokens.push({ t: 'text', v: remaining });
+                    remaining = '';
+                } else {
+                    tokens.push({ t: 'text', v: '<' });
+                    remaining = remaining.substring(1);
+                }
+            }
+
+            let ti = 0, ci = 0;
+            let out = '';
+
+            function streamNext() {
+                if (ti >= tokens.length) return;
+                const tok = tokens[ti];
+                if (tok.t === 'tag') {
+                    out += tok.v;
+                    bubble.innerHTML = out;
+                    ti++;
+                    messagesEl.scrollTop = messagesEl.scrollHeight;
+                    streamNext();
+                    return;
+                }
+                if (ci < tok.v.length) {
+                    out += tok.v[ci];
+                    bubble.innerHTML = out;
+                    ci++;
+                    messagesEl.scrollTop = messagesEl.scrollHeight;
+                    streamingTimer = setTimeout(streamNext, 31);
+                } else {
+                    ci = 0;
+                    ti++;
+                    streamNext();
+                }
+            }
+
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            streamNext();
         }
         
         function showTyping() {
@@ -2373,7 +2385,7 @@ var _hmt = _hmt || [];
             const saved = localStorage.getItem(DIVIDER_STORAGE_KEY);
             if (saved) {
                 const ratio = parseFloat(saved);
-                if (ratio >= 0.2 && ratio <= 0.8) {
+                if (ratio >= 0.4 && ratio <= 0.5) {
                     container.style.setProperty('--chat-width', (ratio * 100) + '%');
                 }
             }
@@ -2397,7 +2409,7 @@ var _hmt = _hmt || [];
                 const usableWidth = containerWidth - padding - dividerWidth;
                 
                 let ratio = mouseX / usableWidth;
-                ratio = Math.max(0.2, Math.min(0.8, ratio));
+                ratio = Math.max(0.4, Math.min(0.5, ratio));
                 
                 container.style.setProperty('--chat-width', (ratio * 100) + '%');
             });
@@ -2411,109 +2423,11 @@ var _hmt = _hmt || [];
                 const ratioStr = container.style.getPropertyValue('--chat-width');
                 if (ratioStr) {
                     const ratio = parseFloat(ratioStr) / 100;
-                    if (ratio >= 0.2 && ratio <= 0.8) {
+                    if (ratio >= 0.4 && ratio <= 0.5) {
                         localStorage.setItem(DIVIDER_STORAGE_KEY, ratio.toString());
                     }
                 }
             });
-        }
-        
-        // ============================================================
-        // 11. 输入区域分隔条拖拽
-        // ============================================================
-        const INPUT_DIVIDER_KEY = 'inputDividerRatio';
-        let inputDividerDragging = false;
-        const MIN_MESSAGES_HEIGHT = 80;
-        
-        function initInputDivider() {
-            const divider = document.getElementById('inputDivider');
-            const container = document.querySelector('.chat-container');
-            const wrapper = document.getElementById('chatInputWrapper');
-            const header = document.querySelector('.chat-header');
-            if (!divider || !container || !wrapper) return;
-            
-            function getUsableHeight() {
-                const containerH = container.getBoundingClientRect().height;
-                const headerH = header ? header.getBoundingClientRect().height : 60;
-                const dividerH = divider.getBoundingClientRect().height;
-                const free = containerH - headerH - dividerH;
-                return Math.max(free, 50);
-            }
-            
-            function setWrapperHeight(px) {
-                const usable = getUsableHeight();
-                const maxPx = Math.min(Math.round(usable * 0.3), Math.round(usable - MIN_MESSAGES_HEIGHT));
-                const minPx = Math.round(usable * 0.1);
-                px = Math.max(minPx, Math.min(maxPx, px));
-                wrapper.style.height = px + 'px';
-                requestAnimationFrame(adjustInputHeight);
-            }
-            
-            function applyRatio(ratio) {
-                const usable = getUsableHeight();
-                const px = Math.round(usable * ratio);
-                setWrapperHeight(px);
-            }
-            
-            const saved = localStorage.getItem(INPUT_DIVIDER_KEY);
-            if (saved) {
-                const ratio = parseFloat(saved);
-                if (ratio >= 0.1 && ratio <= 0.3) {
-                    requestAnimationFrame(() => applyRatio(ratio));
-                }
-            }
-            
-            divider.addEventListener('mousedown', function(e) {
-                e.preventDefault();
-                inputDividerDragging = true;
-                divider.classList.add('active');
-                document.body.classList.add('dragging-input');
-            });
-            
-            document.addEventListener('mousemove', function(e) {
-                if (!inputDividerDragging) return;
-                
-                const containerRect = container.getBoundingClientRect();
-                const mouseY = e.clientY - containerRect.top;
-                
-                const headerH = header ? header.getBoundingClientRect().height : 60;
-                const dividerH = divider.getBoundingClientRect().height;
-                let wrapperPx = mouseY - headerH - dividerH;
-                wrapperPx = Math.max(0, wrapperPx);
-                setWrapperHeight(wrapperPx);
-            });
-            
-            document.addEventListener('mouseup', function() {
-                if (!inputDividerDragging) return;
-                inputDividerDragging = false;
-                divider.classList.remove('active');
-                document.body.classList.remove('dragging-input');
-                
-                const usable = getUsableHeight();
-                const currentH = wrapper.getBoundingClientRect().height;
-                if (currentH > 0 && usable > 0) {
-                    const ratio = currentH / usable;
-                    if (ratio >= 0.1 && ratio <= 0.3) {
-                        localStorage.setItem(INPUT_DIVIDER_KEY, ratio.toString());
-                    } else if (ratio < 0.1) {
-                        localStorage.setItem(INPUT_DIVIDER_KEY, '0.1');
-                    } else if (ratio > 0.3) {
-                        localStorage.setItem(INPUT_DIVIDER_KEY, '0.3');
-                    }
-                }
-            });
-            
-            function recalcInputHeight() {
-                if (inputDividerDragging) return;
-                const saved = localStorage.getItem(INPUT_DIVIDER_KEY);
-                if (saved) {
-                    const ratio = parseFloat(saved);
-                    if (ratio >= 0.1 && ratio <= 0.3) {
-                        applyRatio(ratio);
-                    }
-                }
-            }
-            window.addEventListener('resize', recalcInputHeight);
         }
         
         // ============================================================
@@ -2624,7 +2538,15 @@ var _hmt = _hmt || [];
         renderNavMenu();
         initAI();
         initPanelDivider();
-        initInputDivider();
     </script>
+    <script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?68d5a1800d96639b725969742d372797";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
 </body>
 </html>
