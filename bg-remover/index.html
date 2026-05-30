@@ -6,10 +6,7 @@
     <title>一键抠图系统 - AI 智能背景移除</title>
     <script src="https://cdn.tailwindcss.com/3.4.14"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../styles/common.css">
+    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.0/dist/bundle.js"></script>
 
     <style>
         :root {
@@ -36,8 +33,7 @@
         }
 
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
         }
 
         .upload-zone {
@@ -197,31 +193,6 @@
             to { opacity: 0; }
         }
 
-        .bg-pattern-1 {
-            background-image: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
-        }
-
-        .bg-pattern-2 {
-            background-image: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
-
-        .bg-pattern-3 {
-            background-image: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        }
-
-        .bg-pattern-4 {
-            background-image: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-        }
-
-        .bg-pattern-5 {
-            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-            background-color: #f5f5f5;
-        }
-
-        .bg-pattern-6 {
-            background-image: radial-gradient(circle, #ffecd2 0%, #fcb69f 100%);
-        }
-
         .color-picker-input {
             -webkit-appearance: none;
             border: none;
@@ -266,36 +237,36 @@
         }
     </style>
 </head>
-<body class="min-h-screen">
+<body class="min-h-screen bg-gray-100 dark:bg-gray-900">
     <nav class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-12">
-                <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                        <i class="fa-solid fa-magic text-white text-lg"></i>
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center">
+                        <i class="fa-solid fa-magic text-white text-xl"></i>
                     </div>
-                    <h1 class="text-lg font-bold text-gray-900 dark:text-white">一键抠图系统</h1>
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-white">一键抠图系统</h1>
                 </div>
-                <button id="theme-toggle" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    <i id="theme-icon" class="fa-solid fa-moon text-lg text-gray-600 dark:text-yellow-400"></i>
+                <button id="theme-toggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <i id="theme-icon" class="fa-solid fa-moon text-xl text-gray-600 dark:text-yellow-400"></i>
                 </button>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div class="card p-4">
-                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="card p-6">
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
                     <i class="fa-solid fa-upload text-blue-500"></i>
                     上传图片
                 </h2>
                 
-                <div id="upload-zone" class="upload-zone rounded-xl p-6 text-center cursor-pointer">
+                <div id="upload-zone" class="upload-zone rounded-xl p-8 text-center cursor-pointer">
                     <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" class="hidden" multiple>
-                    <div class="flex flex-col items-center gap-3">
-                        <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                            <i class="fa-solid fa-image text-blue-500 text-2xl"></i>
+                    <div class="flex flex-col items-center gap-4">
+                        <div class="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-image text-blue-500 text-3xl"></i>
                         </div>
                         <div>
                             <p class="text-gray-700 dark:text-gray-200 font-medium">拖拽图片到此处</p>
@@ -305,174 +276,171 @@
                     </div>
                 </div>
 
-                <div id="preview-section" class="mt-4 hidden">
-                    <h3 class="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">图片预览</h3>
-                    <div class="preview-container bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden" style="height: 160px;">
-                        <img id="original-image" class="preview-image max-w-full max-h-full object-contain" alt="原图预览">
+                <div id="preview-section" class="mt-6 hidden">
+                    <h3 class="text-sm font-medium text-gray-600 dark:text-gray-300 mb-3">图片预览</h3>
+                    <div class="preview-container bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden relative" style="height: 200px;">
+                        <img id="original-image" class="preview-image max-w-full max-h-full object-contain w-full h-full" alt="原图预览">
+                        <canvas id="color-pick-canvas" class="absolute inset-0 w-full h-full cursor-crosshair hidden"></canvas>
                     </div>
-                    <div class="mt-2 flex justify-between items-center">
-                        <span id="file-info" class="text-xs text-gray-500 dark:text-gray-400"></span>
-                        <button id="clear-image" class="btn-secondary text-xs px-3 py-1.5">
+                    <div class="mt-3 flex items-center gap-2">
+                        <button id="color-pick-btn" class="btn-secondary text-sm px-3 py-2 hidden">
+                            <i class="fa-solid fa-eyedropper"></i>
+                            取色
+                        </button>
+                        <div id="sampled-colors" class="flex gap-1 flex-1 min-h-[32px] items-center"></div>
+                        <button id="clear-color-samples" class="text-gray-400 hover:text-red-500 text-sm hidden px-1">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                        <span id="file-info" class="text-sm text-gray-500 dark:text-gray-400 ml-auto"></span>
+                        <button id="clear-image" class="btn-secondary text-sm px-4 py-2">
                             <i class="fa-solid fa-trash"></i>
                             清除
                         </button>
                     </div>
                 </div>
 
-                <div id="progress-section" class="mt-4 hidden">
-                    <div class="flex items-center gap-2 mb-1">
-                        <i class="fa-solid fa-circle-spinner spinner text-blue-500 text-sm"></i>
-                        <span class="text-gray-700 dark:text-gray-200 text-sm">正在抠图中...</span>
+                <div id="progress-section" class="mt-6 hidden">
+                    <div class="flex items-center gap-3 mb-2">
+                        <i class="fa-solid fa-circle-spinner spinner text-blue-500"></i>
+                        <span class="text-gray-700 dark:text-gray-200">正在抠图中...</span>
                     </div>
-                    <div class="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div id="progress-bar" class="progress-bar h-full bg-blue-500 rounded-full" style="width: 0%;"></div>
                     </div>
-                    <p id="progress-text" class="text-xs text-gray-500 dark:text-gray-400 mt-1">正在处理，请稍候...</p>
+                    <p id="progress-text" class="text-sm text-gray-500 dark:text-gray-400 mt-2">正在处理，请稍候...</p>
                 </div>
 
-                <button id="remove-bg-btn" class="btn-primary w-full mt-4 hidden">
+                <button id="remove-bg-btn" class="btn-primary w-full mt-6 hidden">
                     <i class="fa-solid fa-magic"></i>
                     一键抠图
                 </button>
             </div>
 
-            <div class="card p-4">
-                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
+            <div class="card p-6">
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
                     <i class="fa-solid fa-image text-green-500"></i>
                     抠图结果
                 </h2>
 
                 <div id="result-section" class="hidden">
-                    <div class="preview-container bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden" style="height: 240px;" id="result-container">
+                    <div class="preview-container bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden" style="height: 300px;" id="result-container">
                         <img id="result-image" class="preview-image max-w-full max-h-full object-contain" alt="抠图结果">
                     </div>
 
-                    <div id="compare-toggle" class="flex gap-2 mt-3">
-                        <button id="show-original" class="btn-secondary text-xs px-3 py-1.5">
-                            <i class="fa-solid fa-image"></i>
-                            原图
-                        </button>
-                        <button id="show-result" class="btn-primary text-xs px-3 py-1.5">
-                            <i class="fa-solid fa-check"></i>
-                            抠图结果
-                        </button>
+                    <div class="mt-4 flex items-center gap-3">
+                        <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">
+                            <input type="checkbox" id="show-original-cb" class="rounded border-gray-300">
+                            显示原图对比
+                        </label>
                     </div>
 
-                    <div class="mt-4 space-y-3">
+                    <div class="mt-5 space-y-4">
                         <div>
-                            <label class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1.5 block">背景样式</label>
-                            <div class="grid grid-cols-4 gap-1.5">
-                                <button class="bg-white border-2 border-transparent rounded-lg p-1.5 hover:border-blue-500 transition-colors bg-preview-btn" data-bg="transparent">
-                                    <div class="w-full h-6 rounded bg-gray-100 dark:bg-gray-700 border border-dashed border-gray-400"></div>
-                                </button>
-                                <button class="bg-white border-2 border-transparent rounded-lg p-1.5 hover:border-blue-500 transition-colors bg-preview-btn" data-bg="color">
-                                    <input type="color" class="color-picker-input w-full h-6" id="bg-color-picker" value="#ffffff">
-                                </button>
-                                <button class="bg-white border-2 border-transparent rounded-lg p-1.5 hover:border-blue-500 transition-colors bg-preview-btn active" data-bg="gradient" style="background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);">
-                                    <div class="w-full h-6 rounded bg-pattern-1"></div>
-                                </button>
-                                <button class="bg-white border-2 border-transparent rounded-lg p-1.5 hover:border-blue-500 transition-colors bg-preview-btn" data-bg="pattern" style="background: #f5f5f5;">
-                                    <div class="w-full h-6 rounded bg-pattern-5"></div>
-                                </button>
+                            <label class="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2 block">抠图设置</label>
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-gray-400">保留更多</span>
+                                <input type="range" id="smooth-slider" min="0" max="100" value="50" class="w-full flex-1">
+                                <span class="text-xs text-gray-400">去除更多</span>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">左侧：保留更多主体区域 / 右侧：去除更彻底</p>
+                        </div>
+
+                        <div>
+                            <label class="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2 block">预览</label>
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-gray-400">缩小</span>
+                                <input type="range" id="zoom-slider" min="50" max="200" value="100" class="w-full flex-1">
+                                <span class="text-xs text-gray-400">放大</span>
+                                <span id="zoom-value" class="text-xs text-gray-500 w-10 text-right">100%</span>
                             </div>
                         </div>
 
                         <div>
-                            <label class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1.5 block">预设背景</label>
-                            <div class="grid grid-cols-3 gap-1.5">
-                                <button class="bg-pattern-1 rounded-lg p-1.5 hover:scale-105 transition-transform preset-bg-btn" data-preset="pattern-1"></button>
-                                <button class="bg-pattern-2 rounded-lg p-1.5 hover:scale-105 transition-transform preset-bg-btn" data-preset="pattern-2"></button>
-                                <button class="bg-pattern-3 rounded-lg p-1.5 hover:scale-105 transition-transform preset-bg-btn" data-preset="pattern-3"></button>
-                                <button class="bg-pattern-4 rounded-lg p-1.5 hover:scale-105 transition-transform preset-bg-btn" data-preset="pattern-4"></button>
-                                <button class="bg-pattern-5 rounded-lg p-1.5 hover:scale-105 transition-transform preset-bg-btn" data-preset="pattern-5"></button>
-                                <button class="bg-pattern-6 rounded-lg p-1.5 hover:scale-105 transition-transform preset-bg-btn" data-preset="pattern-6"></button>
+                            <label class="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2 block">背景样式</label>
+                            <div class="flex flex-wrap gap-2">
+                                <button class="btn-secondary text-xs px-3 py-1.5 bg-preview-btn active" data-bg="transparent">
+                                    透明
+                                </button>
+                                <button class="btn-secondary text-xs px-3 py-1.5 bg-preview-btn" data-bg="color">
+                                    纯色
+                                </button>
+                                <button class="btn-secondary text-xs px-3 py-1.5 bg-preview-btn" data-bg="gradient">
+                                    渐变
+                                </button>
+                                <input type="color" id="bg-color-picker" value="#ffffff" class="color-picker-input w-8 h-8 ml-1">
                             </div>
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1.5 block">
-                                缩放: <span id="zoom-value">100%</span>
-                            </label>
-                            <input type="range" id="zoom-slider" min="50" max="200" value="100" class="w-full">
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1.5 block">
-                                边缘平滑度: <span id="smooth-value">50%</span>
-                            </label>
-                            <input type="range" id="smooth-slider" min="0" max="100" value="50" class="w-full">
                         </div>
                     </div>
 
-                    <div class="mt-4 flex gap-2">
+                    <div class="mt-5 flex gap-3">
                         <button id="download-btn" class="btn-success flex-1">
                             <i class="fa-solid fa-download"></i>
-                            下载图片
+                            下载 PNG
                         </button>
                         <button id="reset-btn" class="btn-danger">
                             <i class="fa-solid fa-rotate-right"></i>
-                            重置
+                            重新上传
                         </button>
                     </div>
                 </div>
 
-                <div id="empty-state" class="text-center py-8">
-                    <div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <i class="fa-solid fa-image text-gray-400 text-3xl"></i>
+                <div id="empty-state" class="text-center py-12">
+                    <div class="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fa-solid fa-image text-gray-400 text-4xl"></i>
                     </div>
-                    <p class="text-gray-500 dark:text-gray-400 text-sm">上传图片后在此查看抠图结果</p>
+                    <p class="text-gray-500 dark:text-gray-400">上传图片后在此查看抠图结果</p>
                 </div>
             </div>
         </div>
 
-        <div class="mt-4 card p-4">
-            <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
+        <div class="mt-8 card p-6">
+            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
                 <i class="fa-solid fa-info-circle text-blue-500"></i>
                 使用说明
             </h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div class="text-center p-3">
-                    <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-2">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="text-center p-4">
+                    <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
                         <i class="fa-solid fa-upload text-blue-500"></i>
                     </div>
-                    <h3 class="font-medium text-gray-800 dark:text-gray-200 text-sm">上传图片</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">拖拽或点击上传图片</p>
+                    <h3 class="font-medium text-gray-800 dark:text-gray-200">上传图片</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">拖拽或点击上传图片</p>
                 </div>
-                <div class="text-center p-3">
-                    <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-2">
+                <div class="text-center p-4">
+                    <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
                         <i class="fa-solid fa-magic text-green-500"></i>
                     </div>
-                    <h3 class="font-medium text-gray-800 dark:text-gray-200 text-sm">一键抠图</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">AI 自动识别并移除背景</p>
+                    <h3 class="font-medium text-gray-800 dark:text-gray-200">一键抠图</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">AI 自动识别并移除背景</p>
                 </div>
-                <div class="text-center p-3">
-                    <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-2">
+                <div class="text-center p-4">
+                    <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
                         <i class="fa-solid fa-palette text-purple-500"></i>
                     </div>
-                    <h3 class="font-medium text-gray-800 dark:text-gray-200 text-sm">调整背景</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">自定义背景颜色或样式</p>
+                    <h3 class="font-medium text-gray-800 dark:text-gray-200">调整背景</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">自定义背景颜色或样式</p>
                 </div>
-                <div class="text-center p-3">
-                    <div class="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto mb-2">
+                <div class="text-center p-4">
+                    <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
                         <i class="fa-solid fa-download text-orange-500"></i>
                     </div>
-                    <h3 class="font-medium text-gray-800 dark:text-gray-200 text-sm">下载保存</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">保存透明背景 PNG 图片</p>
+                    <h3 class="font-medium text-gray-800 dark:text-gray-200">下载保存</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">保存透明背景 PNG 图片</p>
                 </div>
             </div>
         </div>
     </main>
 
-    <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-4">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-3">
-                <p class="text-gray-500 dark:text-gray-400 text-xs">
+    <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-gray-500 dark:text-gray-400 text-sm">
                     © 2024 一键抠图系统 - 基于 AI 技术的在线图片背景移除工具
                 </p>
-                <div class="flex gap-3">
-                    <a href="#" class="text-gray-500 dark:text-gray-400 text-xs hover:text-blue-500 transition-colors">使用条款</a>
-                    <a href="#" class="text-gray-500 dark:text-gray-400 text-xs hover:text-blue-500 transition-colors">隐私政策</a>
-                    <a href="#" class="text-gray-500 dark:text-gray-400 text-xs hover:text-blue-500 transition-colors">帮助中心</a>
+                <div class="flex gap-4">
+                    <a href="#" class="text-gray-500 dark:text-gray-400 text-sm hover:text-blue-500 transition-colors">使用条款</a>
+                    <a href="#" class="text-gray-500 dark:text-gray-400 text-sm hover:text-blue-500 transition-colors">隐私政策</a>
+                    <a href="#" class="text-gray-500 dark:text-gray-400 text-sm hover:text-blue-500 transition-colors">帮助中心</a>
                 </div>
             </div>
         </div>
@@ -494,7 +462,9 @@
             let isDarkMode = false;
             let currentBgMode = 'transparent';
             let currentBgColor = '#ffffff';
-            let currentBgPattern = '';
+            let isColorPickMode = false;
+            let userBgSamples = [];
+            let loadedImageEl = null;
 
             const elements = {
                 themeToggle: document.getElementById('theme-toggle'),
@@ -513,18 +483,19 @@
                 resultContainer: document.getElementById('result-container'),
                 resultImage: document.getElementById('result-image'),
                 emptyState: document.getElementById('empty-state'),
-                showOriginal: document.getElementById('show-original'),
-                showResult: document.getElementById('show-result'),
+                showOriginalCb: document.getElementById('show-original-cb'),
                 bgColorPicker: document.getElementById('bg-color-picker'),
                 zoomSlider: document.getElementById('zoom-slider'),
                 zoomValue: document.getElementById('zoom-value'),
                 smoothSlider: document.getElementById('smooth-slider'),
-                smoothValue: document.getElementById('smooth-value'),
                 downloadBtn: document.getElementById('download-btn'),
                 resetBtn: document.getElementById('reset-btn'),
                 toastContainer: document.getElementById('toast-container'),
                 bgPreviewBtns: document.querySelectorAll('.bg-preview-btn'),
-                presetBgBtns: document.querySelectorAll('.preset-bg-btn')
+                colorPickBtn: document.getElementById('color-pick-btn'),
+                colorPickCanvas: document.getElementById('color-pick-canvas'),
+                sampledColors: document.getElementById('sampled-colors'),
+                clearColorSamples: document.getElementById('clear-color-samples')
             };
 
             function init() {
@@ -550,20 +521,19 @@
                 elements.fileInput.addEventListener('change', handleFileSelect);
                 elements.clearImage.addEventListener('click', clearImage);
                 elements.removeBgBtn.addEventListener('click', removeBackground);
-                elements.showOriginal.addEventListener('click', showOriginalImage);
-                elements.showResult.addEventListener('click', showResultImage);
+                elements.showOriginalCb.addEventListener('change', handleShowOriginalToggle);
                 elements.bgColorPicker.addEventListener('input', handleBgColorChange);
                 elements.zoomSlider.addEventListener('input', handleZoomChange);
                 elements.smoothSlider.addEventListener('input', handleSmoothChange);
                 elements.downloadBtn.addEventListener('click', downloadImage);
                 elements.resetBtn.addEventListener('click', resetAll);
+                elements.colorPickBtn.addEventListener('click', toggleColorPickMode);
+                elements.clearColorSamples.addEventListener('click', clearUserSamples);
+                elements.colorPickCanvas.addEventListener('click', handleColorPick);
+                elements.colorPickCanvas.addEventListener('mousemove', handleColorPickHover);
 
                 elements.bgPreviewBtns.forEach(btn => {
                     btn.addEventListener('click', handleBgModeChange);
-                });
-
-                elements.presetBgBtns.forEach(btn => {
-                    btn.addEventListener('click', handlePresetBgChange);
                 });
 
                 elements.resultContainer.addEventListener('mousedown', startDrag);
@@ -643,8 +613,12 @@
                     elements.uploadZone.classList.add('hidden');
                     elements.previewSection.classList.remove('hidden');
                     elements.removeBgBtn.classList.remove('hidden');
+                    elements.colorPickBtn.classList.remove('hidden');
                     elements.resultSection.classList.add('hidden');
                     elements.emptyState.classList.remove('hidden');
+                    
+                    userBgSamples = [];
+                    updateSampledColorsUI();
                 };
                 reader.readAsDataURL(file);
             }
@@ -662,9 +636,15 @@
                 elements.uploadZone.classList.remove('hidden');
                 elements.previewSection.classList.add('hidden');
                 elements.removeBgBtn.classList.add('hidden');
+                elements.colorPickBtn.classList.add('hidden');
                 elements.progressSection.classList.add('hidden');
                 elements.resultSection.classList.add('hidden');
                 elements.emptyState.classList.remove('hidden');
+                userBgSamples = [];
+                updateSampledColorsUI();
+                if (isColorPickMode) {
+                    toggleColorPickMode();
+                }
                 resetZoomAndPan();
             }
 
@@ -689,64 +669,111 @@
 
                     const smoothValue = parseInt(elements.smoothSlider.value);
                     
-                    const MAX_PROC_PIXELS = 400 * 400;
-                    const scale = Math.min(1, Math.sqrt(MAX_PROC_PIXELS / (image.width * image.height)));
-                    const procW = Math.round(image.width * scale);
-                    const procH = Math.round(image.height * scale);
+                    const aiAvailable = window.imglyBackgroundRemoval && typeof window.imglyBackgroundRemoval.removeBackground === 'function';
+                    let usedAI = false;
 
-                    const procCanvas = document.createElement('canvas');
-                    procCanvas.width = procW;
-                    procCanvas.height = procH;
-                    const procCtx = procCanvas.getContext('2d');
-                    procCtx.drawImage(image, 0, 0, procW, procH);
-                    const procData = procCtx.getImageData(0, 0, procW, procH);
-                    const procPixels = procData.data;
+                    if (aiAvailable) {
+                        elements.progressText.textContent = '正在使用AI识别主体...';
+                        elements.progressBar.style.width = '15%';
 
-                    elements.progressBar.style.width = '15%';
-                    elements.progressText.textContent = '正在提取边缘特征...';
-                    
-                    const edgeMap = computeEdgeMap(procPixels, procW, procH);
+                        try {
+                            const blob = await window.imglyBackgroundRemoval.removeBackground(image);
+                            
+                            elements.progressBar.style.width = '70%';
+                            elements.progressText.textContent = '正在生成结果...';
 
-                    elements.progressBar.style.width = '30%';
-                    elements.progressText.textContent = '正在计算显著性...';
-                    
-                    const saliencyMap = computeSaliencyMap(procPixels, procW, procH, edgeMap);
+                            const url = URL.createObjectURL(blob);
+                            const resultImg = await new Promise((resolve) => {
+                                const img = new Image();
+                                img.onload = () => {
+                                    const c = document.createElement('canvas');
+                                    c.width = img.width;
+                                    c.height = img.height;
+                                    const ct = c.getContext('2d');
+                                    ct.clearRect(0, 0, c.width, c.height);
+                                    ct.drawImage(img, 0, 0);
+                                    const dataUrl = c.toDataURL('image/png');
+                                    URL.revokeObjectURL(url);
+                                    resolve(dataUrl);
+                                };
+                                img.onerror = () => resolve(null);
+                                img.src = url;
+                            });
 
-                    elements.progressBar.style.width = '45%';
-                    elements.progressText.textContent = '正在识别主体区域...';
-                    
-                    const subjectMask = findSubjectRegion(saliencyMap, edgeMap, procW, procH);
+                            if (resultImg) {
+                                resultImage = resultImg;
+                                elements.resultImage.src = resultImage;
+                                usedAI = true;
+                            }
+                        } catch (aiErr) {
+                            console.warn('AI抠图失败，使用本地算法:', aiErr);
+                        }
+                    }
 
-                    elements.progressBar.style.width = '60%';
-                    elements.progressText.textContent = '正在优化遮罩...';
-                    
-                    const refinedMask = refineSubjectMask(subjectMask, procW, procH);
+                    if (!usedAI) {
+                        const MAX_PROC_PIXELS = 400 * 400;
+                        const scale = Math.min(1, Math.sqrt(MAX_PROC_PIXELS / (image.width * image.height)));
+                        const procW = Math.round(image.width * scale);
+                        const procH = Math.round(image.height * scale);
 
-                    const fullCanvas = document.createElement('canvas');
-                    fullCanvas.width = image.width;
-                    fullCanvas.height = image.height;
-                    const fullCtx = fullCanvas.getContext('2d');
-                    
-                    fullCtx.clearRect(0, 0, image.width, image.height);
-                    
-                    fullCtx.drawImage(image, 0, 0);
-                    const fullData = fullCtx.getImageData(0, 0, image.width, image.height);
+                        const procCanvas = document.createElement('canvas');
+                        procCanvas.width = procW;
+                        procCanvas.height = procH;
+                        const procCtx = procCanvas.getContext('2d');
+                        procCtx.drawImage(image, 0, 0, procW, procH);
+                        const procData = procCtx.getImageData(0, 0, procW, procH);
+                        const procPixels = procData.data;
 
-                    elements.progressBar.style.width = '80%';
-                    elements.progressText.textContent = '正在应用遮罩...';
-                    
-                    applySubjectMask(fullData.data, image.width, image.height, refinedMask, procW, procH, scale);
+                        elements.progressBar.style.width = '25%';
+                        elements.progressText.textContent = '正在采样背景颜色...';
 
-                    const featherRadius = Math.max(1, Math.round(smoothValue / 10));
-                    featherEdges(fullData.data, image.width, image.height, featherRadius);
+                        const tolerance = 20 + smoothValue * 0.8;
 
-                    fullCtx.putImageData(fullData, 0, 0);
+                        let bgSamples = sampleEdgePixels(procPixels, procW, procH);
 
-                    elements.progressBar.style.width = '95%';
-                    elements.progressText.textContent = '正在生成结果...';
+                        if (userBgSamples.length > 0) {
+                            bgSamples = bgSamples.concat(userBgSamples);
+                        }
 
-                    resultImage = fullCanvas.toDataURL('image/png');
-                    elements.resultImage.src = resultImage;
+                        elements.progressBar.style.width = '45%';
+                        elements.progressText.textContent = '正在识别主体区域...';
+
+                        const bgMask = floodFillBackground(procPixels, procW, procH, bgSamples, tolerance);
+
+                        elements.progressBar.style.width = '60%';
+                        elements.progressText.textContent = '正在优化遮罩...';
+
+                        const subjectMask = invertMask(bgMask, procW, procH);
+                        const refinedMask = refineSubjectMask(subjectMask, procW, procH);
+                        
+                        const finalBgMask = invertMask(refinedMask, procW, procH);
+
+                        const fullCanvas = document.createElement('canvas');
+                        fullCanvas.width = image.width;
+                        fullCanvas.height = image.height;
+                        const fullCtx = fullCanvas.getContext('2d');
+                        
+                        fullCtx.clearRect(0, 0, image.width, image.height);
+                        
+                        fullCtx.drawImage(image, 0, 0);
+                        const fullData = fullCtx.getImageData(0, 0, image.width, image.height);
+
+                        elements.progressBar.style.width = '80%';
+                        elements.progressText.textContent = '正在应用遮罩...';
+                        
+                        applyBackgroundMask(fullData.data, image.width, image.height, finalBgMask, procW, procH, scale);
+
+                        const featherRadius = Math.max(1, Math.round(smoothValue / 10));
+                        featherEdges(fullData.data, image.width, image.height, featherRadius);
+
+                        fullCtx.putImageData(fullData, 0, 0);
+
+                        elements.progressBar.style.width = '95%';
+                        elements.progressText.textContent = '正在生成结果...';
+
+                        resultImage = fullCanvas.toDataURL('image/png');
+                        elements.resultImage.src = resultImage;
+                    }
 
                     elements.progressBar.style.width = '100%';
                     elements.progressText.textContent = '处理完成';
@@ -758,7 +785,11 @@
                         elements.removeBgBtn.disabled = false;
                         resetZoomAndPan();
                         updateResultContainerBg();
-                        showToast('success', '抠图完成！');
+                        if (usedAI) {
+                            showToast('success', 'AI抠图完成！已自动识别并保留主体');
+                        } else {
+                            showToast('success', '抠图完成！');
+                        }
                     }, 500);
 
                 } catch (error) {
@@ -769,143 +800,215 @@
                 }
             }
 
-            function computeEdgeMap(pixels, w, h) {
-                const edgeMap = new Uint8Array(w * h);
-                
+            function toggleColorPickMode() {
+                isColorPickMode = !isColorPickMode;
+                if (isColorPickMode) {
+                    elements.colorPickBtn.classList.add('btn-primary');
+                    elements.colorPickBtn.classList.remove('btn-secondary');
+                    elements.colorPickCanvas.classList.remove('hidden');
+                    elements.resultContainer.style.cursor = 'default';
+                    elements.originalImage.style.pointerEvents = 'none';
+                    showToast('info', '请点击预览图中的背景区域取色（点击多个位置可添加多个样本）');
+                    setupColorPickCanvas();
+                } else {
+                    elements.colorPickBtn.classList.remove('btn-primary');
+                    elements.colorPickBtn.classList.add('btn-secondary');
+                    elements.colorPickCanvas.classList.add('hidden');
+                    elements.originalImage.style.pointerEvents = '';
+                }
+            }
+
+            function setupColorPickCanvas() {
+                const preview = elements.originalImage;
+                const canvas = elements.colorPickCanvas;
+                canvas.width = preview.clientWidth;
+                canvas.height = preview.clientHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+
+            function handleColorPickHover(e) {
+                if (!isColorPickMode) return;
+                const canvas = elements.colorPickCanvas;
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, Math.PI * 2);
+                ctx.setLineDash([3, 3]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            function handleColorPick(e) {
+                if (!isColorPickMode || !originalImage) return;
+
+                const img = elements.originalImage;
+                const rect = img.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+
+                const scaleX = img.naturalWidth / rect.width;
+                const scaleY = img.naturalHeight / rect.height;
+                const imgX = Math.round(clickX * scaleX);
+                const imgY = Math.round(clickY * scaleY);
+
+                if (imgX < 0 || imgX >= img.naturalWidth || imgY < 0 || imgY >= img.naturalHeight) return;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                const pixelData = ctx.getImageData(imgX, imgY, 1, 1).data;
+
+                const color = { r: pixelData[0], g: pixelData[1], b: pixelData[2] };
+
+                const isDuplicate = userBgSamples.some(s => 
+                    Math.abs(s.r - color.r) < 10 && 
+                    Math.abs(s.g - color.g) < 10 && 
+                    Math.abs(s.b - color.b) < 10
+                );
+
+                if (!isDuplicate) {
+                    userBgSamples.push(color);
+                    updateSampledColorsUI();
+                    showToast('success', `已取色 (${color.r}, ${color.g}, ${color.b})，继续取色或关闭取色模式后抠图`);
+                } else {
+                    showToast('info', '该颜色已取样');
+                }
+            }
+
+            function updateSampledColorsUI() {
+                const container = elements.sampledColors;
+                container.innerHTML = '';
+                if (userBgSamples.length === 0) {
+                    elements.clearColorSamples.classList.add('hidden');
+                    return;
+                }
+                elements.clearColorSamples.classList.remove('hidden');
+                userBgSamples.forEach((c, i) => {
+                    const swatch = document.createElement('div');
+                    swatch.className = 'w-6 h-6 rounded-full border-2 border-gray-300 dark:border-gray-500 flex-shrink-0';
+                    swatch.style.backgroundColor = `rgb(${c.r},${c.g},${c.b})`;
+                    swatch.title = `背景色 ${i + 1}: RGB(${c.r},${c.g},${c.b})`;
+                    swatch.dataset.index = i;
+                    swatch.addEventListener('click', () => {
+                        userBgSamples.splice(i, 1);
+                        updateSampledColorsUI();
+                        showToast('info', '已移除该颜色样本');
+                    });
+                    container.appendChild(swatch);
+                });
+            }
+
+            function clearUserSamples() {
+                userBgSamples = [];
+                updateSampledColorsUI();
+                if (isColorPickMode) {
+                    toggleColorPickMode();
+                }
+                showToast('info', '已清除所有取色样本');
+            }
+
+            function sampleEdgePixels(pixels, w, h) {
+                const samples = [];
+                const step = Math.max(1, Math.floor(Math.min(w, h) / 40));
+
+                for (let x = 0; x < w; x += step) {
+                    const tIdx = x * 4;
+                    samples.push({ r: pixels[tIdx], g: pixels[tIdx + 1], b: pixels[tIdx + 2] });
+                    const bIdx = ((h - 1) * w + x) * 4;
+                    samples.push({ r: pixels[bIdx], g: pixels[bIdx + 1], b: pixels[bIdx + 2] });
+                }
+                for (let y = 0; y < h; y += step) {
+                    const lIdx = y * w * 4;
+                    samples.push({ r: pixels[lIdx], g: pixels[lIdx + 1], b: pixels[lIdx + 2] });
+                    const rIdx = (y * w + w - 1) * 4;
+                    samples.push({ r: pixels[rIdx], g: pixels[rIdx + 1], b: pixels[rIdx + 2] });
+                }
+                return samples;
+            }
+
+            function matchBgColor(r, g, b, bgSamples, tolerance) {
+                for (let i = 0; i < bgSamples.length; i++) {
+                    const s = bgSamples[i];
+                    const dr = r - s.r;
+                    const dg = g - s.g;
+                    const db = b - s.b;
+                    if (dr * dr + dg * dg + db * db < tolerance * tolerance) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            function floodFillBackground(pixels, w, h, bgSamples, tolerance) {
+                const bgMask = new Uint8Array(w * h);
+                const queue = [];
+
+                const pixelAt = (x, y) => {
+                    const idx = (y * w + x) * 4;
+                    return { r: pixels[idx], g: pixels[idx + 1], b: pixels[idx + 2] };
+                };
+
+                for (let x = 0; x < w; x++) {
+                    queue.push({ x, y: 0 });
+                    queue.push({ x, y: h - 1 });
+                }
                 for (let y = 1; y < h - 1; y++) {
-                    for (let x = 1; x < w - 1; x++) {
-                        const idx = (y * w + x) * 4;
-                        
-                        const gx = 
-                            -getGray(pixels, x - 1, y - 1, w) 
-                            -2 * getGray(pixels, x - 1, y, w) 
-                            -getGray(pixels, x - 1, y + 1, w) 
-                            +getGray(pixels, x + 1, y - 1, w) 
-                            +2 * getGray(pixels, x + 1, y, w) 
-                            +getGray(pixels, x + 1, y + 1, w);
-                        
-                        const gy = 
-                            -getGray(pixels, x - 1, y - 1, w) 
-                            -2 * getGray(pixels, x, y - 1, w) 
-                            -getGray(pixels, x + 1, y - 1, w) 
-                            +getGray(pixels, x - 1, y + 1, w) 
-                            +2 * getGray(pixels, x, y + 1, w) 
-                            +getGray(pixels, x + 1, y + 1, w);
-                        
-                        const magnitude = Math.sqrt(gx * gx + gy * gy);
-                        edgeMap[y * w + x] = Math.min(255, Math.round(magnitude));
-                    }
-                }
-                return edgeMap;
-            }
-
-            function getGray(pixels, x, y, w) {
-                const idx = (y * w + x) * 4;
-                return Math.round(pixels[idx] * 0.299 + pixels[idx + 1] * 0.587 + pixels[idx + 2] * 0.114);
-            }
-
-            function computeSaliencyMap(pixels, w, h, edgeMap) {
-                const saliency = new Float32Array(w * h);
-                const centerX = w / 2;
-                const centerY = h / 2;
-                const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
-
-                const gray = new Uint8Array(w * h);
-                for (let i = 0; i < w * h; i++) {
-                    const idx = i * 4;
-                    gray[i] = Math.round(pixels[idx] * 0.299 + pixels[idx + 1] * 0.587 + pixels[idx + 2] * 0.114);
+                    queue.push({ x: 0, y });
+                    queue.push({ x: w - 1, y });
                 }
 
-                let sumGray = 0, sumR = 0, sumG = 0, sumB = 0;
-                for (let i = 0; i < w * h; i++) {
-                    const idx = i * 4;
-                    sumGray += gray[i];
-                    sumR += pixels[idx];
-                    sumG += pixels[idx + 1];
-                    sumB += pixels[idx + 2];
-                }
-                const avgGray = sumGray / (w * h);
-                const avgR = sumR / (w * h);
-                const avgG = sumG / (w * h);
-                const avgB = sumB / (w * h);
-
-                for (let y = 0; y < h; y++) {
-                    for (let x = 0; x < w; x++) {
-                        const idx = y * w + x;
-                        const pxIdx = idx * 4;
-
-                        const dist = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
-                        const centerBias = 1 - (dist / maxDist) * 0.4;
-
-                        const dr = pixels[pxIdx] - avgR;
-                        const dg = pixels[pxIdx + 1] - avgG;
-                        const db = pixels[pxIdx + 2] - avgB;
-                        const colorContrast = Math.sqrt(dr * dr + dg * dg + db * db) / 255;
-
-                        const edgeScore = edgeMap[idx] / 255;
-
-                        saliency[idx] = (colorContrast * 0.3 + edgeScore * 0.4 + centerBias * 0.3);
-                    }
-                }
-
-                let maxSal = 0;
-                for (let i = 0; i < w * h; i++) {
-                    if (saliency[i] > maxSal) maxSal = saliency[i];
-                }
-                for (let i = 0; i < w * h; i++) {
-                    saliency[i] = saliency[i] / maxSal;
-                }
-
-                return saliency;
-            }
-
-            function findSubjectRegion(saliency, edgeMap, w, h) {
-                const mask = new Uint8Array(w * h);
-                const visited = new Uint8Array(w * h);
-                
-                let bestScore = -1;
-                let bestSeed = { x: Math.floor(w / 2), y: Math.floor(h / 2) };
-                
-                const sampleStep = Math.max(1, Math.floor(Math.min(w, h) / 8));
-                for (let y = sampleStep; y < h - sampleStep; y += sampleStep) {
-                    for (let x = sampleStep; x < w - sampleStep; x += sampleStep) {
-                        const score = saliency[y * w + x];
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestSeed = { x, y };
-                        }
-                    }
-                }
-
-                const threshold = 0.3;
-                const queue = [bestSeed];
                 let qi = 0;
-                
                 while (qi < queue.length) {
                     const { x, y } = queue[qi];
                     qi++;
                     const idx = y * w + x;
-                    
-                    if (visited[idx]) continue;
-                    visited[idx] = 1;
-                    
-                    if (saliency[idx] < threshold) continue;
-                    
-                    mask[idx] = 1;
-                    
-                    for (let dy = -1; dy <= 1; dy++) {
-                        for (let dx = -1; dx <= 1; dx++) {
-                            if (dx === 0 && dy === 0) continue;
-                            const nx = x + dx;
-                            const ny = y + dy;
-                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-                                queue.push({ x: nx, y: ny });
-                            }
-                        }
-                    }
+                    if (bgMask[idx]) continue;
+
+                    const c = pixelAt(x, y);
+                    if (!matchBgColor(c.r, c.g, c.b, bgSamples, tolerance)) continue;
+
+                    bgMask[idx] = 1;
+
+                    if (x > 0) queue.push({ x: x - 1, y });
+                    if (x < w - 1) queue.push({ x: x + 1, y });
+                    if (y > 0) queue.push({ x, y: y - 1 });
+                    if (y < h - 1) queue.push({ x, y: y + 1 });
                 }
 
-                return mask;
+                return bgMask;
+            }
+
+            function invertMask(mask, w, h) {
+                const invMask = new Uint8Array(w * h);
+                for (let i = 0; i < w * h; i++) {
+                    invMask[i] = mask[i] === 1 ? 0 : 1;
+                }
+                return invMask;
+            }
+
+            function applyBackgroundMask(pixels, imgW, imgH, bgMask, maskW, maskH, scale) {
+                for (let y = 0; y < imgH; y++) {
+                    for (let x = 0; x < imgW; x++) {
+                        const mx = Math.min(maskW - 1, Math.max(0, Math.round(x * scale)));
+                        const my = Math.min(maskH - 1, Math.max(0, Math.round(y * scale)));
+                        const isBg = bgMask[my * maskW + mx];
+                        const idx = (y * imgW + x) * 4;
+                        pixels[idx + 3] = isBg ? 0 : 255;
+                    }
+                }
             }
 
             function refineSubjectMask(mask, w, h) {
@@ -918,8 +1021,8 @@
                             const idx = y * w + x;
                             let count = 0;
                             let total = 0;
-                            for (let dy = -2; dy <= 2; dy++) {
-                                for (let dx = -2; dx <= 2; dx++) {
+                            for (let dy = -3; dy <= 3; dy++) {
+                                for (let dx = -3; dx <= 3; dx++) {
                                     const nx = x + dx;
                                     const ny = y + dy;
                                     if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
@@ -928,7 +1031,7 @@
                                     }
                                 }
                             }
-                            temp[idx] = count >= total * 0.5 ? 1 : 0;
+                            temp[idx] = count >= total * 0.25 ? 1 : 0;
                         }
                     }
                     for (let i = 0; i < w * h; i++) {
@@ -936,17 +1039,49 @@
                     }
                 }
 
+                fillHoles(result, w, h);
+                
                 return result;
             }
 
-            function applySubjectMask(pixels, imgW, imgH, subjectMask, maskW, maskH, scale) {
-                for (let y = 0; y < imgH; y++) {
-                    for (let x = 0; x < imgW; x++) {
-                        const mx = Math.min(maskW - 1, Math.max(0, Math.round(x * scale)));
-                        const my = Math.min(maskH - 1, Math.max(0, Math.round(y * scale)));
-                        const isSubject = subjectMask[my * maskW + mx];
-                        const idx = (y * imgW + x) * 4;
-                        pixels[idx + 3] = isSubject ? 255 : 0;
+            function fillHoles(mask, w, h) {
+                const temp = new Uint8Array(w * h);
+                
+                const queue = [];
+                
+                for (let x = 0; x < w; x++) {
+                    if (!mask[x]) queue.push({ x, y: 0 });
+                    if (!mask[(h - 1) * w + x]) queue.push({ x, y: h - 1 });
+                }
+                for (let y = 1; y < h - 1; y++) {
+                    if (!mask[y * w]) queue.push({ x: 0, y });
+                    if (!mask[y * w + (w - 1)]) queue.push({ x: w - 1, y });
+                }
+                
+                let qi = 0;
+                while (qi < queue.length) {
+                    const { x, y } = queue[qi];
+                    qi++;
+                    const idx = y * w + x;
+                    if (temp[idx]) continue;
+                    temp[idx] = 1;
+                    
+                    for (let dy = -1; dy <= 1; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            const nx = x + dx;
+                            const ny = y + dy;
+                            if (nx >= 0 && nx < w && ny >= 0 && ny < h && !mask[ny * w + nx]) {
+                                queue.push({ x: nx, y: ny });
+                            }
+                        }
+                    }
+                }
+                
+                for (let y = 0; y < h; y++) {
+                    for (let x = 0; x < w; x++) {
+                        if (!temp[y * w + x]) {
+                            mask[y * w + x] = 1;
+                        }
                     }
                 }
             }
@@ -1011,23 +1146,11 @@
                 elements.resultImage.style.willChange = 'transform';
             }
 
-            function showOriginalImage() {
-                if (originalImage) {
+            function handleShowOriginalToggle(e) {
+                if (e.target.checked && originalImage) {
                     elements.resultImage.src = originalImage;
-                    elements.showOriginal.classList.add('btn-primary');
-                    elements.showOriginal.classList.remove('btn-secondary');
-                    elements.showResult.classList.add('btn-secondary');
-                    elements.showResult.classList.remove('btn-primary');
-                }
-            }
-
-            function showResultImage() {
-                if (resultImage) {
+                } else if (resultImage) {
                     elements.resultImage.src = resultImage;
-                    elements.showResult.classList.add('btn-primary');
-                    elements.showResult.classList.remove('btn-secondary');
-                    elements.showOriginal.classList.add('btn-secondary');
-                    elements.showOriginal.classList.remove('btn-primary');
                 }
             }
 
@@ -1048,17 +1171,6 @@
                 }
             }
 
-            function handlePresetBgChange(e) {
-                const preset = e.currentTarget.dataset.preset;
-                currentBgPattern = preset;
-                currentBgMode = 'pattern';
-                
-                elements.bgPreviewBtns.forEach(btn => btn.classList.remove('active'));
-                document.querySelector('[data-bg="pattern"]').classList.add('active');
-                
-                updateResultContainerBg();
-            }
-
             function updateResultContainerBg() {
                 switch (currentBgMode) {
                     case 'transparent':
@@ -1072,10 +1184,6 @@
                     case 'gradient':
                         elements.resultContainer.style.background = 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)';
                         break;
-                    case 'pattern':
-                        elements.resultContainer.className = `preview-container bg-${currentBgPattern} rounded-xl overflow-hidden`;
-                        elements.resultContainer.style.background = `var(--tw-gradient-stops)`;
-                        break;
                 }
             }
 
@@ -1086,7 +1194,6 @@
             }
 
             function handleSmoothChange(e) {
-                elements.smoothValue.textContent = `${e.target.value}%`;
             }
 
             function handleWheelZoom(e) {
@@ -1143,30 +1250,45 @@
 
                 const link = document.createElement('a');
                 link.href = resultImage;
-                link.download = 'removed-background.png';
+                link.download = `抠图结果_${Date.now()}.png`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+                
+                showToast('success', '图片下载成功！');
             }
 
             function resetAll() {
                 clearImage();
+                currentBgMode = 'transparent';
+                currentBgColor = '#ffffff';
+                elements.bgColorPicker.value = '#ffffff';
+                elements.smoothSlider.value = 50;
+                elements.bgPreviewBtns.forEach(btn => btn.classList.remove('active'));
+                document.querySelector('[data-bg="transparent"]').classList.add('active');
             }
 
             function showToast(type, message) {
+                const icons = {
+                    success: 'fa-check-circle',
+                    error: 'fa-exclamation-circle',
+                    warning: 'fa-exclamation-triangle',
+                    info: 'fa-info-circle'
+                };
+                
+                const colors = {
+                    success: 'bg-green-500',
+                    error: 'bg-red-500',
+                    warning: 'bg-yellow-500',
+                    info: 'bg-blue-500'
+                };
+
                 const toast = document.createElement('div');
-                toast.className = `toast flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg ${
-                    type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                }`;
-                
-                const icon = document.createElement('i');
-                icon.className = type === 'success' ? 'fa-solid fa-check-circle' : 'fa-solid fa-exclamation-circle';
-                
-                const text = document.createElement('span');
-                text.textContent = message;
-                
-                toast.appendChild(icon);
-                toast.appendChild(text);
+                toast.className = `toast ${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 max-w-sm`;
+                toast.innerHTML = `
+                    <i class="fa-solid ${icons[type]}"></i>
+                    <span>${message}</span>
+                `;
                 
                 elements.toastContainer.appendChild(toast);
                 

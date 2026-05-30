@@ -61,7 +61,7 @@
             cursor: pointer; font-size: 0.85em; color: #666; transition: all 0.2s ease;
         }
         .toggle-btn:hover { background: #e0e0e0; color: #333; }
-        .collapsible { transition: max-height 0.3s ease, opacity 0.3s ease; overflow: hidden; }
+        .collapsible { max-height: 5000px; transition: max-height 0.35s ease, opacity 0.3s ease; overflow: hidden; }
         .collapsible.collapsed { max-height: 0; opacity: 0; }
         .stats-cards {
             display: grid; grid-template-columns: repeat(4, 1fr);
@@ -337,6 +337,10 @@
         let selectStartX = 0;
         let selectStartY = 0;
 
+        window.addEventListener('resize', () => {
+            if (chartInstance) chartInstance.resize();
+        });
+
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
 
@@ -365,6 +369,12 @@
             rawData = [];
             processedData = [];
             top20Keywords = [];
+            legendSelected = {};
+            legendItemNames = [];
+            if (chartInstance) {
+                chartInstance.dispose();
+                chartInstance = null;
+            }
             document.getElementById('analysisSection').style.display = 'none';
             document.getElementById('fileInfo').classList.remove('show');
             document.getElementById('fileInput').value = '';
@@ -500,7 +510,9 @@
                 const deviceVal = getValue(row, ['投放设备', '设备', 'Device', 'device', '投放平台']);
                 
                 return {
-                    dateRaw: timeVal || '',
+                    dateRaw: typeof timeVal === 'object' && timeVal instanceof Date
+                        ? timeVal.getFullYear() + '-' + String(timeVal.getMonth() + 1).padStart(2, '0') + '-' + String(timeVal.getDate()).padStart(2, '0')
+                        : (timeVal || ''),
                     keyword: keyword,
                     cost: parseFloat(costVal) || 0,
                     conversion: parseInt(convVal) || 0,
@@ -592,7 +604,7 @@
             const totalClicks = allKeywords.reduce((sum, k) => sum + k.totalClicks, 0);
             const avgCPC = totalClicks > 0 ? totalCost / totalClicks : 0;
             document.getElementById('totalCost').textContent = totalCost.toFixed(2);
-            document.getElementById('totalConversion').textContent = Math.round(totalConversion);
+            document.getElementById('totalConversion').textContent = totalConversion.toFixed(2);
             document.getElementById('avgCPC').textContent = avgCPC.toFixed(2);
             document.getElementById('keywordCount').textContent = allKeywords.length;
         }
@@ -602,6 +614,7 @@
             if (chartInstance) chartInstance.dispose();
             chartInstance = echarts.init(chartDom);
             legendItemNames = [];
+            legendSelected = {};
 
             const dateSet = new Set();
             top20Keywords.forEach(k => {
@@ -680,6 +693,10 @@
             });
 
             const option = {
+                legend: {
+                    show: false,
+                    selected: {}
+                },
                 tooltip: {
                     trigger: 'item',
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
@@ -710,7 +727,7 @@
                 },
                 grid: {
                     left: '4%',
-                    right: '4%',
+                    right: 320,
                     bottom: '20%',
                     top: '6%',
                     containLabel: true
@@ -784,7 +801,6 @@
             chartInstance.setOption(option);
             renderCustomLegend();
             initSelectionBox();
-            window.addEventListener('resize', () => { chartInstance.resize(); });
         }
 
         function renderCustomLegend() {
@@ -841,18 +857,13 @@
 
         function updateChartSeries() {
             if (chartInstance) {
-                const option = chartInstance.getOption();
-                if (option.series) {
-                    const newSeries = option.series.map((s) => {
-                        return {
-                            name: s.name,
-                            show: legendSelected[s.name] !== false
-                        };
-                    });
-                    chartInstance.setOption({
-                        series: newSeries
-                    }, { replaceMerge: ['series'] });
-                }
+                const selected = {};
+                legendItemNames.forEach(name => {
+                    selected[name] = legendSelected[name] !== false;
+                });
+                chartInstance.setOption({
+                    legend: { selected: selected }
+                });
             }
         }
 
@@ -861,75 +872,79 @@
             const selectionBox = document.getElementById('selectionBox');
             let startX, startY;
 
-            legend.addEventListener('mousedown', function(e) {
-                if (e.target.closest('.legend-item')) {
-                    return;
-                }
+            const onMouseDown = function(e) {
+                if (e.target.closest('.legend-item')) return;
                 isSelecting = true;
                 const rect = legend.getBoundingClientRect();
                 startX = e.clientX - rect.left;
                 startY = e.clientY - rect.top;
                 selectStartX = startX;
                 selectStartY = startY;
-                
                 selectionBox.style.left = startX + 'px';
                 selectionBox.style.top = startY + 'px';
                 selectionBox.style.width = '0';
                 selectionBox.style.height = '0';
                 selectionBox.style.display = 'block';
-            });
+            };
 
-            document.addEventListener('mousemove', function(e) {
+            const onMouseMove = function(e) {
                 if (!isSelecting) return;
-                
-                const legend = document.getElementById('customLegend');
                 const rect = legend.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
-                
                 const left = Math.min(x, selectStartX);
                 const top = Math.min(y, selectStartY);
-                const width = Math.abs(x - selectStartX);
-                const height = Math.abs(y - selectStartY);
-                
                 selectionBox.style.left = left + 'px';
                 selectionBox.style.top = top + 'px';
-                selectionBox.style.width = width + 'px';
-                selectionBox.style.height = height + 'px';
-            });
+                selectionBox.style.width = Math.abs(x - selectStartX) + 'px';
+                selectionBox.style.height = Math.abs(y - selectStartY) + 'px';
+            };
 
-            document.addEventListener('mouseup', function() {
+            const onMouseUp = function() {
                 if (!isSelecting) return;
                 isSelecting = false;
                 selectionBox.style.display = 'none';
-                
+                const boxLeft = parseFloat(selectionBox.style.left) || 0;
+                const boxTop = parseFloat(selectionBox.style.top) || 0;
+                const boxWidth = parseFloat(selectionBox.style.width) || 0;
+                const boxHeight = parseFloat(selectionBox.style.height) || 0;
+                if (boxWidth < 5 && boxHeight < 5) return;
+
                 const legendItems = document.querySelectorAll('.legend-item');
+                const legendRect = legend.getBoundingClientRect();
                 const boxRect = {
-                    left: parseFloat(selectionBox.style.left) || 0,
-                    top: parseFloat(selectionBox.style.top) || 0,
-                    width: parseFloat(selectionBox.style.width) || 0,
-                    height: parseFloat(selectionBox.style.height) || 0
+                    left: boxLeft, top: boxTop,
+                    width: boxWidth, height: boxHeight
                 };
-                
                 legendItems.forEach(item => {
                     const itemRect = item.getBoundingClientRect();
-                    const legendRect = legend.getBoundingClientRect();
                     const itemRelativeRect = {
                         left: itemRect.left - legendRect.left,
                         top: itemRect.top - legendRect.top,
                         width: itemRect.width,
                         height: itemRect.height
                     };
-                    
                     if (isOverlapping(itemRelativeRect, boxRect)) {
                         const name = item.dataset.name;
                         legendSelected[name] = !legendSelected[name];
                     }
                 });
-                
                 updateLegendDisplay();
                 updateChartSeries();
-            });
+            };
+
+            if (legend._selectionInitialized) {
+                legend.removeEventListener('mousedown', legend._onMouseDown);
+                document.removeEventListener('mousemove', legend._onMouseMove);
+                document.removeEventListener('mouseup', legend._onMouseUp);
+            }
+            legend.addEventListener('mousedown', onMouseDown);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            legend._selectionInitialized = true;
+            legend._onMouseDown = onMouseDown;
+            legend._onMouseMove = onMouseMove;
+            legend._onMouseUp = onMouseUp;
         }
 
         function isOverlapping(rect1, rect2) {

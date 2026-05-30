@@ -523,7 +523,27 @@
         function getProductWordBonus(swLower) {
             if (PRODUCT_WORDS.size === 0) return 0;
             const hasProductWord = Array.from(PRODUCT_WORDS).some(product => swLower.includes(product));
-            return hasProductWord ? 2 : -3; // 包含+2分，不包含-3分
+            return hasProductWord ? 2 : -1;
+        }
+        
+        // 辅助函数：计算关键词和搜索词之间的实义词重叠比例
+        function getMeaningfulWordOverlap(keyword, searchWord) {
+            const kw = keyword.toLowerCase().trim();
+            const sw = searchWord.toLowerCase().trim();
+            const separator = /[\s\-_,，.。！!?？;；:：、\/\\()（）【】\[\]{}"'「」~`]+/;
+            const kwWords = kw.split(separator).filter(w => w.length > 0 && !UNIVERSAL_LOW_WORDS.has(w) && !GENERIC_BUSINESS_WORDS.has(w));
+            const swWords = sw.split(separator).filter(w => w.length > 0 && !UNIVERSAL_LOW_WORDS.has(w) && !GENERIC_BUSINESS_WORDS.has(w));
+            if (kwWords.length === 0 || swWords.length === 0) return 0;
+            let overlapCount = 0;
+            for (const kwWord of kwWords) {
+                for (const swWord of swWords) {
+                    if (kwWord.includes(swWord) || swWord.includes(kwWord)) {
+                        overlapCount++;
+                        break;
+                    }
+                }
+            }
+            return overlapCount / Math.min(kwWords.length, swWords.length);
         }
         
         function calculateSemanticScore(keyword, searchWord) {
@@ -533,57 +553,55 @@
 
             // 1. 竞品词检测（最高优先级）
             if (checkCompetitorWord(searchWord) || checkCustomCompetitorKeyword(searchWord)) {
-                // 即使是竞品词，也要检查产品词
-                let score = 4;
+                let score = 5;
                 const productBonus = getProductWordBonus(swLower);
-                return Math.max(0, Math.min(10, score + productBonus));
+                score = Math.max(1, Math.min(10, score + productBonus));
+                return Math.round(score);
             }
             
             // 2. 完全匹配
             if (kwLower === swLower) {
-                let score = 10;
-                // 完全匹配也要检查产品词
-                const productBonus = getProductWordBonus(swLower);
-                score = Math.max(0, Math.min(10, score + productBonus));
-                return Math.round(score);
+                return 10;
             }
             
             // 3. 包含关系（关键词包含搜索词或搜索词包含关键词）
-            const hasIncludeRelation = kwLower.includes(swLower) || swLower.includes(kwLower);
+            // 验证包含关系是有意义的：被包含的字符串长度至少是包含方的一半
+            const shorter = kwLower.length <= swLower.length ? kwLower : swLower;
+            const longer = kwLower.length > swLower.length ? kwLower : swLower;
+            const hasIncludeRelation = longer.includes(shorter);
             if (hasIncludeRelation) {
-                let score = 9;
-                // 包含关系也要检查产品词
+                let score = 8;
+                if (shorter.length >= longer.length * 0.6) {
+                    score = 9;
+                }
                 const productBonus = getProductWordBonus(swLower);
-                score = Math.max(0, Math.min(10, score + productBonus));
+                score = Math.max(2, Math.min(10, score + productBonus));
                 return Math.round(score);
             }
             
-            // 4. 品牌词检测
+            // 4. 品牌词检测（品牌+产品词双命中时加分更高）
             const hasBrandWord = Array.from(BRAND_WORDS).some(brand => swLower.includes(brand));
             if (hasBrandWord) {
-                // 搜索词包含品牌词，基础分6分，品牌词加分2分
-                let brandScore = 6 + 2; // 8分基础
-                // 语义相似度额外加分
                 const chineseSim = calculateChineseSimilarity(kwLower, swLower);
-                if (chineseSim > 0.5) {
-                    brandScore = Math.min(10, brandScore + Math.round(chineseSim * 2));
-                }
-                // 品牌词路径也要检查产品词
                 const productBonus = getProductWordBonus(swLower);
-                brandScore = Math.max(0, Math.min(10, brandScore + productBonus));
+                let brandScore;
+                if (productBonus > 0) {
+                    brandScore = 5 + chineseSim * 3 + productBonus;
+                } else {
+                    brandScore = 3 + chineseSim * 5 + productBonus;
+                }
+                brandScore = Math.max(1, Math.min(10, brandScore));
                 return Math.round(brandScore);
             }
             
-            // 5. 语义相似度基础评分
+            // 5. 语义相似度基础评分（增强实义词匹配权重）
             const chineseSim = calculateChineseSimilarity(kwLower, swLower);
-            let baseScore = chineseSim * 7;
+            const wordOverlap = getMeaningfulWordOverlap(kwLower, swLower);
+            let baseScore = chineseSim * 6 + wordOverlap * 3;
             
             let bonusScore = 0;
-            
-            // 产品词加分/扣分
             bonusScore += getProductWordBonus(swLower);
             
-            // 共现索引加分
             const cooccurBonus = getCooccurrenceBonus(kwLower, swLower);
             bonusScore += cooccurBonus;
             
@@ -592,7 +610,7 @@
             // 通用词过滤
             const swWords = swLower.split(/[\s\-_,，.。！!?？;；:]+/).filter(w => w.length > 0);
             if (swWords.length > 0 && swWords.every(w => UNIVERSAL_LOW_WORDS.has(w))) {
-                finalScore = Math.min(finalScore, 3);
+                finalScore = Math.min(finalScore, 2);
             }
             
             return Math.max(0, Math.round(finalScore));
@@ -647,7 +665,7 @@
                 }
             });
 
-            // 从包含"品牌"的推广组关键词中提取
+            // 从包含"品牌"的推广组关键词中提取品牌特征（仅提取4字以上完整短语）
             const brandGroupKeywords = [];
             for (let i = 0; i < Math.min((keywords || []).length, (groups || []).length); i++) {
                 if (keywords[i] && groups[i]) {
@@ -659,49 +677,20 @@
             }
             
             if (brandGroupKeywords.length >= 2) {
-                const ngramFreq = {};
+                const fullPhraseFreq = {};
                 brandGroupKeywords.forEach(kw => {
-                    for (let n = 2; n <= 6 && n <= kw.length; n++) {
-                        for (let i = 0; i <= kw.length - n; i++) {
-                            const substr = kw.substring(i, i + n);
-                            const chineseChars = substr.match(/[\u4e00-\u9fa5]/g);
-                            const englishChars = substr.match(/[a-z]/g);
-                            if ((chineseChars && chineseChars.length >= 2) || 
-                                (englishChars && englishChars.length >= 2)) {
-                                ngramFreq[substr] = (ngramFreq[substr] || 0) + 1;
-                            }
-                        }
+                    if (kw.length >= 4) {
+                        fullPhraseFreq[kw] = (fullPhraseFreq[kw] || 0) + 1;
                     }
                 });
                 
-                const ngramCoverage = {};
-                Object.keys(ngramFreq).forEach(ngram => {
-                    let count = 0;
-                    brandGroupKeywords.forEach(kw => {
-                        if (kw.includes(ngram)) count++;
-                    });
-                    ngramCoverage[ngram] = count / brandGroupKeywords.length;
-                });
-                
-                const minCoverage = brandGroupKeywords.length <= 3 ? 0.3 : 0.5;
-                
-                Object.entries(ngramFreq)
-                    .filter(([ngram, freq]) => {
-                        if (freq < 2) return false;
-                        if (/^\d+$/.test(ngram)) return false;
-                        if (ngramCoverage[ngram] < minCoverage) return false;
-                        if (GENERIC_BUSINESS_WORDS.has(ngram) || UNIVERSAL_LOW_WORDS.has(ngram)) return false;
-                        return true;
-                    })
-                    .sort((a, b) => {
-                        const coverageDiff = ngramCoverage[b[0]] - ngramCoverage[a[0]];
-                        if (coverageDiff !== 0) return coverageDiff;
-                        return b[1] - a[1];
-                    })
-                    .slice(0, 5)
-                    .forEach(([ngram]) => {
-                        BRAND_WORDS.add(ngram);
-                        AUTO_EXTRACTED_BRAND_WORDS.add(ngram);
+                Object.entries(fullPhraseFreq)
+                    .filter(([phrase, freq]) => freq >= 2)
+                    .forEach(([phrase]) => {
+                        if (phrase.length >= 6) {
+                            BRAND_WORDS.add(phrase);
+                            AUTO_EXTRACTED_BRAND_WORDS.add(phrase);
+                        }
                     });
             }
 
@@ -730,11 +719,20 @@
                     if (GENERIC_BUSINESS_WORDS.has(word)) return false;
                     if (UNIVERSAL_LOW_WORDS.has(word)) return false;
                     if (COMPETITOR_WORDS.has(word)) return false;
+                    if (GEOGRAPHIC_WORDS.has(word)) return false;
                     if (word.includes('品牌词') || word.includes('牌词')) return false;
                     if (/^[\u4e00-\u9fa5]{2,}$/.test(word) && !word.match(/[a-z0-9]/)) {
                         const regionChars = ['京', '津', '沪', '渝', '冀', '豫', '云', '辽', '黑', '湘', '皖', '鲁', '新', '苏', '浙', '赣', '鄂', '桂', '甘', '晋', '蒙', '陕', '吉', '闽', '贵', '粤', '青', '藏', '川', '宁', '琼'];
                         const regionCount = regionChars.filter(r => word.includes(r)).length;
                         if (regionCount >= 3) return false;
+                    }
+                    // 过滤无意义的纯n-gram碎片（2字片段如果不是完整词语或英文则过滤掉）
+                    if (word.length === 2 && /^[\u4e00-\u9fa5]{2}$/.test(word)) {
+                        const singleChars = word.split('');
+                        const commonPairs = ['培训', '留学', '会计', '英语', '日本', '中介', '服务', '咨询', '教育', '课程', '学习', '考试', '报名', '申请', '费用', '价格', '机构', '学校', '老师', '学生', '工作', '实习', '就业', '面试', '简历', '招聘'];
+                        if (!commonPairs.includes(word) && !isLikelyBrandWord(word)) {
+                            return false;
+                        }
                     }
                     const totalKwCount = (keywords || []).filter(k => k && k.trim()).length;
                     if (totalKwCount <= 5) return freq >= 1;
@@ -743,7 +741,7 @@
 
             sortedTerms.forEach(([word, freq]) => {
                 if (BRAND_WORDS.has(word)) return;
-                const maxProductCount = Math.min(10, Math.max(2, Math.floor(sortedTerms.length * 0.6)));
+                const maxProductCount = Math.min(15, Math.max(2, Math.floor(sortedTerms.length * 0.6)));
                 if (PRODUCT_WORDS.size < maxProductCount) {
                     PRODUCT_WORDS.add(word);
                     AUTO_EXTRACTED_PRODUCT_WORDS.add(word);
@@ -1282,6 +1280,13 @@
             '不', '也', '都', '就', '才', '还', '又', '很', '非常', '太', '更', '我', '你', '他',
             '这', '那', '哪', '个', '款', '家', '种', '里', '中', '上', '下', '前', '后', '左', '右',
             '存入', '零钱', '微信', '支付宝', '银行卡', '账户', '账号', '密码', '验证码', '短信', '邮件'
+        ]);
+
+        // 地理/行政区划名词，不应作为产品词
+        const GEOGRAPHIC_WORDS = new Set([
+            '日本', '中国', '美国', '英国', '法国', '德国', '韩国', '新加坡',
+            '北京', '上海', '广州', '深圳', '杭州', '南京', '武汉', '成都', '重庆', '天津',
+            '东京', '纽约', '伦敦', '巴黎', '柏林', '首尔'
         ]);
 
         function checkCompetitorWord(searchWord) {
