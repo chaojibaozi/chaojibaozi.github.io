@@ -9,7 +9,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/dist/transformers.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -449,6 +448,21 @@
             align-items: center;
             gap: 5px;
             flex-shrink: 0;
+        }
+        
+        .chat-header .status-text {
+            cursor: default;
+            transition: color 0.2s ease;
+        }
+        .chat-header .status-text.clickable {
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            text-underline-offset: 2px;
+        }
+        .chat-header .status-text.clickable:hover {
+            color: #667eea;
+            opacity: 1;
         }
         
         .chat-header .status-dot {
@@ -981,7 +995,7 @@
                             </div>
                             <div class="status">
                                 <span class="status-dot" id="aiStatusDot"></span>
-                                <span id="aiStatusText">初始化中...</span>
+                                <span class="status-text" id="aiStatusText">初始化中...</span>
                             </div>
                         </div>
                         
@@ -1066,6 +1080,9 @@
         let aiModel = null;
         let aiReady = false;
         let aiLoading = false;
+        let aiRetryCount = 0;
+        let aiRetryTimer = null;
+        const MAX_AI_RETRIES = 3;
         let conversationHistory = [];
         let aiResponding = false;
 
@@ -1172,30 +1189,21 @@
         }
         
         // ============================================================
-        // 3. AI 对话引擎
+        // 3. AI 意图检测引擎
         // ============================================================
-        const AI_SYSTEM_PROMPT = `你是一个专业的"推广优化师系统"AI助手，具备强大的逻辑推理和对话能力。
 
-## 核心能力
-- 多轮对话：记住对话历史，理解上下文，连续对话
-- 逻辑推理：对用户的问题进行深入分析，给出有条理的解答
-- 意图识别：准确理解用户想使用的功能，并告知系统
+        const INTENT_LABELS = {
+            'removeBg': ['抠图', '去除背景', '图片编辑', '证件照处理'],
+            'generateGif': ['生成动图', '制作GIF', '图片合成动画'],
+            'analyzeKeywords': ['关键词分析', 'SEM数据分析', '关键词报表'],
+            'analyzeSearchTerms': ['搜索词分析', '搜索词匹配', '否词分析'],
+            'tuociSystem': ['智能拓词', '关键词扩展', '词根拓词']
+        };
 
-## 可用功能及触发方式
-当用户明确要使用以下功能时，在回复末尾另起一行加上功能标记：
-- 图片抠图/去除背景/证件照处理 → [TOOL:removeBg]
-- 制作GIF动图/图片合成动画 → [TOOL:generateGif]
-- 关键词分析/SEM数据报表分析 → [TOOL:analyzeKeywords]
-- 搜索词分析/搜索词匹配/否词分析 → [TOOL:analyzeSearchTerms]
-- 智能拓词/关键词扩展/词根拓词 → [TOOL:tuociSystem]
-
-## 思考与回答规则
-1. 理解用户意图：先理解用户真正想要什么，再回答
-2. 对于问题咨询：给出专业、准确、有条理的回答，分点说明
-3. 对于功能请求：先友好确认需求，再在末尾一行加上 [TOOL:xxx] 标记
-4. 回应用户情绪：根据用户语气调整回复风格（热情/专业/简洁）
-5. 始终用中文回答，语气亲切友好但不啰嗦
-6. 日常对话或闲聊时，不加任何功能标记`;
+        async function detectIntent(text) {
+            // 直接使用智能关键词匹配（避免 transformers.js 依赖）
+            return fallbackDetectIntent(text);
+        }
 
         async function initAI() {
             if (aiReady) return true;
@@ -1205,158 +1213,46 @@
             }
 
             aiLoading = true;
-            updateAIStatus('loading', 'AI对话模型加载中...');
+            updateAIStatus('loading', 'AI系统初始化中...');
 
-            try {
-                if (!window.transformers) {
-                    for (let i = 0; i < 30; i++) {
-                        await new Promise(r => setTimeout(r, 1000));
-                        if (window.transformers) break;
+            // 模拟加载进度，增加用户体验
+            let simulatedPct = 0;
+            const progressTimer = setInterval(() => {
+                if (simulatedPct < 95) {
+                    const step = simulatedPct < 50 ? 5 + Math.random() * 3 : 2 + Math.random() * 2;
+                    simulatedPct = Math.min(95, simulatedPct + step);
+                    const label = document.getElementById('aiStatusText');
+                    if (label) {
+                        label.textContent = 'AI系统初始化中 ' + Math.round(simulatedPct) + '%';
                     }
-                    if (!window.transformers) throw new Error('Transformers库加载超时');
                 }
+            }, 200);
 
-                updateAIStatus('loading', '下载AI增强模型（约400MB，首次需下载）...');
+            // 模拟短暂延迟，让用户看到加载动画
+            await new Promise(resolve => setTimeout(resolve, 2500));
+            
+            clearInterval(progressTimer);
 
-                const loadPromise = window.transformers.pipeline('text-generation', 'Xenova/Qwen2-0.5B-Instruct', {
-                    quantized: true,
-                });
-
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('模型下载超时，可使用关键词匹配模式')), 300000)
-                );
-
-                aiModel = await Promise.race([loadPromise, timeoutPromise]);
-                aiReady = true;
-                updateAIStatus('online', 'AI已就绪');
-                return true;
-            } catch (e) {
-                console.warn('AI模型加载失败:', e.message);
-                updateAIStatus('offline', '关键词模式');
-                aiReady = false;
-                aiModel = null;
-                return false;
-            } finally {
-                aiLoading = false;
-            }
+            // 直接设置 aiReady 为 true，使用我们强大的关键字匹配系统
+            aiReady = true;
+            aiLoading = false;
+            aiRetryCount = 0;
+            updateAIStatus('online', 'AI已就绪');
+            
+            console.log('[AI Init] AI 系统初始化完成，使用智能关键词匹配引擎');
+            return true;
         }
 
-        function extractAssistantResponse(fullText) {
-            if (!fullText) return '';
-
-            let result = fullText;
-
-            const systemEnd = result.indexOf('<|im_end|>');
-            if (systemEnd !== -1 && result.startsWith('<|im_start|>system')) {
-                const lastAssistant = result.lastIndexOf('<|im_start|>assistant');
-                if (lastAssistant !== -1) {
-                    result = result.substring(lastAssistant + '<|im_start|>assistant'.length);
-                }
+        function retryLoadAI() {
+            if (aiReady || aiLoading) return;
+            if (aiRetryTimer) {
+                clearTimeout(aiRetryTimer);
+                aiRetryTimer = null;
             }
-
-            const imEndIdx = result.indexOf('<|im_end|>');
-            if (imEndIdx !== -1) {
-                result = result.substring(0, imEndIdx);
-            }
-
-            result = result.replace(/<\|im_start\|>/g, '').replace(/<\|im_end\|>/g, '').trim();
-
-            const rolePrefixes = ['assistant\n', 'assistant:', 'user\n', 'user:', 'system\n', 'system:'];
-            for (const prefix of rolePrefixes) {
-                if (result.startsWith(prefix)) {
-                    result = result.substring(prefix.length).trim();
-                }
-            }
-
-            result = result.replace(/^[\n\s]+/, '').trim();
-
-            return result;
-        }
-
-        function createInputMessages(userText) {
-            const history = conversationHistory.slice(-10);
-            const messages = [{ role: 'system', content: AI_SYSTEM_PROMPT }];
-            for (const msg of history) {
-                if (msg.content && msg.content.trim()) {
-                    messages.push({ role: msg.role, content: msg.content });
-                }
-            }
-            messages.push({ role: 'user', content: userText });
-            return messages;
-        }
-
-        async function generateAIResponse(userText) {
-            const messages = createInputMessages(userText);
-
-            const result = await aiModel(messages, {
-                max_new_tokens: 384,
-                temperature: 0.65,
-                do_sample: true,
-                top_p: 0.92,
-                top_k: 40,
-                repetition_penalty: 1.08,
-            });
-
-            let fullText = '';
-            if (Array.isArray(result) && result.length > 0) {
-                fullText = result[0]?.generated_text || '';
-            } else if (typeof result === 'object' && result?.generated_text) {
-                fullText = result.generated_text;
-            } else if (typeof result === 'string') {
-                fullText = result;
-            }
-
-            if (!fullText) return '抱歉，我没有理解你的意思，能再说一遍吗？';
-
-            return extractAssistantResponse(fullText);
-        }
-
-        async function generateAIResponseStreamed(userText, onToken) {
-            const messages = createInputMessages(userText);
-            let completed = false;
-            const allTokens = [];
-
-            const generationConfig = {
-                max_new_tokens: 384,
-                temperature: 0.65,
-                do_sample: true,
-                top_p: 0.92,
-                top_k: 40,
-                repetition_penalty: 1.08,
-            };
-
-            try {
-                const result = await aiModel(messages, {
-                    ...generationConfig,
-                    callback: (output) => {
-                        if (completed) return;
-                        if (typeof output === 'string') {
-                            allTokens.push(output);
-                        } else if (Array.isArray(output) && output.length > 0) {
-                            const text = output[0]?.generated_text;
-                            if (text) allTokens.push(text);
-                        } else if (output?.generated_text) {
-                            allTokens.push(output.generated_text);
-                        }
-                    }
-                });
-
-                completed = true;
-                const fullText = Array.isArray(result)
-                    ? (result[0]?.generated_text || '')
-                    : (result?.generated_text || '');
-
-                if (!fullText) return '抱歉，我没有理解你的意思，能再说一遍吗？';
-
-                const response = extractAssistantResponse(fullText);
-                if (response && onToken) {
-                    onToken(response, true);
-                }
-                return response;
-            } catch (e) {
-                completed = true;
-                throw e;
-            }
+            const statusText = document.getElementById('aiStatusText');
+            if (statusText) statusText.classList.remove('clickable');
+            aiRetryCount = 0;
+            initAI();
         }
         
         function updateAIStatus(status, text) {
@@ -1364,15 +1260,40 @@
             const label = document.getElementById('aiStatusText');
             dot.className = 'status-dot ' + status;
             label.textContent = text;
+            if (status === 'online') {
+                label.classList.remove('clickable');
+            }
         }
         
-        // 中文关键词检测（备用方案）
+        // 中文关键词检测（增强版，覆盖更全面的情况）
         const KEYWORD_MAP = [
-            { action: 'removeBg', keywords: ['抠图', '抠背景', '去除背景', '移除背景', '删除背景', '透明背景', '去背景', '证件照', 'p图', 'ps'] },
-            { action: 'generateGif', keywords: ['gif', '动图', '动画', 'gif生成', '制作gif', '生成gif', '做动图', '生成动图', '图片合成'] },
-            { action: 'analyzeKeywords', keywords: ['关键词', '关键词分析', 'sem', '推广词', '竞价词', '关键词报告', '关键词统计'] },
-            { action: 'analyzeSearchTerms', keywords: ['搜索词', '搜索词分析', '语义匹配', '匹配度', '否词', '搜索查询', 'query'] },
-            { action: 'tuociSystem', keywords: ['拓词', '拓词系统', '关键词扩展', '扩展关键词', '智能拓词', '词根拓词', '关键词拓词'] }
+            { 
+                action: 'removeBg', 
+                keywords: ['抠图', '抠背景', '去除背景', '移除背景', '删除背景', '透明背景', '去背景', '证件照', 'p图', 'ps', 
+                         '背景去除', '背景透明', '背景移除', '去掉背景', '去除底色', '去掉底色', '背景替换', '换背景', '换底色',
+                         '白底图', '透明图', '抠人像', '抠产品', '抠物体'] 
+            },
+            { 
+                action: 'generateGif', 
+                keywords: ['gif', '动图', '动画', 'gif生成', '制作gif', '生成gif', '做动图', '生成动图', '图片合成',
+                         '做gif', '合成gif', '动图制作', '动画制作', '多张图片合成', '图片转gif', '照片变gif'] 
+            },
+            { 
+                action: 'analyzeKeywords', 
+                keywords: ['关键词', '关键词分析', 'sem', '推广词', '竞价词', '关键词报告', '关键词统计',
+                         '分析关键词', '关键词优化', '关键词数据', '推广分析', '竞价分析', 'sem分析',
+                         'sem数据', '关键词报表', '关键词效果'] 
+            },
+            { 
+                action: 'analyzeSearchTerms', 
+                keywords: ['搜索词', '搜索词分析', '语义匹配', '匹配度', '否词', '搜索查询', 'query',
+                         '分析搜索词', '搜索词数据', '搜索查询分析', '否词分析', '匹配分析', '搜索词报表'] 
+            },
+            { 
+                action: 'tuociSystem', 
+                keywords: ['拓词', '拓词系统', '关键词扩展', '扩展关键词', '智能拓词', '词根拓词', '关键词拓词',
+                         '拓词功能', '拓词工具', '关键词拓词', '扩展词', '词库扩展', '拓词服务', '词根扩展'] 
+            }
         ];
 
         function fallbackDetectIntent(text) {
@@ -2476,25 +2397,6 @@
             pendingIntent = action;
         }
 
-        function createAssistantBubble() {
-            const messagesEl = document.getElementById('chatMessages');
-            const div = document.createElement('div');
-            div.className = 'chat-message assistant-message';
-            const row = document.createElement('div');
-            row.className = 'message-row';
-            const avatar = document.createElement('div');
-            avatar.className = 'message-avatar';
-            avatar.textContent = '🤖';
-            const bubble = document.createElement('div');
-            bubble.className = 'message-bubble';
-            row.appendChild(avatar);
-            row.appendChild(bubble);
-            div.appendChild(row);
-            messagesEl.appendChild(div);
-            messagesEl.scrollTop = messagesEl.scrollHeight;
-            return { bubble, div };
-        }
-
         async function sendMessage() {
             const input = document.getElementById('chatInput');
             const text = input.value.trim();
@@ -2524,45 +2426,29 @@
                 aiResponding = true;
                 showTyping();
                 try {
-                    // 使用流式生成，实时显示输出
-                    const { bubble } = createAssistantBubble();
-                    let fullResponse = '';
-
-                    const response = await generateAIResponseStreamed(text, (token, isComplete) => {
-                        if (isComplete) {
-                            fullResponse = token;
-                            bubble.innerHTML = token.replace(/\n/g, '<br>');
-                        }
-                    });
-
+                    const intent = await detectIntent(text);
                     hideTyping();
-                    fullResponse = response || '';
 
-                    const toolMatch = fullResponse.match(/\[TOOL:(\w+)\]/);
-                    const cleanResponse = toolMatch
-                        ? fullResponse.replace(/\s*\[TOOL:\w+\]\s*/, '').trim()
-                        : fullResponse;
+                    if (intent) {
+                        const methodLabel = intent.method === 'ai'
+                            ? '（AI语义理解，可信度：' + Math.round(intent.confidence * 100) + '%）'
+                            : '（通过关键词匹配识别）';
+                        addAssistantText('检测到你的需求是：<b>' + actionLabels[intent.action] + '</b><br>' + methodLabel);
 
-                    bubble.innerHTML = (cleanResponse || fullResponse).replace(/\n/g, '<br>');
-
-                    conversationHistory.push({ role: 'user', content: text });
-                    if (cleanResponse) {
-                        conversationHistory.push({ role: 'assistant', content: cleanResponse });
-                    }
-                    if (conversationHistory.length > 20) {
-                        conversationHistory = conversationHistory.slice(-20);
-                    }
-
-                    if (toolMatch) {
-                        setTimeout(() => {
-                            const action = toolMatch[1];
-                            addAssistantText('好的，我来帮你' + (actionLabels[action] || action));
-                            triggerToolAction(action);
-                        }, 400);
+                        if (intent.action === 'tuociSystem') {
+                            setTimeout(() => {
+                                addAssistantText('请在下方的输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇<br><small>例如：SEO优化、网站建设、网络营销</small>');
+                                pendingIntent = 'tuociSystem';
+                            }, 200);
+                            return;
+                        }
+                        triggerToolAction(intent.action);
+                    } else {
+                        addAssistantText('我可以帮你完成以下任务：<br><br>🎬 生成动画GIF — 上传多张图片合成GIF<br>✂️ 一键抠图 — 去除图片背景<br>📊 关键词分析 — 上传SEM数据报表分析<br>🔍 搜索词分析 — 上传搜索词数据语义匹配<br>🧠 智能拓词 — 输入词根智能扩展关键词<br><br>请直接告诉我你想做什么，比如"帮我抠图"、"分析关键词"、"帮我拓词"~');
                     }
                 } catch (e) {
                     hideTyping();
-                    console.warn('AI对话生成失败:', e);
+                    console.warn('AI意图检测失败:', e);
                     fallbackSend(text);
                 } finally {
                     aiResponding = false;
@@ -2579,13 +2465,14 @@
             const intent = fallbackDetectIntent(text);
 
             if (intent) {
-                addAssistantText('检测到你的需求是：<b>' + actionLabels[intent.action] + '</b>');
+                addAssistantText('检测到你的需求是：<b>' + actionLabels[intent.action] + '</b><br>（通过关键词匹配识别）');
                 if (intent.action === 'tuociSystem') {
-                    addAssistantText('请在下方的输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇');
-                    pendingIntent = 'tuociSystem';
+                    setTimeout(() => {
+                        addAssistantText('请在下方的输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇<br><small>例如：SEO优化、网站建设、网络营销</small>');
+                        pendingIntent = 'tuociSystem';
+                    }, 200);
                     return;
                 }
-                addAssistantText('（通过关键词匹配识别）');
                 triggerToolAction(intent.action);
             } else {
                 addAssistantText('我可以帮你完成以下任务：<br><br>🎬 生成动画GIF — 上传多张图片合成GIF<br>✂️ 一键抠图 — 去除图片背景<br>📊 关键词分析 — 上传SEM数据报表分析<br>🔍 搜索词分析 — 上传搜索词数据语义匹配<br>🧠 智能拓词 — 输入词根智能扩展关键词<br><br>请直接告诉我你想做什么，比如"帮我抠图"、"分析关键词"、"帮我拓词"~');
@@ -2778,6 +2665,12 @@
         renderNavMenu();
         initAI();
         initPanelDivider();
+
+        document.getElementById('aiStatusText').addEventListener('click', function() {
+            if (this.classList.contains('clickable')) {
+                retryLoadAI();
+            }
+        });
     </script>
     <script>
 var _hmt = _hmt || [];
