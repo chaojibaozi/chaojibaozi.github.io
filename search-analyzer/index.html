@@ -1721,6 +1721,90 @@
             document.getElementById('btn-download-negative').addEventListener('click', function() { downloadCSV(true); });
             document.getElementById('sort-header').addEventListener('click', sortTable);
         });
+
+        window.addEventListener('message', function(e) {
+            if (e.data.source !== 'hub' || e.data.action !== 'analyzeSearchTerms') return;
+
+            try {
+                const payload = e.data.payload;
+                if (!payload || !Array.isArray(payload.data) || payload.data.length === 0) {
+                    throw new Error('无效的数据：payload.data 为空或不是数组');
+                }
+
+                const rows = payload.data;
+                const fields = Object.keys(rows[0]);
+
+                const searchCol = fields.find(function(f) { return /搜索词|搜索|search|query/i.test(f); });
+                const keywordCol = fields.find(function(f) { return /关键词|key|keyword/i.test(f); });
+
+                if (!searchCol) {
+                    throw new Error('无法自动识别搜索词列，可用列：' + fields.join(', '));
+                }
+
+                var searchMap = new Map();
+                rows.forEach(function(row) {
+                    var term = (row[searchCol] || '').trim();
+                    if (!term) return;
+
+                    if (!searchMap.has(term)) {
+                        searchMap.set(term, { count: 0, keywords: [], scores: [] });
+                    }
+                    var entry = searchMap.get(term);
+                    entry.count++;
+
+                    if (keywordCol && row[keywordCol]) {
+                        var kw = row[keywordCol].trim();
+                        if (kw) {
+                            entry.keywords.push(kw);
+                            var score = calculateSemanticScore(kw, term);
+                            entry.scores.push(score);
+                        }
+                    }
+                });
+
+                var searchStats = [];
+                searchMap.forEach(function(entry, term) {
+                    var avgScore = entry.scores.length > 0
+                        ? Math.round(entry.scores.reduce(function(a, b) { return a + b; }, 0) / entry.scores.length * 10) / 10
+                        : 0;
+                    var relatedKeywords = [];
+                    entry.keywords.forEach(function(kw) {
+                        if (relatedKeywords.indexOf(kw) === -1) relatedKeywords.push(kw);
+                    });
+                    searchStats.push({
+                        term: term,
+                        count: entry.count,
+                        relatedKeywords: relatedKeywords,
+                        avgScore: avgScore
+                    });
+                });
+
+                searchStats.sort(function(a, b) { return b.count - a.count; });
+
+                var topTerms = [];
+                for (var i = 0; i < Math.min(20, searchStats.length); i++) {
+                    topTerms.push({ term: searchStats[i].term, count: searchStats[i].count });
+                }
+
+                e.source.postMessage({
+                    source: 'subsystem',
+                    action: 'result',
+                    id: e.data.id,
+                    data: {
+                        totalTerms: searchStats.length,
+                        searchStats: searchStats,
+                        topTerms: topTerms
+                    }
+                }, '*');
+            } catch (err) {
+                e.source.postMessage({
+                    source: 'subsystem',
+                    action: 'result',
+                    id: e.data.id,
+                    error: err.message || '未知错误'
+                }, '*');
+            }
+        });
     </script>
 </body>
 </html>
