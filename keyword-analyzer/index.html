@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEM关键词效果分析系统</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles/common.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 16px;
+        }
+        .container { max-width: 1800px; margin: 0 auto; }
+        .header { text-align: center; color: white; margin-bottom: 20px; }
+        .header h1 { font-size: 1.8em; margin-bottom: 6px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+        .header p { font-size: 0.95em; opacity: 0.9; }
+        .upload-section {
+            background: white; border-radius: 12px; padding: 24px;
+            margin-bottom: 20px; box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+        }
+        .upload-area {
+            border: 2px dashed #667eea; border-radius: 10px; padding: 40px 20px;
+            text-align: center; background: #f8f9ff; transition: all 0.3s ease; cursor: pointer;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #764ba2; background: #f0f2ff; transform: translateY(-2px);
+        }
+        .upload-icon { font-size: 3em; margin-bottom: 14px; color: #667eea; }
+        .upload-text { font-size: 1.1em; color: #333; margin-bottom: 8px; }
+        .upload-hint { color: #666; font-size: 0.9em; }
+        #fileInput { display: none; }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; padding: 10px 24px; border-radius: 20px;
+            font-size: 0.95em; cursor: pointer; transition: all 0.3s ease; margin: 8px 4px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); }
+        .btn-secondary {
+            background: #f0f0f0; color: #333;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0; box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+        }
+        .analysis-section { display: none; }
+        .section-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 4px 12px 4px; margin-bottom: 16px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .section-title { font-size: 1.25em; color: #333; font-weight: 600; }
+        .toggle-btn {
+            background: #f0f0f0; border: none; padding: 6px 14px; border-radius: 16px;
+            cursor: pointer; font-size: 0.85em; color: #666; transition: all 0.2s ease;
+        }
+        .toggle-btn:hover { background: #e0e0e0; color: #333; }
+        .collapsible { transition: max-height 0.3s ease, opacity 0.3s ease; overflow: hidden; }
+        .collapsible.collapsed { max-height: 0; opacity: 0; }
+        .stats-cards {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 14px; margin-bottom: 20px;
+        }
+        @media (max-width: 900px) {
+            .stats-cards { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 500px) {
+            .stats-cards { grid-template-columns: 1fr; }
+        }
+        .stat-card {
+            background: white; border-radius: 10px; padding: 18px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08); transition: transform 0.25s ease;
+        }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+        .stat-label { color: #666; font-size: 0.85em; margin-bottom: 6px; }
+        .stat-value { font-size: 1.7em; font-weight: 700; color: #333; line-height: 1.2; }
+        .stat-value.primary { color: #667eea; }
+        .stat-value.success { color: #28a745; }
+        .stat-value.warning { color: #ffc107; }
+        .stat-value.danger { color: #dc3545; }
+        .chart-container {
+            background: white; border-radius: 12px; padding: 20px;
+            margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        #mainChart { width: 100%; height: 520px; }
+        .legend-controls {
+            display: flex; justify-content: flex-end; margin-bottom: 12px;
+        }
+        .legend-btn {
+            background: #f0f0f0; border: none; padding: 6px 16px; border-radius: 16px;
+            cursor: pointer; font-size: 0.85em; color: #666; transition: all 0.2s ease;
+        }
+        .legend-btn:hover { background: #667eea; color: white; }
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            height: 520px;
+        }
+        #mainChart {
+            width: 100%;
+            height: 100%;
+        }
+        .custom-legend {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 300px;
+            height: 100%;
+            background: #fafafa;
+            border-left: 1px solid #eee;
+            padding: 12px;
+            overflow-y: auto;
+            user-select: none;
+        }
+        .legend-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .legend-items {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 12px;
+        }
+        .legend-item:hover {
+            background: #e8f4fd;
+        }
+        .legend-item.selected {
+            background: #667eea;
+            color: white;
+        }
+        .legend-item.selected .legend-checkbox {
+            color: white;
+        }
+        .legend-item.selected .legend-text {
+            color: white;
+        }
+        .legend-color {
+            width: 12px;
+            height: 3px;
+            border-radius: 2px;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        .legend-checkbox {
+            font-size: 14px;
+            margin-right: 6px;
+            color: #667eea;
+            flex-shrink: 0;
+        }
+        .legend-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #333;
+            font-size: 12px;
+        }
+        .selection-box {
+            position: absolute;
+            border: 2px dashed #667eea;
+            background: rgba(102, 126, 234, 0.15);
+            pointer-events: none;
+            display: none;
+            z-index: 100;
+        }
+        .data-table-container {
+            background: white; border-radius: 12px; padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08); overflow-x: auto;
+        }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        .data-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 12px 10px; text-align: left;
+            font-weight: 500; position: sticky; top: 0; font-size: 0.9em;
+        }
+        .data-table td { padding: 10px; border-bottom: 1px solid #eee; }
+        .data-table tr:hover { background: #f8f9ff; }
+        .data-table tr:nth-child(even) { background: #fafafa; }
+        .data-table tr:nth-child(even):hover { background: #f0f2ff; }
+        .rank {
+            display: inline-block; width: 26px; height: 26px; line-height: 26px;
+            text-align: center; border-radius: 50%; font-weight: 700; font-size: 0.8em;
+        }
+        .rank.top3 { background: linear-gradient(135deg, #ffd700, #ffaa00); color: white; }
+        .rank.normal { background: #e9ecef; color: #666; }
+        .tag { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 0.8em; font-weight: 500; }
+        .tag-high { background: #d4edda; color: #155724; }
+        .tag-medium { background: #fff3cd; color: #856404; }
+        .tag-low { background: #f8d7da; color: #721c24; }
+        .loading { display: none; text-align: center; padding: 30px; }
+        .loading-spinner {
+            width: 44px; height: 44px; border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea; border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .file-info {
+            background: #e8f5e9; border-left: 3px solid #4caf50;
+            padding: 12px 18px; margin-top: 16px; border-radius: 0 6px 6px 0; display: none;
+        }
+        .file-info.show { display: block; }
+        .file-info strong { color: #2e7d32; }
+        .file-info span { color: #4caf50; }
+        .control-bar {
+            display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;
+        }
+        .reset-btn {
+            background: #ff5252; color: white; border: none; padding: 8px 18px;
+            border-radius: 18px; font-size: 0.85em; cursor: pointer; transition: all 0.2s ease;
+        }
+        .reset-btn:hover { background: #ff1744; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(255,82,82,0.3); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>SEM关键词效果分析系统</h1>
+            <p>智能分析广告数据，洞察关键词转化效果</p>
+        </div>
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">&#8593;</div>
+                <div class="upload-text">拖拽文件到此处，或点击上传</div>
+                <div class="upload-hint">支持 .xlsx, .xls, .csv 格式的数据文件</div>
+                <br>
+                <button class="btn" onclick="document.getElementById('fileInput').click()">选择文件</button>
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
+            </div>
+            <div class="file-info" id="fileInfo">
+                <strong>已选择文件：</strong><span id="fileName"></span>
+                <span id="fileSize" style="margin-left: 16px;"></span>
+            </div>
+            <div class="loading" id="loading">
+                <div class="loading-spinner"></div>
+                <p>正在分析数据...</p>
+            </div>
+        </div>
+        <div class="analysis-section" id="analysisSection">
+            <div class="stats-cards">
+                <div class="stat-card">
+                    <div class="stat-label">总消费金额</div>
+                    <div class="stat-value primary" id="totalCost">0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">总转化数</div>
+                    <div class="stat-value success" id="totalConversion">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">平均CPC</div>
+                    <div class="stat-value warning" id="avgCPC">0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">关键词总数</div>
+                    <div class="stat-value danger" id="keywordCount">0</div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <div class="section-header">
+                    <div class="section-title">TOP20转化关键词转化数曲线</div>
+                    <button class="toggle-btn" onclick="toggleSection('chartCollapse')">收起</button>
+                </div>
+                <div class="collapsible" id="chartCollapse">
+                    <div class="legend-controls">
+                        <button class="legend-btn" onclick="restoreAllSeries()">恢复全部显示</button>
+                        <button class="legend-btn" onclick="invertSelection()">反向选择</button>
+                    </div>
+                    <div class="chart-wrapper">
+                        <div id="mainChart"></div>
+                        <div class="custom-legend" id="customLegend">
+                            <div class="legend-title">关键词列表（点击或框选）</div>
+                            <div class="legend-items" id="legendItems"></div>
+                        </div>
+                        <div class="selection-box" id="selectionBox"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="data-table-container">
+                <div class="section-header">
+                    <div class="section-title">TOP20转化关键词明细</div>
+                    <button class="toggle-btn" onclick="toggleSection('tableCollapse')">收起</button>
+                </div>
+                <div class="collapsible" id="tableCollapse">
+                    <table class="data-table" id="dataTable">
+                        <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>关键词</th>
+                                <th>转化数</th>
+                                <th>总消费</th>
+                                <th>点击次数</th>
+                                <th>平均CPC</th>
+                                <th>转化率</th>
+                                <th>效果评级</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="control-bar">
+                <button class="reset-btn" onclick="resetAnalysis()">重新上传</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rawData = [];
+        let processedData = [];
+        let top20Keywords = [];
+        let chartInstance = null;
+        let legendSelected = {};
+        let colorPalette = [];
+        let legendItemNames = [];
+        let isSelecting = false;
+        let selectStartX = 0;
+        let selectStartY = 0;
+
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', () => { uploadArea.classList.remove('dragover'); });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        });
+
+        function toggleSection(id) {
+            const el = document.getElementById(id);
+            const btn = el.previousElementSibling.querySelector('.toggle-btn');
+            el.classList.toggle('collapsed');
+            btn.textContent = el.classList.contains('collapsed') ? '展开' : '收起';
+            if (chartInstance && id === 'chartCollapse' && !el.classList.contains('collapsed')) {
+                setTimeout(() => chartInstance.resize(), 100);
+            }
+        }
+
+        function resetAnalysis() {
+            rawData = [];
+            processedData = [];
+            top20Keywords = [];
+            document.getElementById('analysisSection').style.display = 'none';
+            document.getElementById('fileInfo').classList.remove('show');
+            document.getElementById('fileInput').value = '';
+        }
+
+        function restoreAllSeries() {
+            if (chartInstance) {
+                legendItemNames.forEach(item => {
+                    legendSelected[item] = true;
+                });
+                updateLegendDisplay();
+                updateChartSeries();
+            }
+        }
+
+        function invertSelection() {
+            if (chartInstance) {
+                legendItemNames.forEach(item => {
+                    legendSelected[item] = !legendSelected[item];
+                });
+                updateLegendDisplay();
+                updateChartSeries();
+            }
+        }
+
+        function handleFile(file) {
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(2) + ' KB';
+            document.getElementById('fileInfo').classList.add('show');
+            document.getElementById('loading').style.display = 'block';
+            const isCSV = file.name.toLowerCase().endsWith('.csv');
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    let workbook;
+                    if (isCSV) {
+                        workbook = XLSX.read(e.target.result, { type: 'string', raw: true });
+                    } else {
+                        const data = new Uint8Array(e.target.result);
+                        workbook = XLSX.read(data, { type: 'array' });
+                    }
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                    if (!jsonData || jsonData.length === 0) {
+                        throw new Error('数据为空，请检查文件格式');
+                    }
+                    const firstRow = jsonData[0];
+                    const availableKeys = Object.keys(firstRow);
+                    console.log('检测到的列名:', availableKeys);
+                    rawData = jsonData;
+                    analyzeData();
+                    if (processedData.length === 0) {
+                        console.warn('未找到有效关键词数据，请检查CSV列名是否包含：关键词/搜索词/SearchTerm/Keyword');
+                        alert('未找到有效数据，请确保CSV包含关键词列（关键词/搜索词/SearchTerm/Keyword）');
+                    }
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('analysisSection').style.display = 'block';
+                    document.getElementById('analysisSection').scrollIntoView({ behavior: 'smooth' });
+                    setTimeout(() => {
+                        if (chartInstance) chartInstance.resize();
+                    }, 200);
+                } catch (error) {
+                    alert('文件解析失败：' + error.message);
+                    console.error(error);
+                    document.getElementById('loading').style.display = 'none';
+                }
+            };
+            if (isCSV) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        function getValue(row, keys) {
+            for (let key of keys) {
+                if (row[key] !== undefined && row[key] !== null) {
+                    return row[key];
+                }
+            }
+            return null;
+        }
+
+        function parseDateRange(dateStr) {
+            const dates = [];
+            if (!dateStr || typeof dateStr !== 'string') return dates;
+            dateStr = dateStr.trim();
+            const match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})([\u4e00-\u9fa5至\-~到]+)(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (match) {
+                let startYear = parseInt(match[1]);
+                let startMonth = parseInt(match[2]) - 1;
+                let startDay = parseInt(match[3]);
+                let endYear = parseInt(match[5]);
+                let endMonth = parseInt(match[6]) - 1;
+                let endDay = parseInt(match[7]);
+                let start = new Date(startYear, startMonth, startDay);
+                let end = new Date(endYear, endMonth, endDay);
+                if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+                    dates.push(dateStr);
+                    return dates;
+                }
+                if (start > end) {
+                    dates.push(dateStr);
+                    return dates;
+                }
+                let current = new Date(start);
+                while (current <= end) {
+                    const y = current.getFullYear();
+                    const m = String(current.getMonth() + 1).padStart(2, '0');
+                    const d = String(current.getDate()).padStart(2, '0');
+                    dates.push(y + '-' + m + '-' + d);
+                    current.setDate(current.getDate() + 1);
+                }
+            } else {
+                dates.push(dateStr);
+            }
+            return dates;
+        }
+
+        function analyzeData() {
+            processedData = rawData.map((row, idx) => {
+                let keyword = '';
+                const kw = getValue(row, ['关键词', '搜索词', 'SearchTerm', 'Keyword', 'search_term', 'searchWord']);
+                if (kw) keyword = String(kw).trim();
+                const timeVal = getValue(row, ['时间', '日期', 'Date', 'date', '统计日期']);
+                const costVal = getValue(row, ['总费用', '消费', '费用', 'Cost', 'cost', '总消费', '花费', '金额']);
+                const convVal = getValue(row, ['转化数', '转化', '转化量', '转化次数', 'Conversions', 'conversions', '转化目标数']);
+                const clicksVal = getValue(row, ['点击次数', '点击', 'Clicks', 'clicks', '点击量']);
+                const cpcVal = getValue(row, ['平均每次点击费用', 'CPC', 'cpc', '平均CPC', '每次点击费用']);
+                const showVal = getValue(row, ['展示次数', '展现', '展现量', '展示', 'Impressions', 'impressions', '曝光']);
+                const crVal = getValue(row, ['点击率', 'CTR', 'ctr', '点击转化率']);
+                const campVal = getValue(row, ['推广计划', '计划', 'Campaign', 'campaign', '计划名称']);
+                const deviceVal = getValue(row, ['投放设备', '设备', 'Device', 'device', '投放平台']);
+                
+                return {
+                    dateRaw: timeVal || '',
+                    keyword: keyword,
+                    cost: parseFloat(costVal) || 0,
+                    conversion: parseInt(convVal) || 0,
+                    clicks: parseInt(clicksVal) || 0,
+                    cpc: parseFloat(cpcVal) || 0,
+                    showCount: parseInt(showVal) || 0,
+                    clickRate: parseFloat(crVal) || 0,
+                    campaign: campVal || '',
+                    device: deviceVal || '',
+                    rowIndex: idx
+                };
+            }).filter(item => item.keyword !== '');
+
+            const keywordMap = new Map();
+
+            processedData.forEach(item => {
+                if (!keywordMap.has(item.keyword)) {
+                    keywordMap.set(item.keyword, {
+                        keyword: item.keyword,
+                        totalCost: 0,
+                        totalConversion: 0,
+                        totalClicks: 0,
+                        dailyData: new Map()
+                    });
+                }
+                const kd = keywordMap.get(item.keyword);
+                kd.totalCost += item.cost;
+                kd.totalConversion += item.conversion;
+                kd.totalClicks += item.clicks;
+
+                const dates = parseDateRange(item.dateRaw);
+
+                if (dates.length === 1) {
+                    const date = dates[0];
+                    if (kd.dailyData.has(date)) {
+                        const existing = kd.dailyData.get(date);
+                        existing.cost += item.cost;
+                        existing.conversion += item.conversion;
+                        existing.clicks += item.clicks;
+                    } else {
+                        kd.dailyData.set(date, {
+                            date: date,
+                            cost: item.cost,
+                            conversion: item.conversion,
+                            clicks: item.clicks
+                        });
+                    }
+                } else {
+                    const dayCount = dates.length;
+                    const dailyCost = item.cost / dayCount;
+                    const dailyConversion = item.conversion / dayCount;
+                    const dailyClicks = item.clicks / dayCount;
+
+                    dates.forEach(date => {
+                        if (kd.dailyData.has(date)) {
+                            const existing = kd.dailyData.get(date);
+                            existing.cost += dailyCost;
+                            existing.conversion += dailyConversion;
+                            existing.clicks += dailyClicks;
+                        } else {
+                            kd.dailyData.set(date, {
+                                date: date,
+                                cost: dailyCost,
+                                conversion: dailyConversion,
+                                clicks: dailyClicks
+                            });
+                        }
+                    });
+                }
+            });
+
+            const keywordArray = Array.from(keywordMap.values());
+            keywordArray.forEach(k => {
+                k.dailyData.forEach(day => {
+                    day.cpc = day.clicks > 0 ? day.cost / day.clicks : 0;
+                });
+            });
+            keywordArray.sort((a, b) => b.totalConversion - a.totalConversion);
+            top20Keywords = keywordArray.slice(0, 20);
+
+            updateStatsCards(keywordArray);
+            generateChart();
+            generateTable();
+        }
+
+        function updateStatsCards(allKeywords) {
+            const totalCost = allKeywords.reduce((sum, k) => sum + k.totalCost, 0);
+            const totalConversion = allKeywords.reduce((sum, k) => sum + k.totalConversion, 0);
+            const totalClicks = allKeywords.reduce((sum, k) => sum + k.totalClicks, 0);
+            const avgCPC = totalClicks > 0 ? totalCost / totalClicks : 0;
+            document.getElementById('totalCost').textContent = totalCost.toFixed(2);
+            document.getElementById('totalConversion').textContent = Math.round(totalConversion);
+            document.getElementById('avgCPC').textContent = avgCPC.toFixed(2);
+            document.getElementById('keywordCount').textContent = allKeywords.length;
+        }
+
+        function generateChart() {
+            const chartDom = document.getElementById('mainChart');
+            if (chartInstance) chartInstance.dispose();
+            chartInstance = echarts.init(chartDom);
+            legendItemNames = [];
+
+            const dateSet = new Set();
+            top20Keywords.forEach(k => {
+                k.dailyData.forEach((v, d) => dateSet.add(d));
+            });
+            const dates = Array.from(dateSet).sort();
+
+            const dailyTotalConversion = {};
+            dates.forEach(date => {
+                let total = 0;
+                top20Keywords.forEach(k => {
+                    const dayData = k.dailyData.get(date);
+                    if (dayData) {
+                        total += dayData.conversion;
+                    }
+                });
+                dailyTotalConversion[date] = total;
+            });
+
+            const series = top20Keywords.map((keyword, idx) => {
+                const data = dates.map(date => {
+                    const dayData = keyword.dailyData.get(date);
+                    if (dayData) {
+                        return {
+                            value: [
+                                date,
+                                parseFloat(dayData.conversion.toFixed(4)),
+                                parseFloat(dayData.cost.toFixed(4)),
+                                parseFloat(dayData.cpc.toFixed(4)),
+                                parseFloat(dayData.clicks.toFixed(4))
+                            ],
+                            keyword: keyword.keyword,
+                            conversion: dayData.conversion,
+                            cost: dayData.cost,
+                            cpc: dayData.cpc,
+                            clicks: dayData.clicks
+                        };
+                    }
+                    return {
+                        value: [date, 0, 0, 0, 0],
+                        keyword: keyword.keyword,
+                        conversion: 0,
+                        cost: 0,
+                        cpc: 0,
+                        clicks: 0
+                    };
+                });
+
+                const conversionCost = keyword.totalConversion > 0 ? keyword.totalCost / keyword.totalConversion : 0;
+                const keywordText = keyword.keyword;
+                const statsText = '转化' + Math.round(keyword.totalConversion) + ' 成本' + conversionCost.toFixed(2);
+                const maxKeywordLen = 12;
+                let displayKeyword = keywordText;
+                if (keywordText.length > maxKeywordLen) {
+                    displayKeyword = keywordText.substring(0, maxKeywordLen - 2) + '..';
+                }
+                const legendName = displayKeyword + '  ' + statsText;
+                legendSelected[legendName] = true;
+                legendItemNames.push(legendName);
+
+                return {
+                    name: legendName,
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 8,
+                    data: data,
+                    emphasis: {
+                        focus: 'series',
+                        lineStyle: { width: 3 },
+                        itemStyle: { borderWidth: 3, borderColor: '#fff' }
+                    },
+                    lineStyle: { width: 2 },
+                    showSymbol: true
+                };
+            });
+
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    borderColor: '#667eea',
+                    borderWidth: 1,
+                    padding: [12, 16],
+                    textStyle: {
+                        color: '#fff',
+                        fontSize: 13,
+                        fontFamily: 'Noto Sans SC, sans-serif'
+                    },
+                    confine: true,
+                    appendToBody: false,
+                    formatter: function(params) {
+                        const d = params.data;
+                        const dot = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + params.color + ';margin-right:8px;vertical-align:middle;"></span>';
+                        let html = '<div style="min-width:200px;">';
+                        html += '<div style="font-size:14px; font-weight:bold; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.2);">' + params.name + '</div>';
+                        html += '<div style="font-weight:bold; margin-bottom:6px; font-size:13px;">' + dot + d.keyword + '</div>';
+                        html += '<div style="color:#cbd5e1; font-size:12px; line-height:24px;">';
+                        html += '当日转化：<span style="color:#34d399; font-weight:bold; font-size:14px;">' + d.conversion.toFixed(2) + '</span><br/>';
+                        html += '当日消费：<span style="color:#f97316; font-weight:bold; font-size:14px;">' + d.cost.toFixed(2) + '</span><br/>';
+                        html += '当日CPC：<span style="color:#60a5fa; font-weight:bold; font-size:14px;">' + d.cpc.toFixed(2) + '</span><br/>';
+                        html += '当日点击：<span style="color:#a78bfa; font-weight:bold; font-size:14px;">' + d.clicks.toFixed(2) + '</span>';
+                        html += '</div></div>';
+                        return html;
+                    }
+                },
+                grid: {
+                    left: '4%',
+                    right: '4%',
+                    bottom: '20%',
+                    top: '6%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: dates,
+                    axisLabel: {
+                        rotate: 0,
+                        fontSize: 12,
+                        color: '#555',
+                        fontWeight: 400,
+                        interval: 0,
+                        fontFamily: 'Noto Sans SC, sans-serif',
+                        formatter: function(val) {
+                            if (!val || typeof val !== 'string') return val;
+                            if (val.length >= 10) {
+                                const parts = val.split('-');
+                                if (parts.length === 3) {
+                                    const monthDay = parts[1] + '-' + parts[2];
+                                    const totalConv = dailyTotalConversion[val] || 0;
+                                    return monthDay + '\n转化:' + totalConv.toFixed(1);
+                                }
+                            }
+                            return val;
+                        }
+                    },
+                    axisLine: { lineStyle: { color: '#aaa', width: 1.5 } },
+                    axisTick: { alignWithLabel: true, length: 5 }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '转化数',
+                    nameTextStyle: { color: '#555', fontSize: 12, padding: [0, 0, 0, -20] },
+                    minInterval: 1,
+                    axisLabel: { color: '#666', fontSize: 11 },
+                    splitLine: { lineStyle: { color: '#f0f0f0', type: 'dashed' } }
+                },
+                dataZoom: [
+                    {
+                        type: 'inside',
+                        start: 0,
+                        end: 100
+                    },
+                    {
+                        type: 'slider',
+                        start: 0,
+                        end: 100,
+                        height: 22,
+                        bottom: 5,
+                        borderColor: '#ddd',
+                        backgroundColor: '#fafafa',
+                        fillerColor: 'rgba(102, 126, 234, 0.15)',
+                        handleStyle: { color: '#667eea' },
+                        textStyle: { color: '#666', fontSize: 11 }
+                    }
+                ],
+                color: [
+                    '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16',
+                    '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+                    '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
+                    '#ec4899', '#f43f5e', '#e11d48', '#be123c', '#9f1239'
+                ],
+                series: series,
+                animationDuration: 1000,
+                animationEasing: 'cubicOut'
+            };
+
+            colorPalette = option.color;
+            chartInstance.setOption(option);
+            renderCustomLegend();
+            initSelectionBox();
+            window.addEventListener('resize', () => { chartInstance.resize(); });
+        }
+
+        function renderCustomLegend() {
+            const legendItems = document.getElementById('legendItems');
+            legendItems.innerHTML = '';
+            
+            legendItemNames.forEach((name, index) => {
+                const item = document.createElement('div');
+                item.className = 'legend-item' + (legendSelected[name] !== false ? ' selected' : '');
+                item.dataset.name = name;
+                item.dataset.index = index;
+                
+                const colorBox = document.createElement('span');
+                colorBox.className = 'legend-color';
+                colorBox.style.background = colorPalette[index % colorPalette.length];
+                
+                const checkbox = document.createElement('span');
+                checkbox.className = 'legend-checkbox';
+                checkbox.innerHTML = legendSelected[name] !== false ? '\u2611' : '\u2610';
+                
+                const text = document.createElement('span');
+                text.className = 'legend-text';
+                text.textContent = name;
+                
+                item.appendChild(colorBox);
+                item.appendChild(checkbox);
+                item.appendChild(text);
+                
+                item.addEventListener('click', function() {
+                    const itemName = this.dataset.name;
+                    legendSelected[itemName] = !legendSelected[itemName];
+                    updateLegendDisplay();
+                    updateChartSeries();
+                });
+                
+                legendItems.appendChild(item);
+            });
+        }
+
+        function updateLegendDisplay() {
+            const items = document.querySelectorAll('.legend-item');
+            items.forEach(item => {
+                const name = item.dataset.name;
+                const checkbox = item.querySelector('.legend-checkbox');
+                if (legendSelected[name] !== false) {
+                    item.classList.add('selected');
+                    checkbox.innerHTML = '\u2611';
+                } else {
+                    item.classList.remove('selected');
+                    checkbox.innerHTML = '\u2610';
+                }
+            });
+        }
+
+        function updateChartSeries() {
+            if (chartInstance) {
+                const option = chartInstance.getOption();
+                if (option.series) {
+                    const newSeries = option.series.map((s) => {
+                        return {
+                            name: s.name,
+                            show: legendSelected[s.name] !== false
+                        };
+                    });
+                    chartInstance.setOption({
+                        series: newSeries
+                    }, { replaceMerge: ['series'] });
+                }
+            }
+        }
+
+        function initSelectionBox() {
+            const legend = document.getElementById('customLegend');
+            const selectionBox = document.getElementById('selectionBox');
+            let startX, startY;
+
+            legend.addEventListener('mousedown', function(e) {
+                if (e.target.closest('.legend-item')) {
+                    return;
+                }
+                isSelecting = true;
+                const rect = legend.getBoundingClientRect();
+                startX = e.clientX - rect.left;
+                startY = e.clientY - rect.top;
+                selectStartX = startX;
+                selectStartY = startY;
+                
+                selectionBox.style.left = startX + 'px';
+                selectionBox.style.top = startY + 'px';
+                selectionBox.style.width = '0';
+                selectionBox.style.height = '0';
+                selectionBox.style.display = 'block';
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!isSelecting) return;
+                
+                const legend = document.getElementById('customLegend');
+                const rect = legend.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const left = Math.min(x, selectStartX);
+                const top = Math.min(y, selectStartY);
+                const width = Math.abs(x - selectStartX);
+                const height = Math.abs(y - selectStartY);
+                
+                selectionBox.style.left = left + 'px';
+                selectionBox.style.top = top + 'px';
+                selectionBox.style.width = width + 'px';
+                selectionBox.style.height = height + 'px';
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (!isSelecting) return;
+                isSelecting = false;
+                selectionBox.style.display = 'none';
+                
+                const legendItems = document.querySelectorAll('.legend-item');
+                const boxRect = {
+                    left: parseFloat(selectionBox.style.left) || 0,
+                    top: parseFloat(selectionBox.style.top) || 0,
+                    width: parseFloat(selectionBox.style.width) || 0,
+                    height: parseFloat(selectionBox.style.height) || 0
+                };
+                
+                legendItems.forEach(item => {
+                    const itemRect = item.getBoundingClientRect();
+                    const legendRect = legend.getBoundingClientRect();
+                    const itemRelativeRect = {
+                        left: itemRect.left - legendRect.left,
+                        top: itemRect.top - legendRect.top,
+                        width: itemRect.width,
+                        height: itemRect.height
+                    };
+                    
+                    if (isOverlapping(itemRelativeRect, boxRect)) {
+                        const name = item.dataset.name;
+                        legendSelected[name] = !legendSelected[name];
+                    }
+                });
+                
+                updateLegendDisplay();
+                updateChartSeries();
+            });
+        }
+
+        function isOverlapping(rect1, rect2) {
+            return rect1.left < rect2.left + rect2.width &&
+                   rect1.left + rect1.width > rect2.left &&
+                   rect1.top < rect2.top + rect2.height &&
+                   rect1.top + rect1.height > rect2.top;
+        }
+
+        function generateTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            top20Keywords.forEach((keyword, index) => {
+                const row = document.createElement('tr');
+                const avgCPC = keyword.totalClicks > 0 ? keyword.totalCost / keyword.totalClicks : 0;
+                const conversionRate = keyword.totalClicks > 0 ? (keyword.totalConversion / keyword.totalClicks * 100) : 0;
+                let ratingClass = 'tag-low', ratingText = '低效';
+                if (keyword.totalConversion >= 5) { ratingClass = 'tag-high'; ratingText = '高效'; }
+                else if (keyword.totalConversion >= 2) { ratingClass = 'tag-medium'; ratingText = '中效'; }
+                const rankClass = index < 3 ? 'top3' : 'normal';
+                row.innerHTML = `
+                    <td><span class="rank ${rankClass}">${index + 1}</span></td>
+                    <td><strong>${escapeHtml(keyword.keyword)}</strong></td>
+                    <td>${Math.round(keyword.totalConversion)}</td>
+                    <td>${keyword.totalCost.toFixed(2)}</td>
+                    <td>${Math.round(keyword.totalClicks)}</td>
+                    <td>${avgCPC.toFixed(2)}</td>
+                    <td>${conversionRate.toFixed(2)}%</td>
+                    <td><span class="tag ${ratingClass}">${ratingText}</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
