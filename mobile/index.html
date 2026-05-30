@@ -13,6 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        button, [onclick], .home-card, .tool-card-header, .drawer-item, .tab-item, .toolbar-btn, .send-btn, .download-btn, .tool-btn, .upload-area, .chat-upload-area, .chart-legend-item { touch-action: manipulation; }
         html, body {
             font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
             background: #f0f2f5;
@@ -178,15 +179,266 @@
             padding-top: calc(var(--nav-height) + var(--safe-top));
             padding-bottom: calc(var(--tab-height) + var(--safe-bottom));
             height: 100%;
-            overflow: hidden;
         }
         .tab-page {
             display: none;
             height: 100%;
             overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
         }
         .tab-page.active { display: block; }
+
+        /* touch优化 - 确保所有交互元素快速响应 */
+        button, a, .clickable, [role="button"], .home-card, .tool-card-header, .drawer-item, .tab-item, .hamburger {
+            touch-action: manipulation;
+            cursor: pointer;
+        }
+
+        /* ========== 独立工具全屏页 ========== */
+        .tool-page {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 2000;
+            background: #f0f2f5;
+            display: none;
+            flex-direction: column;
+            animation: toolPageIn 0.3s ease;
+        }
+        .tool-page.open {
+            display: flex;
+        }
+        @keyframes toolPageIn {
+            from { opacity: 0; transform: translateX(30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .tool-page-header {
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            height: calc(var(--nav-height) + var(--safe-top));
+            padding-top: var(--safe-top);
+            background: var(--gradient);
+            color: white;
+            flex-shrink: 0;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+            position: relative;
+            z-index: 1;
+        }
+        .tool-back-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: rgba(255,255,255,0.15);
+            border-radius: 10px;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            transition: background 0.2s;
+            flex-shrink: 0;
+            font-family: inherit;
+            touch-action: manipulation;
+        }
+        .tool-back-btn:active {
+            background: rgba(255,255,255,0.3);
+        }
+        .tool-page-title {
+            flex: 1;
+            text-align: center;
+            font-size: 17px;
+            font-weight: 600;
+            padding: 0 8px;
+        }
+        .tool-page-spacer {
+            width: 40px;
+            flex-shrink: 0;
+        }
+        .tool-page-body {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 16px;
+        }
+
+        /* 工具页内部通用组件 */
+        .tool-section-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tool-upload-card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px dashed #cbd5e1;
+            margin-bottom: 16px;
+            touch-action: manipulation;
+        }
+        .tool-upload-card:active {
+            border-color: var(--primary);
+            background: rgba(102,126,234,0.05);
+            transform: scale(0.98);
+        }
+        .tool-upload-card .upload-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+        .tool-upload-card .upload-text {
+            color: #64748b;
+            font-size: 15px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        .tool-upload-card .upload-hint {
+            color: #94a3b8;
+            font-size: 12px;
+        }
+        .tool-btn-primary {
+            display: block;
+            width: 100%;
+            padding: 14px 20px;
+            background: var(--gradient);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            margin: 12px 0;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+        .tool-btn-primary:active {
+            opacity: 0.85;
+            transform: scale(0.98);
+        }
+        .tool-btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .tool-result-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            border: 1px solid #f1f5f9;
+            margin-bottom: 16px;
+        }
+        .tool-result-card-header {
+            padding: 14px 16px;
+            background: var(--gradient);
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tool-result-card-body {
+            padding: 14px 16px;
+        }
+
+        .tool-thumbnail-grid {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 12px 0;
+        }
+        .tool-thumbnail-grid .thumb {
+            width: 72px;
+            height: 72px;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 2px solid #e2e8f0;
+            background: #f8fafc;
+        }
+
+        .tool-before-after {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 12px 0;
+        }
+        .tool-before-after .ba-item {
+            flex: 1;
+            min-width: 120px;
+            max-width: 180px;
+            text-align: center;
+        }
+        .tool-before-after .ba-label {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+        .tool-before-after .ba-image {
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+        .tool-before-after .ba-image.result {
+            background: linear-gradient(45deg,#ddd 25%,transparent 25%),linear-gradient(-45deg,#ddd 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ddd 75%),linear-gradient(-45deg,transparent 75%,#ddd 75%);
+            background-size: 16px 16px;
+        }
+
+        .tool-textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+            resize: vertical;
+            min-height: 100px;
+            line-height: 1.6;
+        }
+        .tool-textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        .tool-input-hint {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 6px;
+        }
+
+        .tool-status {
+            text-align: center;
+            padding: 10px;
+            font-size: 13px;
+            color: #64748b;
+        }
+        .tool-status.loading {
+            color: #f59e0b;
+        }
+        .tool-status.success {
+            color: #10b981;
+        }
+        .tool-status.error {
+            color: #ef4444;
+        }
+
+        /* 隐藏底部Tab栏和导航栏的辅助类 */
+        .hide-elements .bottom-tabs,
+        .hide-elements .top-nav {
+            display: none !important;
+        }
 
         /* ========== 底部Tab栏 ========== */
         .bottom-tabs {
@@ -746,27 +998,27 @@
             </div>
             <div class="home-section-title">📦 核心工具</div>
             <div class="home-grid">
-                <div class="home-card" onclick="switchTab('chat');setTimeout(()=>document.querySelector('[data-action=\"tuoci\"]')?.click(),200);">
+                <div class="home-card" onclick="openToolPage('tuoci')">
                     <div class="card-icon">🧠</div>
                     <div class="card-name">智能拓词</div>
                     <div class="card-desc">输入词根，AI智能扩展关键词</div>
                 </div>
-                <div class="home-card" onclick="switchTab('chat');setTimeout(()=>document.querySelector('[data-action=\"keyword\"]')?.click(),200);">
+                <div class="home-card" onclick="openToolPage('keyword')">
                     <div class="card-icon">📊</div>
                     <div class="card-name">关键词分析</div>
                     <div class="card-desc">上传SEM数据，图表化分析</div>
                 </div>
-                <div class="home-card" onclick="switchTab('chat');setTimeout(()=>document.querySelector('[data-action=\"search\"]')?.click(),200);">
+                <div class="home-card" onclick="openToolPage('search')">
                     <div class="card-icon">🔍</div>
                     <div class="card-name">搜索词分析</div>
                     <div class="card-desc">搜索词语义匹配与统计</div>
                 </div>
-                <div class="home-card" onclick="switchTab('chat');setTimeout(()=>document.querySelector('[data-action=\"bg\"]')?.click(),200);">
+                <div class="home-card" onclick="openToolPage('bg')">
                     <div class="card-icon">✂️</div>
                     <div class="card-name">一键抠图</div>
                     <div class="card-desc">上传图片，去除背景</div>
                 </div>
-                <div class="home-card" onclick="switchTab('chat');setTimeout(()=>document.querySelector('[data-action=\"gif\"]')?.click(),200);" style="grid-column: span 2;">
+                <div class="home-card" onclick="openToolPage('gif')" style="grid-column: span 2;">
                     <div class="card-icon">🎬</div>
                     <div class="card-name">动图GIF生成</div>
                     <div class="card-desc">上传多张图片，合成GIF动图</div>
@@ -831,6 +1083,100 @@
                 <!-- 由JS动态渲染 -->
             </div>
         </div>
+    </div>
+</div>
+
+<!-- ========== 智能拓词 - 独立页面 ========== -->
+<div class="tool-page" id="toolPageTuoci">
+    <div class="tool-page-header">
+        <button class="tool-back-btn" onclick="closeToolPage()">‹</button>
+        <div class="tool-page-title">🧠 智能拓词</div>
+        <div class="tool-page-spacer"></div>
+    </div>
+    <div class="tool-page-body">
+        <div class="tool-section-title">📝 输入词根</div>
+        <div style="background:white;border-radius:16px;padding:16px;border:1px solid #f1f5f9;">
+            <textarea class="tool-textarea" id="tpTuociInput" rows="4" placeholder="每行输入一个词根，例如：&#10;SEO优化&#10;网站建设&#10;网络营销"></textarea>
+            <div class="tool-input-hint">每行一个词根，至少输入1个</div>
+            <button class="tool-btn-primary" id="tpTuociBtn" onclick="tpHandleTuoci()">🧠 开始智能拓词</button>
+        </div>
+        <div id="tpTuociResult"></div>
+    </div>
+</div>
+
+<!-- ========== 关键词分析 - 独立页面 ========== -->
+<div class="tool-page" id="toolPageKeyword">
+    <div class="tool-page-header">
+        <button class="tool-back-btn" onclick="closeToolPage()">‹</button>
+        <div class="tool-page-title">📊 关键词分析</div>
+        <div class="tool-page-spacer"></div>
+    </div>
+    <div class="tool-page-body">
+        <div class="tool-upload-card" id="tpKwUpload" onclick="document.getElementById('tpKwInput').click()">
+            <div class="upload-icon">📊</div>
+            <div class="upload-text">点击上传SEM数据报表</div>
+            <div class="upload-hint">支持 CSV / Excel 格式</div>
+        </div>
+        <input type="file" id="tpKwInput" style="display:none" accept=".csv,.xlsx,.xls" onchange="tpHandleData(this,'keyword')">
+        <div id="tpKwResult"></div>
+    </div>
+</div>
+
+<!-- ========== 搜索词分析 - 独立页面 ========== -->
+<div class="tool-page" id="toolPageSearch">
+    <div class="tool-page-header">
+        <button class="tool-back-btn" onclick="closeToolPage()">‹</button>
+        <div class="tool-page-title">🔍 搜索词分析</div>
+        <div class="tool-page-spacer"></div>
+    </div>
+    <div class="tool-page-body">
+        <div class="tool-upload-card" id="tpSearchUpload" onclick="document.getElementById('tpSearchInput').click()">
+            <div class="upload-icon">🔍</div>
+            <div class="upload-text">点击上传搜索词数据</div>
+            <div class="upload-hint">支持 CSV / Excel 格式</div>
+        </div>
+        <input type="file" id="tpSearchInput" style="display:none" accept=".csv,.xlsx,.xls" onchange="tpHandleData(this,'search')">
+        <div id="tpSearchResult"></div>
+    </div>
+</div>
+
+<!-- ========== 一键抠图 - 独立页面 ========== -->
+<div class="tool-page" id="toolPageBg">
+    <div class="tool-page-header">
+        <button class="tool-back-btn" onclick="closeToolPage()">‹</button>
+        <div class="tool-page-title">✂️ 一键抠图</div>
+        <div class="tool-page-spacer"></div>
+    </div>
+    <div class="tool-page-body">
+        <div class="tool-upload-card" id="tpBgUpload" onclick="document.getElementById('tpBgInput').click()">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">点击上传需要抠图的图片</div>
+            <div class="upload-hint">支持 JPG / PNG 格式</div>
+        </div>
+        <input type="file" id="tpBgInput" style="display:none" accept="image/*" onchange="tpHandleBg(this)">
+        <div id="tpBgStatus" class="tool-status">等待上传图片...</div>
+        <div id="tpBgResult" style="display:none;"></div>
+    </div>
+</div>
+
+<!-- ========== 动图GIF生成 - 独立页面 ========== -->
+<div class="tool-page" id="toolPageGif">
+    <div class="tool-page-header">
+        <button class="tool-back-btn" onclick="closeToolPage()">‹</button>
+        <div class="tool-page-title">🎬 动图GIF生成</div>
+        <div class="tool-page-spacer"></div>
+    </div>
+    <div class="tool-page-body">
+        <div class="tool-upload-card" id="tpGifUpload" onclick="document.getElementById('tpGifInput').click()">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">点击上传多张图片</div>
+            <div class="upload-hint">至少选择2张图片，支持 JPG / PNG</div>
+        </div>
+        <input type="file" id="tpGifInput" style="display:none" accept="image/*" multiple onchange="tpHandleGif(this)">
+        <div class="tool-thumbnail-grid" id="tpGifThumbs" style="display:none;"></div>
+        <button class="tool-btn-primary" id="tpGifGenBtn" style="display:none;" onclick="tpGenerateGif()">🎬 开始生成GIF动图</button>
+        <div id="tpGifStatus" class="tool-status"></div>
+        <div id="tpGifResult" style="display:none;"></div>
     </div>
 </div>
 
@@ -1910,7 +2256,217 @@ function toolHandleTuoci() {
 }
 
 // ============================================================
-// 14. 事件绑定 & 初始化
+// 14. 独立工具页 - 导航控制
+// ============================================================
+function openToolPage(name) {
+    document.querySelectorAll('.tool-page').forEach(p => p.classList.remove('open'));
+    const page = document.getElementById('toolPage' + name.charAt(0).toUpperCase() + name.slice(1));
+    if (page) {
+        page.classList.add('open');
+        page.scrollTop = 0;
+    }
+    const body = document.body;
+    body.classList.add('hide-elements');
+    closeDrawer();
+}
+
+function closeToolPage() {
+    document.querySelectorAll('.tool-page').forEach(p => p.classList.remove('open'));
+    document.body.classList.remove('hide-elements');
+}
+
+// ============================================================
+// 15. 独立工具页 - 一键抠图
+// ============================================================
+let tpBgDataUrl = null;
+
+function tpHandleBg(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const statusDiv = document.getElementById('tpBgStatus');
+    const resultDiv = document.getElementById('tpBgResult');
+    statusDiv.className = 'tool-status loading';
+    statusDiv.textContent = '⏳ 正在处理抠图...';
+    resultDiv.style.display = 'none';
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        tpBgDataUrl = e.target.result;
+        try {
+            const result = await processMobileRemoveBg(e.target.result);
+            const fileName = '抠图结果_' + file.name.replace(/\.[^.]+$/, '.png');
+            statusDiv.className = 'tool-status success';
+            statusDiv.textContent = '✅ 抠图完成！';
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div class="tool-before-after"><div class="ba-item"><div class="ba-label">原图</div><img class="ba-image" src="' + tpBgDataUrl + '"></div><div class="ba-item"><div class="ba-label">抠图结果</div><img class="ba-image result" src="' + result + '"></div></div><button class="tool-btn-primary" onclick="downloadMobileResult(\'' + result + '\',\'' + escapeMobileHtml(fileName) + '\')">⬇️ 下载PNG图片</button>';
+        } catch (err) {
+            statusDiv.className = 'tool-status error';
+            statusDiv.textContent = '❌ 抠图失败：' + err;
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+// ============================================================
+// 16. 独立工具页 - 动图GIF生成
+// ============================================================
+let tpGifFiles = [];
+
+function tpHandleGif(input) {
+    const files = input.files;
+    if (!files || files.length < 2) {
+        showMobileToast('至少需要2张图片', 'error');
+        return;
+    }
+    tpGifFiles = Array.from(files);
+    const thumbDiv = document.getElementById('tpGifThumbs');
+    const genBtn = document.getElementById('tpGifGenBtn');
+    const statusDiv = document.getElementById('tpGifStatus');
+    const resultDiv = document.getElementById('tpGifResult');
+    resultDiv.style.display = 'none';
+    statusDiv.textContent = '';
+    thumbDiv.style.display = 'flex';
+    thumbDiv.innerHTML = '';
+    tpGifFiles.forEach((f, i) => {
+        const url = URL.createObjectURL(f);
+        const img = document.createElement('img');
+        img.className = 'thumb';
+        img.src = url;
+        img.title = '第' + (i + 1) + '帧: ' + f.name;
+        thumbDiv.appendChild(img);
+    });
+    genBtn.style.display = 'block';
+    genBtn.textContent = '🎬 开始生成GIF（共 ' + files.length + ' 帧）';
+    genBtn.disabled = false;
+    statusDiv.textContent = '已选择 ' + files.length + ' 张图片，点击下方按钮生成';
+    statusDiv.className = 'tool-status';
+}
+
+async function tpGenerateGif() {
+    if (tpGifFiles.length < 2) return;
+    const statusDiv = document.getElementById('tpGifStatus');
+    const resultDiv = document.getElementById('tpGifResult');
+    const genBtn = document.getElementById('tpGifGenBtn');
+    genBtn.disabled = true;
+    genBtn.textContent = '⏳ 生成中...';
+    statusDiv.className = 'tool-status loading';
+    statusDiv.textContent = '正在初始化GIF编码器...';
+    resultDiv.style.display = 'none';
+    try {
+        const urls = await Promise.all(tpGifFiles.map(f => new Promise(r => { const fr = new FileReader(); fr.onload = e => r(e.target.result); fr.readAsDataURL(f); })));
+        const imgs = await Promise.all(urls.map(u => new Promise((res, rej) => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = u; })));
+        statusDiv.textContent = '正在编码GIF动图...';
+        const workerUrl = await initMobileGifWorker();
+        const gif = new GIF({ workers: workerUrl ? 2 : 0, quality: 10, width: 363, height: 225, repeat: 0, workerScript: workerUrl || undefined });
+        const delay = Math.round(1000 / 12);
+        const canvas = document.createElement('canvas');
+        canvas.width = 363; canvas.height = 225;
+        const ctx = canvas.getContext('2d');
+        imgs.forEach(img => {
+            ctx.clearRect(0, 0, 363, 225);
+            ctx.drawImage(img, (363 - Math.min(img.width, 363)) / 2, (225 - Math.min(img.height, 225)) / 2, Math.min(img.width, 363), Math.min(img.height, 225));
+            gif.addFrame(ctx, { copy: true, delay });
+        });
+        const result = await new Promise((resolve, reject) => {
+            const t = setTimeout(() => reject('超时'), 30000);
+            gif.on('finished', blob => { clearTimeout(t); const r = new FileReader(); r.onloadend = () => resolve(r.result); r.readAsDataURL(blob); });
+            gif.on('error', err => { clearTimeout(t); reject(err); });
+            gif.render();
+        });
+        const fileName = '动画_' + Date.now() + '.gif';
+        statusDiv.className = 'tool-status success';
+        statusDiv.textContent = '✅ GIF生成完成！共 ' + tpGifFiles.length + ' 帧';
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<div class="tool-result-card"><div class="tool-result-card-header">🎬 GIF动图预览</div><div class="tool-result-card-body" style="text-align:center;"><img src="' + result + '" style="max-width:100%;max-height:300px;border-radius:8px;"><br><button class="tool-btn-primary" onclick="downloadMobileResult(\'' + result + '\',\'' + escapeMobileHtml(fileName) + '\')" style="margin:12px 0 0;">⬇️ 下载GIF动图</button></div></div>';
+        genBtn.style.display = 'none';
+    } catch (err) {
+        statusDiv.className = 'tool-status error';
+        statusDiv.textContent = '❌ 生成失败：' + err;
+        genBtn.disabled = false;
+        genBtn.textContent = '🎬 重新生成GIF';
+    }
+}
+
+// ============================================================
+// 17. 独立工具页 - 数据分析（关键词/搜索词）
+// ============================================================
+async function tpHandleData(input, type) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const resultId = type === 'keyword' ? 'tpKwResult' : 'tpSearchResult';
+    const resultDiv = document.getElementById(resultId);
+    resultDiv.innerHTML = '<div class="tool-status loading">⏳ 正在分析数据...</div>';
+    try {
+        let rows;
+        if (file.name.toLowerCase().endsWith('.csv')) { rows = parseMobileCSV(await file.text()); }
+        else {
+            const data = new Uint8Array(await file.arrayBuffer());
+            const wb = XLSX.read(data, { type: 'array' });
+            rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+        }
+        if (!rows || rows.length === 0) { resultDiv.innerHTML = '<div class="tool-status error">⚠️ 无法解析文件内容</div>'; return; }
+        const result = type === 'keyword' ? analyzeMobileKeywords(rows) : analyzeMobileSearchTerms(rows);
+        const isKw = type === 'keyword';
+        const stats = isKw ? result.keywordStats : result.searchStats;
+        const summary = result.summary || {};
+        let summaryHtml = '';
+        if (isKw) {
+            summaryHtml = '<div class="result-stats-row"><div class="result-stat-item"><div class="label">总消费</div><div class="value primary">¥' + (typeof summary.totalCost === 'number' ? summary.totalCost.toFixed(2) : '0.00') + '</div></div><div class="result-stat-item"><div class="label">总转化</div><div class="value success">' + (typeof summary.totalConversion === 'number' ? summary.totalConversion.toFixed(1) : '0') + '</div></div><div class="result-stat-item"><div class="label">平均CPC</div><div class="value warning">¥' + (typeof summary.avgCPC === 'number' ? summary.avgCPC.toFixed(2) : '-') + '</div></div><div class="result-stat-item"><div class="label">关键词数</div><div class="value danger">' + (summary.totalKeywords || stats.length) + '</div></div></div>';
+        } else {
+            summaryHtml = '<div class="result-stats-row"><div class="result-stat-item"><div class="label">搜索词总数</div><div class="value primary">' + (result.totalTerms || stats.length) + '</div></div></div>';
+        }
+        const header = isKw ? '<tr><th>排名</th><th>关键词</th><th>转化数</th><th>总消费</th><th>平均CPC</th><th>效果</th></tr>' : '<tr><th>排名</th><th>搜索词</th><th>出现次数</th><th>平均匹配分</th><th>关联词数</th></tr>';
+        const rowsHtml = stats.slice(0, 20).map((item, idx) => {
+            if (isKw) {
+                const cpc = item.avgCpc !== undefined ? '¥' + Number(item.avgCpc).toFixed(2) : '-';
+                const rate = item.count >= 5 ? '🔥 高效' : item.count >= 2 ? '⚡ 中效' : '○ 低效';
+                const rc = idx < 3 ? 'top3' : '';
+                return '<tr><td><span class="rank ' + rc + '">' + (idx + 1) + '</span></td><td><strong>' + escapeMobileHtml(item.keyword || '') + '</strong></td><td>' + (item.count || 0) + '</td><td>¥' + Number(item.cost || 0).toFixed(2) + '</td><td>' + cpc + '</td><td>' + rate + '</td></tr>';
+            }
+            return '<tr><td>' + (idx + 1) + '</td><td>' + escapeMobileHtml(item.term || '') + '</td><td>' + (item.count || 0) + '</td><td>' + (item.avgScore !== undefined ? Number(item.avgScore).toFixed(1) : '-') + '</td><td>' + (item.relatedKeywords || []).length + '</td></tr>';
+        }).join('');
+        let chartHtml = '';
+        if (isKw && result.chartData && result.chartData.dates && result.chartData.dates.length > 0) {
+            const cid = 'tpchart-' + Date.now();
+            chartHtml = '<div class="tool-result-card"><div class="tool-result-card-header">📈 TOP20转化趋势曲线</div><div class="tool-result-card-body"><div id="' + cid + '" style="width:100%;height:240px;"></div></div></div>';
+            setTimeout(() => initMobileKeywordChart(cid, result.chartData), 50);
+        }
+        resultDiv.innerHTML = '<div class="tool-status success" style="margin-bottom:12px;">✅ 分析完成！共 ' + rows.length + ' 行数据</div>' + summaryHtml + chartHtml + '<div class="tool-result-card"><div class="tool-result-card-header">📋 TOP20明细表</div><div class="tool-result-card-body" style="padding:0;"><div class="result-table-wrap" style="border:none;border-radius:0;max-height:320px;"><table class="result-table"><thead>' + header + '</thead><tbody>' + rowsHtml + '</tbody></table></div></div></div><div style="text-align:center;font-size:12px;color:#94a3b8;padding:4px 0;">共 ' + stats.length + ' 条，显示 TOP20</div>';
+    } catch (err) {
+        resultDiv.innerHTML = '<div class="tool-status error">❌ 分析失败：' + err + '</div>';
+    }
+}
+
+// ============================================================
+// 18. 独立工具页 - 智能拓词
+// ============================================================
+function tpHandleTuoci() {
+    const input = document.getElementById('tpTuociInput');
+    const text = input.value.trim();
+    if (!text) { showMobileToast('请输入词根', 'error'); return; }
+    const resultDiv = document.getElementById('tpTuociResult');
+    const btn = document.getElementById('tpTuociBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 拓词中...';
+    setTimeout(() => {
+        const results = MobileTuociEngine.expandKeywords(text);
+        if (results.length === 0) {
+            resultDiv.innerHTML = '<div class="tool-status error">⚠️ 未生成关键词，请检查词根是否有效</div>';
+            btn.disabled = false;
+            btn.textContent = '🧠 开始智能拓词';
+            return;
+        }
+        const rows = results.slice(0, 30).map((r, i) => {
+            const tagClass = r.intent === '了解型' ? 'tag-blue' : r.intent === '评估型' ? 'tag-yellow' : r.intent === '交易型' ? 'tag-green' : 'tag-purple';
+            return '<tr><td>' + (i + 1) + '</td><td><strong>' + escapeMobileHtml(r.text) + '</strong></td><td style="font-family:monospace;">' + r.searchVolume.toLocaleString() + '</td><td><span class="tag ' + tagClass + '">' + r.intent + '</span></td><td>' + r.source + '</td></tr>';
+        }).join('');
+        resultDiv.innerHTML = '<div class="tool-result-card"><div class="tool-result-card-header">✅ 拓词完成</div><div class="tool-result-card-body"><div style="font-size:13px;color:#64748b;margin-bottom:10px;">共扩展 <strong>' + results.length + '</strong> 个关键词，显示前 30 条</div><div class="result-table-wrap" style="max-height:340px;"><table class="result-table"><thead><tr><th>#</th><th>关键词</th><th>搜索量</th><th>意图</th><th>来源</th></tr></thead><tbody>' + rows + '</tbody></table></div></div></div>';
+        btn.disabled = false;
+        btn.textContent = '🧠 继续拓词';
+    }, 100);
+}
+
+// ============================================================
+// 19. 事件绑定 & 初始化
 // ============================================================
 function initMobileApp() {
     renderToolsPage();

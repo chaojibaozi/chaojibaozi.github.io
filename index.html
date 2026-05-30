@@ -198,9 +198,208 @@
         .welcome-content {
             flex: 1;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             padding: 12px;
             min-height: 0;
+            gap: 0;
+        }
+        
+        .chat-panel {
+            width: var(--chat-width, 50%);
+            flex-shrink: 0;
+            flex-grow: 0;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+        }
+        
+        .result-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        
+        /* 可拖拽分隔条 */
+        .panel-divider {
+            width: 8px;
+            flex-shrink: 0;
+            cursor: col-resize;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.15s ease;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        .panel-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 3px;
+            height: 32px;
+            border-radius: 2px;
+            background: #cbd5e1;
+            box-shadow: -4px 0 0 #cbd5e1, 4px 0 0 #cbd5e1;
+            transition: background 0.15s ease, box-shadow 0.15s ease;
+        }
+        
+        .panel-divider:hover::before,
+        .panel-divider.active::before {
+            background: #667eea;
+            box-shadow: -4px 0 0 #667eea, 4px 0 0 #667eea;
+        }
+        
+        .panel-divider:hover,
+        .panel-divider.active {
+            background: rgba(102, 126, 234, 0.08);
+        }
+        
+        .panel-divider.active {
+            background: rgba(102, 126, 234, 0.15);
+        }
+        
+        body.dragging-panel,
+        body.dragging-panel * {
+            cursor: col-resize !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
+        }
+        
+        /* 水平可拖拽分隔条 - 输入区域 */
+        .input-divider {
+            height: 8px;
+            flex-shrink: 0;
+            cursor: row-resize;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.15s ease;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        .input-divider::before {
+            content: '';
+            width: 32px;
+            height: 3px;
+            border-radius: 2px;
+            background: #cbd5e1;
+            box-shadow: 0 -4px 0 #cbd5e1, 0 4px 0 #cbd5e1;
+            transition: background 0.15s ease, box-shadow 0.15s ease;
+        }
+        
+        .input-divider:hover::before,
+        .input-divider.active::before {
+            background: #667eea;
+            box-shadow: 0 -4px 0 #667eea, 0 4px 0 #667eea;
+        }
+        
+        .input-divider:hover,
+        .input-divider.active {
+            background: rgba(102, 126, 234, 0.08);
+        }
+        
+        .input-divider.active {
+            background: rgba(102, 126, 234, 0.15);
+        }
+        
+        body.dragging-input,
+        body.dragging-input * {
+            cursor: row-resize !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
+        }
+        
+        .result-header {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        
+        .result-header-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        
+        .result-header h2 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .result-header .result-header-sub {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+        
+        .result-clear-btn {
+            margin-left: auto;
+            padding: 5px 14px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            flex-shrink: 0;
+        }
+        
+        .result-clear-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .result-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+            background: #fafbfc;
+            min-height: 0;
+        }
+        
+        .result-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            min-height: 300px;
+            color: #94a3b8;
+            text-align: center;
+        }
+        
+        .result-placeholder .placeholder-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        .result-placeholder .placeholder-text {
+            font-size: 14px;
+            line-height: 1.6;
+            max-width: 280px;
         }
         
         /* 对话窗口 */
@@ -274,7 +473,7 @@
         }
         
         .chat-messages {
-            flex: 1;
+            flex: 1 1 0;
             overflow-y: auto;
             padding: 16px 20px;
             background: #fafbfc;
@@ -613,11 +812,23 @@
         }
         
         /* 聊天输入区域 */
+        .chat-input-wrapper {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
+        
         .chat-input-area {
+            flex: 1;
             padding: 10px 20px 12px;
             border-top: 1px solid #e2e8f0;
             background: white;
-            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            min-height: 0;
         }
         
         .input-toolbar {
@@ -625,6 +836,7 @@
             gap: 6px;
             margin-bottom: 8px;
             flex-wrap: wrap;
+            flex-shrink: 0;
         }
         
         .toolbar-btn {
@@ -650,7 +862,9 @@
         .input-wrapper {
             display: flex;
             gap: 8px;
-            align-items: flex-end;
+            align-items: stretch;
+            flex: 1;
+            min-height: 0;
         }
         
         .chat-input {
@@ -664,7 +878,7 @@
             transition: border-color 0.2s ease;
             outline: none;
             min-height: 42px;
-            max-height: 100px;
+            height: 100%;
             line-height: 1.4;
         }
         
@@ -685,7 +899,7 @@
             transition: all 0.3s ease;
             font-family: inherit;
             white-space: nowrap;
-            height: 42px;
+            flex-shrink: 0;
         }
         
         .send-btn:hover {
@@ -725,11 +939,30 @@
         /* 响应式 */
         @media (max-width: 768px) {
             .message-row { max-width: 95%; }
-            .welcome-content { padding: 12px; }
+            .welcome-content { padding: 8px; flex-direction: column; gap: 8px; }
+            .chat-input-wrapper { height: auto !important; flex: none !important; }
             .chat-input-area { padding: 12px 16px; }
             .chat-messages { padding: 16px; }
+            .chat-panel { width: 100% !important; }
+            .panel-divider { display: none; }
+            .input-divider { display: none; }
+            .result-panel { flex: none; height: 45vh; }
+            .result-output { padding: 12px 16px; }
+        }
+        
+        @media (max-width: 1200px) {
+            .result-output { padding: 12px 16px; }
         }
     </style>
+    <script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
 </head>
 <body>
     <!-- 抽屉式导航栏 - 固定浮层 -->
@@ -752,49 +985,74 @@
         <!-- 首页AI对话界面 -->
         <div class="welcome-page" id="welcomePage">
             <div class="welcome-content">
-                <div class="chat-container">
-                    <div class="chat-header">
-                        <div class="chat-header-icon">🤖</div>
-                        <div>
-                            <h1>AI 智能助手</h1>
-                            <div class="header-sub">本地AI驱动，一站式处理</div>
+                <div class="chat-panel">
+                    <div class="chat-container">
+                        <div class="chat-header">
+                            <div class="chat-header-icon">🤖</div>
+                            <div>
+                                <h1>AI 智能助手</h1>
+                                <div class="header-sub">本地AI驱动，一站式处理</div>
+                            </div>
+                            <div class="status">
+                                <span class="status-dot" id="aiStatusDot"></span>
+                                <span id="aiStatusText">初始化中...</span>
+                            </div>
                         </div>
-                        <div class="status">
-                            <span class="status-dot" id="aiStatusDot"></span>
-                            <span id="aiStatusText">初始化中...</span>
+                        
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="chat-message assistant-message">
+                                <div class="message-row">
+                                    <div class="message-avatar">🤖</div>
+                                    <div class="message-bubble">
+                                        你好！我是本地AI助手，可以帮你完成以下任务：<br><br>
+                                        🎬 <b>生成动画GIF</b> — 上传多张图片合成GIF<br>
+                                        ✂️ <b>一键抠图</b> — 去除图片背景<br>
+                                        📊 <b>关键词分析</b> — 上传SEM数据报表分析<br>
+                                        🔍 <b>搜索词分析</b> — 上传搜索词数据语义匹配<br>
+                                        🧠 <b>词根拓词</b> — 输入词根智能扩展关键词<br><br>
+                                        直接告诉我你想做什么，或者点击下方工具栏按钮~
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="chat-messages" id="chatMessages">
-                        <div class="chat-message assistant-message">
-                            <div class="message-row">
-                                <div class="message-avatar">🤖</div>
-                                <div class="message-bubble">
-                                    你好！我是本地AI助手，可以帮你完成以下任务：<br><br>
-                                    🎬 <b>生成动画GIF</b> — 上传多张图片合成GIF<br>
-                                    ✂️ <b>一键抠图</b> — 去除图片背景<br>
-                                    📊 <b>关键词分析</b> — 上传SEM数据报表分析<br>
-                                    🔍 <b>搜索词分析</b> — 上传搜索词数据语义匹配<br>
-                                    🧠 <b>词根拓词</b> — 输入词根智能扩展关键词<br><br>
-                                    直接告诉我你想做什么，或者点击下方工具栏按钮~
+                        
+                        <div class="input-divider" id="inputDivider"></div>
+                        
+                        <div class="chat-input-wrapper" id="chatInputWrapper">
+                            <div class="chat-input-area">
+                                <div class="input-toolbar">
+                                    <button class="toolbar-btn" id="uploadBtnBg">✂️ 抠图</button>
+                                    <button class="toolbar-btn" id="uploadBtnGif">🎬 做GIF</button>
+                                    <button class="toolbar-btn" id="uploadBtnKeyword">📊 关键词分析</button>
+                                    <button class="toolbar-btn" id="uploadBtnSearch">🔍 搜索词分析</button>
+                                    <button class="toolbar-btn" id="uploadBtnTuoci">🧠 词根拓词</button>
+                                    <input type="file" id="fileInput" style="display:none" accept="image/*">
+                                    <input type="file" id="fileInputData" style="display:none" accept=".csv,.xlsx,.xls">
+                                </div>
+                                <div class="input-wrapper">
+                                    <textarea class="chat-input" id="chatInput" rows="1" placeholder="输入你想做的事情，比如「帮我抠图」或「分析关键词」..."></textarea>
+                                    <button class="send-btn" id="sendBtn">发送</button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="chat-input-area">
-                        <div class="input-toolbar">
-                            <button class="toolbar-btn" id="uploadBtnBg">✂️ 抠图</button>
-                            <button class="toolbar-btn" id="uploadBtnGif">🎬 做GIF</button>
-                            <button class="toolbar-btn" id="uploadBtnKeyword">📊 关键词分析</button>
-                            <button class="toolbar-btn" id="uploadBtnSearch">🔍 搜索词分析</button>
-                            <button class="toolbar-btn" id="uploadBtnTuoci">🧠 词根拓词</button>
-                            <input type="file" id="fileInput" style="display:none" accept="image/*">
-                            <input type="file" id="fileInputData" style="display:none" accept=".csv,.xlsx,.xls">
+                </div>
+                
+                <div class="panel-divider" id="panelDivider"></div>
+                
+                <div class="result-panel">
+                    <div class="result-header">
+                        <div class="result-header-icon">📋</div>
+                        <div>
+                            <h2>处理结果</h2>
+                            <div class="result-header-sub">输出区域</div>
                         </div>
-                        <div class="input-wrapper">
-                            <textarea class="chat-input" id="chatInput" rows="1" placeholder="输入你想做的事情，比如「帮我抠图」或「分析关键词」..." style="height:42px;"></textarea>
-                            <button class="send-btn" id="sendBtn">发送</button>
+                        <button class="result-clear-btn" onclick="clearResultPanel()">清空</button>
+                    </div>
+                    <div class="result-output" id="resultOutput">
+                        <div class="result-placeholder">
+                            <div class="placeholder-icon">📂</div>
+                            <div class="placeholder-text">在左侧进行对话操作后，<br>处理结果将显示在这里</div>
                         </div>
                     </div>
                 </div>
@@ -1467,25 +1725,24 @@
                     
                     const fileName = '抠图结果_' + file.name.replace(/\.[^.]+$/, '.png');
                     
-                    addMessage('assistant', `
-                        <div class="message-row">
-                            <div class="message-avatar">🤖</div>
-                            <div class="message-bubble">
-                                ✅ 抠图完成！<br><br>
-                                <div style="display:flex;gap:12px;flex-wrap:wrap;">
-                                    <div>
-                                        <div style="font-size:12px;color:#94a3b8;margin-bottom:4px;">原图</div>
-                                        <img src="${imageDataUrl}" style="max-width:180px;max-height:180px;border-radius:8px;border:1px solid #e2e8f0;">
-                                    </div>
-                                    <div>
-                                        <div style="font-size:12px;color:#94a3b8;margin-bottom:4px;">抠图结果</div>
-                                        <img src="${resultDataUrl}" style="max-width:180px;max-height:180px;border-radius:8px;border:1px solid #e2e8f0;background:linear-gradient(45deg,#ddd 25%,transparent 25%),linear-gradient(-45deg,#ddd 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ddd 75%),linear-gradient(-45deg,transparent 75%,#ddd 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;">
-                                    </div>
+                    addAssistantText('✅ 抠图完成！请在右侧面板查看和下载结果');
+                    
+                    setResultContent(`
+                        <div style="padding:4px 0;">
+                            <div style="font-size:16px;font-weight:600;color:#1e293b;margin-bottom:12px;">✅ 抠图完成</div>
+                            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                                <div style="flex:1;min-width:160px;">
+                                    <div style="font-size:13px;font-weight:500;color:#64748b;margin-bottom:6px;">原图</div>
+                                    <img src="${imageDataUrl}" style="max-width:100%;max-height:240px;border-radius:8px;border:1px solid #e2e8f0;display:block;">
                                 </div>
-                                <button class="download-btn" onclick="downloadResult('${resultDataUrl}', '${escapeHtml(fileName)}')">
-                                    ⬇️ 下载PNG图片
-                                </button>
+                                <div style="flex:1;min-width:160px;">
+                                    <div style="font-size:13px;font-weight:500;color:#64748b;margin-bottom:6px;">抠图结果</div>
+                                    <img src="${resultDataUrl}" style="max-width:100%;max-height:240px;border-radius:8px;border:1px solid #e2e8f0;display:block;background:linear-gradient(45deg,#ddd 25%,transparent 25%),linear-gradient(-45deg,#ddd 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ddd 75%),linear-gradient(-45deg,transparent 75%,#ddd 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;">
+                                </div>
                             </div>
+                            <button class="download-btn" onclick="downloadResult('${resultDataUrl}', '${escapeHtml(fileName)}')">
+                                ⬇️ 下载PNG图片
+                            </button>
                         </div>
                     `);
                 } catch (err) {
@@ -1569,17 +1826,15 @@
                 
                 const fileName = '动画_' + new Date().getTime() + '.gif';
                 
-                addMessage('assistant', `
-                    <div class="message-row">
-                        <div class="message-avatar">🤖</div>
-                        <div class="message-bubble">
-                            ✅ GIF动图生成完成！共 ${files.length} 帧<br><br>
-                            <img src="${result}" style="max-width:280px;max-height:280px;border-radius:8px;border:1px solid #e2e8f0;">
-                            <br><br>
-                            <button class="download-btn" onclick="downloadResult('${result}', '${escapeHtml(fileName)}')">
-                                ⬇️ 下载GIF动图
-                            </button>
-                        </div>
+                addAssistantText('✅ GIF动图生成完成！共 ' + files.length + ' 帧，请在右侧面板查看和下载');
+                
+                setResultContent(`
+                    <div style="padding:4px 0;">
+                        <div style="font-size:16px;font-weight:600;color:#1e293b;margin-bottom:12px;">✅ GIF动图生成完成（共 ${files.length} 帧）</div>
+                        <img src="${result}" style="max-width:100%;max-height:360px;border-radius:8px;border:1px solid #e2e8f0;display:block;">
+                        <button class="download-btn" onclick="downloadResult('${result}', '${escapeHtml(fileName)}')">
+                            ⬇️ 下载GIF动图
+                        </button>
                     </div>
                 `);
             } catch (err) {
@@ -1735,25 +1990,25 @@
                 setTimeout(() => initKeywordChart(chartId, chartData), 50);
             }
 
-            const html = `
-                <div class="message-row">
-                    <div class="message-avatar">🤖</div>
-                    <div class="message-bubble">
-                        ✅ ${isKeyword ? '关键词' : '搜索词'}分析完成！来自文件：${escapeHtml(fileName)}
-                        ${summaryHtml}
-                        ${chartSection}
-                        <div style="margin:8px 0 4px;font-weight:600;font-size:13px;color:#475569;">📋 TOP20明细表</div>
-                        <div class="result-table-wrap" style="max-height:300px;overflow-y:auto;">
-                            <table class="result-table">
-                                <thead>${tableHeader}</thead>
-                                <tbody>${tableRows || '<tr><td colspan="6">无数据</td></tr>'}</tbody>
-                            </table>
-                        </div>
-                        <div style="margin-top:8px;font-size:12px;color:#94a3b8;">共 ${stats.length} 个关键词，显示 TOP20</div>
+            const label = isKeyword ? '关键词' : '搜索词';
+            addAssistantText('✅ ' + label + '分析完成！共 ' + stats.length + ' 条记录，请在右侧面板查看详情');
+            
+            setResultContent(`
+                <div style="padding:4px 0;">
+                    <div style="font-size:16px;font-weight:600;color:#1e293b;margin-bottom:12px;">✅ ${label}分析完成</div>
+                    <div style="font-size:13px;color:#64748b;margin-bottom:12px;">来自文件：${escapeHtml(fileName)}</div>
+                    ${summaryHtml}
+                    ${chartSection}
+                    <div style="margin:12px 0 4px;font-weight:600;font-size:14px;color:#475569;">📋 TOP20明细表</div>
+                    <div class="result-table-wrap" style="max-height:300px;overflow-y:auto;">
+                        <table class="result-table">
+                            <thead>${tableHeader}</thead>
+                            <tbody>${tableRows || '<tr><td colspan="6">无数据</td></tr>'}</tbody>
+                        </table>
                     </div>
+                    <div style="margin-top:8px;font-size:12px;color:#94a3b8;">共 ${stats.length} 个${label}，显示 TOP20</div>
                 </div>
-            `;
-            addMessage('assistant', html);
+            `);
         }
 
         const chartInstances = {};
@@ -1977,25 +2232,24 @@
                 </tr>
             `).join('');
 
-            const html = `
-                <div class="message-row">
-                    <div class="message-avatar">🤖</div>
-                    <div class="message-bubble">
-                        ✅ 拓词完成！基于词根：${escapeHtml(seedStr)}
-                        <div style="margin:6px 0;font-size:12px;color:#64748b;">共扩展 <strong>${results.length}</strong> 个关键词，显示前 30 条</div>
-                        <div class="result-table-wrap" style="max-height:250px;overflow-y:auto;">
-                            <table class="result-table">
-                                <thead><tr><th>#</th><th>关键词</th><th>搜索量</th><th>搜索意图</th><th>来源</th></tr></thead>
-                                <tbody>${tableRows}</tbody>
-                            </table>
-                        </div>
-                        <div style="margin-top:8px;">
-                            <button onclick="openTuociSubsystem()" class="btn btn-secondary" style="padding:6px 14px;font-size:12px;">📂 在拓词系统中查看更多</button>
-                        </div>
+            addAssistantText('✅ 拓词完成！基于词根：' + escapeHtml(seedStr) + '，共扩展 ' + results.length + ' 个关键词，请在右侧面板查看');
+            
+            setResultContent(`
+                <div style="padding:4px 0;">
+                    <div style="font-size:16px;font-weight:600;color:#1e293b;margin-bottom:12px;">✅ 拓词完成</div>
+                    <div style="font-size:13px;color:#64748b;margin-bottom:8px;">基于词根：${escapeHtml(seedStr)}</div>
+                    <div style="margin:6px 0;font-size:13px;color:#64748b;">共扩展 <strong>${results.length}</strong> 个关键词，显示前 30 条</div>
+                    <div class="result-table-wrap" style="max-height:300px;overflow-y:auto;">
+                        <table class="result-table">
+                            <thead><tr><th>#</th><th>关键词</th><th>搜索量</th><th>搜索意图</th><th>来源</th></tr></thead>
+                            <tbody>${tableRows}</tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top:8px;">
+                        <button onclick="openTuociSubsystem()" class="btn" style="padding:6px 14px;font-size:12px;border:1px solid #667eea;background:white;color:#667eea;border-radius:6px;cursor:pointer;font-family:inherit;">📂 在拓词系统中查看更多</button>
                     </div>
                 </div>
-            `;
-            addMessage('assistant', html);
+            `);
         }
 
         function openTuociSubsystem() {
@@ -2087,6 +2341,182 @@
         }
         
         // ============================================================
+        // 9. 结果面板控制
+        // ============================================================
+        function setResultContent(html) {
+            const output = document.getElementById('resultOutput');
+            output.innerHTML = html;
+        }
+        
+        function clearResultPanel() {
+            const output = document.getElementById('resultOutput');
+            output.innerHTML = `
+                <div class="result-placeholder">
+                    <div class="placeholder-icon">📂</div>
+                    <div class="placeholder-text">在左侧进行对话操作后，<br>处理结果将显示在这里</div>
+                </div>
+            `;
+        }
+        
+        // ============================================================
+        // 10. 面板分隔条拖拽
+        // ============================================================
+        const DIVIDER_STORAGE_KEY = 'panelDividerRatio';
+        let dividerDragging = false;
+        
+        function initPanelDivider() {
+            const divider = document.getElementById('panelDivider');
+            const container = document.querySelector('.welcome-content');
+            const chatPanel = document.querySelector('.chat-panel');
+            if (!divider || !container || !chatPanel) return;
+            
+            const saved = localStorage.getItem(DIVIDER_STORAGE_KEY);
+            if (saved) {
+                const ratio = parseFloat(saved);
+                if (ratio >= 0.2 && ratio <= 0.8) {
+                    container.style.setProperty('--chat-width', (ratio * 100) + '%');
+                }
+            }
+            
+            divider.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                dividerDragging = true;
+                divider.classList.add('active');
+                document.body.classList.add('dragging-panel');
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!dividerDragging) return;
+                
+                const rect = container.getBoundingClientRect();
+                const containerWidth = rect.width;
+                const mouseX = e.clientX - rect.left;
+                
+                const dividerWidth = divider.offsetWidth;
+                const padding = parseFloat(getComputedStyle(container).paddingLeft) + parseFloat(getComputedStyle(container).paddingRight);
+                const usableWidth = containerWidth - padding - dividerWidth;
+                
+                let ratio = mouseX / usableWidth;
+                ratio = Math.max(0.2, Math.min(0.8, ratio));
+                
+                container.style.setProperty('--chat-width', (ratio * 100) + '%');
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (!dividerDragging) return;
+                dividerDragging = false;
+                divider.classList.remove('active');
+                document.body.classList.remove('dragging-panel');
+                
+                const ratioStr = container.style.getPropertyValue('--chat-width');
+                if (ratioStr) {
+                    const ratio = parseFloat(ratioStr) / 100;
+                    if (ratio >= 0.2 && ratio <= 0.8) {
+                        localStorage.setItem(DIVIDER_STORAGE_KEY, ratio.toString());
+                    }
+                }
+            });
+        }
+        
+        // ============================================================
+        // 11. 输入区域分隔条拖拽
+        // ============================================================
+        const INPUT_DIVIDER_KEY = 'inputDividerRatio';
+        let inputDividerDragging = false;
+        const MIN_MESSAGES_HEIGHT = 80;
+        
+        function initInputDivider() {
+            const divider = document.getElementById('inputDivider');
+            const container = document.querySelector('.chat-container');
+            const wrapper = document.getElementById('chatInputWrapper');
+            const header = document.querySelector('.chat-header');
+            if (!divider || !container || !wrapper) return;
+            
+            function getUsableHeight() {
+                const containerH = container.getBoundingClientRect().height;
+                const headerH = header ? header.getBoundingClientRect().height : 60;
+                const dividerH = divider.getBoundingClientRect().height;
+                const free = containerH - headerH - dividerH;
+                return Math.max(free, 50);
+            }
+            
+            function setWrapperHeight(px) {
+                const usable = getUsableHeight();
+                const maxPx = Math.min(Math.round(usable * 0.3), Math.round(usable - MIN_MESSAGES_HEIGHT));
+                const minPx = Math.round(usable * 0.1);
+                px = Math.max(minPx, Math.min(maxPx, px));
+                wrapper.style.height = px + 'px';
+                requestAnimationFrame(adjustInputHeight);
+            }
+            
+            function applyRatio(ratio) {
+                const usable = getUsableHeight();
+                const px = Math.round(usable * ratio);
+                setWrapperHeight(px);
+            }
+            
+            const saved = localStorage.getItem(INPUT_DIVIDER_KEY);
+            if (saved) {
+                const ratio = parseFloat(saved);
+                if (ratio >= 0.1 && ratio <= 0.3) {
+                    requestAnimationFrame(() => applyRatio(ratio));
+                }
+            }
+            
+            divider.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                inputDividerDragging = true;
+                divider.classList.add('active');
+                document.body.classList.add('dragging-input');
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!inputDividerDragging) return;
+                
+                const containerRect = container.getBoundingClientRect();
+                const mouseY = e.clientY - containerRect.top;
+                
+                const headerH = header ? header.getBoundingClientRect().height : 60;
+                const dividerH = divider.getBoundingClientRect().height;
+                let wrapperPx = mouseY - headerH - dividerH;
+                wrapperPx = Math.max(0, wrapperPx);
+                setWrapperHeight(wrapperPx);
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (!inputDividerDragging) return;
+                inputDividerDragging = false;
+                divider.classList.remove('active');
+                document.body.classList.remove('dragging-input');
+                
+                const usable = getUsableHeight();
+                const currentH = wrapper.getBoundingClientRect().height;
+                if (currentH > 0 && usable > 0) {
+                    const ratio = currentH / usable;
+                    if (ratio >= 0.1 && ratio <= 0.3) {
+                        localStorage.setItem(INPUT_DIVIDER_KEY, ratio.toString());
+                    } else if (ratio < 0.1) {
+                        localStorage.setItem(INPUT_DIVIDER_KEY, '0.1');
+                    } else if (ratio > 0.3) {
+                        localStorage.setItem(INPUT_DIVIDER_KEY, '0.3');
+                    }
+                }
+            });
+            
+            function recalcInputHeight() {
+                if (inputDividerDragging) return;
+                const saved = localStorage.getItem(INPUT_DIVIDER_KEY);
+                if (saved) {
+                    const ratio = parseFloat(saved);
+                    if (ratio >= 0.1 && ratio <= 0.3) {
+                        applyRatio(ratio);
+                    }
+                }
+            }
+            window.addEventListener('resize', recalcInputHeight);
+        }
+        
+        // ============================================================
         // 8. 辅助函数
         // ============================================================
         function downloadResult(dataUrl, fileName) {
@@ -2104,9 +2534,9 @@
         
         function adjustInputHeight() {
             const el = document.getElementById('chatInput');
-            el.style.height = '42px';
+            el.style.height = 'auto';
             const scrollH = el.scrollHeight;
-            el.style.height = Math.min(Math.max(scrollH, 42), 100) + 'px';
+            el.style.height = Math.max(scrollH, 42) + 'px';
         }
         
         // ============================================================
@@ -2189,10 +2619,12 @@
         });
         
         // ============================================================
-        // 10. 初始化
+        // 12. 初始化
         // ============================================================
         renderNavMenu();
         initAI();
+        initPanelDivider();
+        initInputDivider();
     </script>
 </body>
 </html>
