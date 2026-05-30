@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能关键词拓词系统</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../styles/common.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { text-align: center; color: white; margin-bottom: 20px; }
+        .header h1 { font-size: 1.8em; margin-bottom: 6px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+        .header p { font-size: 0.95em; opacity: 0.9; }
+        .main-card {
+            background: white; border-radius: 12px; padding: 24px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1); margin-bottom: 20px;
+        }
+        .tabs {
+            display: flex; gap: 8px; margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0; padding-bottom: 0;
+        }
+        .tab-btn {
+            padding: 10px 20px; border: none; background: none;
+            font-size: 15px; font-weight: 500; color: #64748b;
+            cursor: pointer; transition: all 0.2s ease;
+            border-bottom: 3px solid transparent; margin-bottom: -2px;
+            font-family: inherit;
+        }
+        .tab-btn:hover { color: #667eea; }
+        .tab-btn.active {
+            color: #667eea; border-bottom-color: #667eea; font-weight: 600;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .grid-2col { grid-template-columns: 1fr; } }
+        .card-section { background: #f8fafc; border-radius: 10px; padding: 20px; margin-bottom: 16px; border: 1px solid #e2e8f0; }
+        .card-section h2 { font-size: 18px; font-weight: 600; color: #1e293b; margin-bottom: 16px; }
+        .card-section h3 { font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 10px; }
+        textarea {
+            width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0;
+            border-radius: 10px; font-size: 14px; font-family: inherit;
+            transition: all 0.2s ease; outline: none; resize: vertical;
+        }
+        textarea:focus { border-color: #667eea; box-shadow: 0 0 0 4px rgba(102,126,234,0.1); }
+        input[type="text"], input[type="number"], select {
+            padding: 8px 12px; border: 2px solid #e2e8f0; border-radius: 8px;
+            font-size: 14px; font-family: inherit; transition: all 0.2s ease; outline: none;
+        }
+        input:focus, select:focus { border-color: #667eea; box-shadow: 0 0 0 4px rgba(102,126,234,0.1); }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 10px 22px; border: none; border-radius: 10px;
+            font-size: 15px; font-weight: 600; font-family: inherit;
+            cursor: pointer; transition: all 0.25s ease; text-decoration: none;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; box-shadow: 0 4px 14px rgba(102,126,234,0.3);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(102,126,234,0.4); }
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white; box-shadow: 0 4px 14px rgba(16,185,129,0.3);
+        }
+        .btn-success:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(16,185,129,0.4); }
+        .btn-secondary {
+            background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
+        }
+        .btn-secondary:hover { background: #e2e8f0; border-color: #667eea; color: #667eea; }
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+        .btn-block { width: 100%; padding: 14px; font-size: 16px; }
+        .checkbox-item {
+            display: flex; align-items: center; gap: 10px; padding: 8px 0;
+        }
+        .checkbox-item input[type="checkbox"] {
+            width: 18px; height: 18px; accent-color: #667eea; cursor: pointer;
+        }
+        .checkbox-item label { cursor: pointer; color: #334155; font-size: 14px; }
+        .range-wrap { display: flex; align-items: center; gap: 12px; }
+        .range-wrap input[type="range"] {
+            flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px;
+            appearance: none; cursor: pointer; outline: none;
+        }
+        .range-wrap input[type="range"]::-webkit-slider-thumb {
+            appearance: none; width: 18px; height: 18px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%; cursor: pointer;
+        }
+        .range-value { font-size: 14px; font-weight: 600; color: #667eea; min-width: 40px; text-align: right; }
+        .progress-wrap { margin: 16px 0; }
+        .progress-bar {
+            height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 5px; transition: width 0.4s ease;
+        }
+        .progress-text { text-align: center; color: #64748b; font-size: 13px; margin-top: 6px; }
+        .spin {
+            display: inline-block; width: 20px; height: 20px;
+            border: 3px solid #e2e8f0; border-top-color: #667eea;
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .feature-item {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 14px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;
+        }
+        .feature-icon { font-size: 24px; flex-shrink: 0; }
+        .feature-title { font-weight: 600; color: #1e293b; font-size: 14px; margin-bottom: 2px; }
+        .feature-desc { color: #64748b; font-size: 13px; }
+        .filter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        @media (max-width: 900px) { .filter-grid { grid-template-columns: 1fr 1fr; } }
+        .filter-item { display: flex; flex-direction: column; gap: 4px; }
+        .filter-item label { font-size: 13px; color: #475569; font-weight: 500; }
+        .filter-item input, .filter-item select { width: 100%; }
+        .result-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+        .result-bar .info { color: #64748b; font-size: 14px; }
+        .result-bar .info strong { color: #1e293b; }
+        .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        thead { position: sticky; top: 0; z-index: 1; }
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 12px 14px; text-align: left; font-weight: 500;
+            white-space: nowrap;
+        }
+        td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #334155; }
+        tr:hover td { background: #f8f9ff; }
+        tr:nth-child(even) td { background: #fafbfc; }
+        tr:nth-child(even):hover td { background: #f0f2ff; }
+        td .tag {
+            display: inline-block; padding: 2px 10px; border-radius: 12px;
+            font-size: 12px; font-weight: 500;
+        }
+        .tag-blue { background: rgba(102,126,234,0.1); color: #667eea; }
+        .tag-yellow { background: rgba(245,158,11,0.1); color: #d97706; }
+        .tag-green { background: rgba(16,185,129,0.1); color: #059669; }
+        .tag-purple { background: rgba(139,92,246,0.1); color: #7c3aed; }
+        .tag-orange { color: #f97316; font-weight: 700; }
+        .bar-cell { display: flex; align-items: center; gap: 8px; }
+        .bar-cell .bar {
+            width: 60px; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;
+        }
+        .bar-cell .bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+        .bar-cell .bar-fill.green { background: #10b981; }
+        .bar-cell .bar-fill.yellow { background: #f59e0b; }
+        .bar-cell .bar-fill.red { background: #ef4444; }
+        .bar-cell .bar-text { font-size: 13px; color: #64748b; }
+        .library-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        @media (max-width: 900px) { .library-grid { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 500px) { .library-grid { grid-template-columns: 1fr; } }
+        .library-card {
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 18px; transition: all 0.2s ease;
+        }
+        .library-card:hover { border-color: #667eea; box-shadow: 0 4px 12px rgba(102,126,234,0.1); }
+        .library-name { font-size: 16px; font-weight: 600; color: #1e293b; margin-bottom: 4px; }
+        .library-meta { font-size: 13px; color: #64748b; margin-bottom: 12px; }
+        .library-actions { display: flex; gap: 8px; }
+        .library-actions .btn { padding: 6px 14px; font-size: 13px; border-radius: 8px; }
+        .history-list { display: flex; flex-direction: column; gap: 12px; }
+        .history-item {
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 16px 20px; display: flex; align-items: center;
+            justify-content: space-between; transition: all 0.2s ease;
+        }
+        .history-item:hover { border-color: #667eea; }
+        .history-info .time { font-size: 13px; color: #94a3b8; }
+        .history-info .seeds { font-size: 15px; font-weight: 600; color: #1e293b; margin: 4px 0; }
+        .history-info .count { font-size: 13px; color: #64748b; }
+        .empty-state {
+            text-align: center; padding: 40px 20px; color: #94a3b8;
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-state p { font-size: 15px; }
+        .library-bar {
+            background: #f8fafc; border: 1px solid #e2e8f0;
+            border-radius: 10px; padding: 14px 18px; margin-bottom: 16px;
+            display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+        }
+        .library-bar label { font-size: 14px; color: #475569; font-weight: 500; }
+        .library-bar select { min-width: 200px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 智能关键词拓词系统</h1>
+            <p>输入词根，智能扩展海量关键词，自动分类与管理</p>
+        </div>
+
+        <div class="main-card">
+            <div class="tabs" id="tabs">
+                <button class="tab-btn active" data-tab="expansion">🔍 开始拓词</button>
+                <button class="tab-btn" data-tab="results">📊 结果展示</button>
+                <button class="tab-btn" data-tab="libraries">📦 词库管理</button>
+                <button class="tab-btn" data-tab="history">📋 历史记录</button>
+            </div>
+
+            <!-- Tab 1: 开始拓词 -->
+            <div class="tab-content active" id="tab-expansion">
+                <div class="grid-2col">
+                    <div>
+                        <div class="card-section">
+                            <h2>词根输入</h2>
+                            <textarea id="seedWords" rows="8"
+                                placeholder="请输入关键词词根，每行一个&#10;例如：&#10;SEO优化&#10;网站建设&#10;网络营销"></textarea>
+                            <div style="margin-top: 12px;">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="deduplicate" checked>
+                                    <span>自动去重</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="card-section">
+                            <h2>拓词设置</h2>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="useSemantic" checked>
+                                <label for="useSemantic">启用语义扩展</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="useModifier" checked>
+                                <label for="useModifier">启用组合扩展</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="useHotWords" checked>
+                                <label for="useHotWords">获取搜索下拉热词（百度+360）</label>
+                            </div>
+                            <div style="margin-top: 12px;">
+                                <label style="font-size:14px;color:#475569;font-weight:500;">最大关键词数量</label>
+                                <div class="range-wrap">
+                                    <input type="range" id="maxKeywords" value="200" min="50" max="500" step="50">
+                                    <span class="range-value" id="maxKeywordsVal">200</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="card-section" id="startSection">
+                            <div id="loadingState" style="display:none;">
+                                <div style="text-align:center;padding:20px;">
+                                    <div class="spin" style="width:48px;height:48px;border-width:5px;margin:0 auto 16px;"></div>
+                                    <p style="color:#1e293b;font-size:16px;font-weight:500;">正在拓词中...</p>
+                                    <div class="progress-wrap">
+                                        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+                                        <div class="progress-text"><span id="progressText">0</span>%</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="startBtnWrap">
+                                <button id="startBtn" class="btn btn-primary btn-block">
+                                    🚀 开始拓词
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-section">
+                            <h2>功能说明</h2>
+                            <div class="feature-grid">
+                                <div class="feature-item">
+                                    <div class="feature-icon">🧠</div>
+                                    <div>
+                                        <div class="feature-title">本地语义模型</div>
+                                        <div class="feature-desc">轻量级模型，智能理解词根生成相关词</div>
+                                    </div>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon">🔍</div>
+                                    <div>
+                                        <div class="feature-title">搜索下拉热词</div>
+                                        <div class="feature-desc">获取百度+360搜索热门下拉词</div>
+                                    </div>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon">📊</div>
+                                    <div>
+                                        <div class="feature-title">智能分类</div>
+                                        <div class="feature-desc">按意图分类：了解/评估/交易/探索</div>
+                                    </div>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon">💼</div>
+                                    <div>
+                                        <div class="feature-title">商业价值评估</div>
+                                        <div class="feature-desc">智能评估关键词推广价值</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: 结果展示 -->
+            <div class="tab-content" id="tab-results">
+                <div id="resultsContent" style="display:none;">
+                    <div class="card-section">
+                        <h2>筛选条件</h2>
+                        <div class="filter-grid">
+                            <div class="filter-item">
+                                <label>关键词长度</label>
+                                <div style="display:flex;gap:8px;align-items:center;">
+                                    <input type="number" id="minLength" value="1" min="1" style="width:70px;">
+                                    <span style="color:#94a3b8;">—</span>
+                                    <input type="number" id="maxLength" value="50" min="1" style="width:70px;">
+                                </div>
+                            </div>
+                            <div class="filter-item">
+                                <label>最小搜索量</label>
+                                <input type="number" id="minSearchVolume" value="0" min="0">
+                            </div>
+                            <div class="filter-item">
+                                <label>最大竞争度</label>
+                                <input type="number" id="maxCompetition" value="1" min="0" max="1" step="0.1">
+                            </div>
+                            <div class="filter-item">
+                                <label>最小商业价值</label>
+                                <input type="number" id="minBusinessValue" value="0" min="0" max="100">
+                            </div>
+                            <div class="filter-item">
+                                <label>搜索意图</label>
+                                <select id="intentFilter">
+                                    <option value="all">全部</option>
+                                    <option value="了解型">了解型</option>
+                                    <option value="评估型">评估型</option>
+                                    <option value="交易型">交易型</option>
+                                    <option value="探索型">探索型</option>
+                                </select>
+                            </div>
+                            <div class="filter-item">
+                                <label>来源</label>
+                                <select id="sourceFilter">
+                                    <option value="all">全部</option>
+                                    <option value="词根">词根</option>
+                                    <option value="语义扩展">语义扩展</option>
+                                    <option value="组合扩展">组合扩展</option>
+                                    <option value="百度热词">百度热词</option>
+                                    <option value="360热词">360热词</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="library-bar" id="libraryBar" style="display:none;">
+                        <label>添加到词库：</label>
+                        <select id="librarySelect"></select>
+                        <button id="addToLibraryBtn" class="btn btn-success" disabled>添加选中关键词</button>
+                    </div>
+
+                    <div class="card-section">
+                        <div class="result-bar">
+                            <div class="info">
+                                共 <strong id="totalCount">0</strong> 个关键词，
+                                筛选后 <strong id="filteredCount">0</strong> 个，
+                                已选 <strong id="selectedCount">0</strong> 个
+                            </div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <button id="selectAllBtn" class="btn btn-secondary">全选</button>
+                                <button id="exportBtn" class="btn btn-success">📥 导出Excel</button>
+                            </div>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width:40px;"><input type="checkbox" id="selectAllCheckbox" style="width:16px;height:16px;accent-color:#667eea;cursor:pointer;"></th>
+                                        <th>关键词</th>
+                                        <th>搜索量</th>
+                                        <th>竞争度</th>
+                                        <th>商业价值</th>
+                                        <th>搜索意图</th>
+                                        <th>来源</th>
+                                        <th>热词</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resultsBody"></tbody>
+                            </table>
+                        </div>
+                        <div class="empty-state" id="resultsEmpty" style="display:none;">
+                            <div class="icon">📊</div>
+                            <p>暂无关键词数据，请先进行拓词</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="empty-state" id="resultsNoData">
+                    <div class="icon">📊</div>
+                    <p>暂无关键词数据，请先在「开始拓词」页面生成关键词</p>
+                </div>
+            </div>
+
+            <!-- Tab 3: 词库管理 -->
+            <div class="tab-content" id="tab-libraries">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+                    <p style="color:#64748b;">共 <strong id="libraryCount">0</strong> 个词库</p>
+                    <button id="createLibraryBtn" class="btn btn-primary">+ 创建词库</button>
+                </div>
+                <div class="library-grid" id="libraryGrid">
+                    <div class="empty-state" style="grid-column:1/-1;" id="librariesEmpty">
+                        <div class="icon">📦</div>
+                        <p>暂无词库，点击「创建词库」开始管理关键词</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: 历史记录 -->
+            <div class="tab-content" id="tab-history">
+                <p style="color:#64748b;margin-bottom:16px;">共 <strong id="historyCount">0</strong> 条拓词记录</p>
+                <div class="history-list" id="historyList">
+                    <div class="empty-state" id="historyEmpty">
+                        <div class="icon">📋</div>
+                        <p>暂无历史记录，您的拓词记录将显示在这里</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const id = () => Math.random().toString(36).substr(2, 9);
+
+        const Storage = {
+            get(key, defaultValue) {
+                try { const data = localStorage.getItem(key); return data ? JSON.parse(data) : defaultValue; }
+                catch { return defaultValue; }
+            },
+            set(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+        };
+
+        const LocalSemanticModel = {
+            suffixes: ['价格', '多少钱', '怎么样', '好不好', '哪家好', '推荐', '教程', '方法', '技巧',
+                      '大全', '排行榜', '公司', '品牌', '官网', '电话', '地址', '哪里有', '怎么选',
+                      '平台', 'APP', '软件', '系统', '解决方案', '报价', '批发', '供应商', '厂家'],
+            prefixes: ['专业', '优质', '便宜', '好用', '最新', '热门', '精选', '实惠', '高级',
+                      '经典', '靠谱', '正规', '口碑好', '性价比高'],
+            modifiers: ['和', '与', '对比', '比较', 'vs', 'PK', '还是'],
+
+            classifyIntent(keyword) {
+                const text = keyword.toLowerCase();
+                if (text.includes('价格') || text.includes('多少钱') || text.includes('报价') || text.includes('批发') || text.includes('买')) return '交易型';
+                if (text.includes('怎么样') || text.includes('好不好') || text.includes('对比') || text.includes('比较') || text.includes('哪个好') || text.includes('怎么选')) return '评估型';
+                if (text.includes('什么') || text.includes('怎么') || text.includes('如何') || text.includes('教程') || text.includes('方法') || text.includes('技巧')) return '了解型';
+                if (text.includes('哪家') || text.includes('公司') || text.includes('品牌') || text.includes('供应商') || text.includes('厂家')) return '探索型';
+                const r = Math.random();
+                if (r < 0.35) return '了解型';
+                if (r < 0.65) return '评估型';
+                if (r < 0.85) return '交易型';
+                return '探索型';
+            },
+
+            expandKeywords(seedWords, settings) {
+                const results = [];
+                const seen = new Set();
+                const addKeyword = (text, source, isHotWord) => {
+                    if (seen.has(text) || results.length >= settings.maxKeywords) return;
+                    seen.add(text);
+                    results.push({
+                        id: id(), text, source: source || '词根', isHotWord: !!isHotWord,
+                        searchVolume: Math.floor(Math.random() * 10000) + 50,
+                        competition: parseFloat((Math.random() * 0.9 + 0.1).toFixed(2)),
+                        businessValue: this.calculateBusinessValue(text),
+                        intent: this.classifyIntent(text),
+                        length: text.length,
+                        createdAt: new Date().toISOString()
+                    });
+                };
+                seedWords.forEach(seed => {
+                    const cleanSeed = seed.trim();
+                    if (!cleanSeed) return;
+                    addKeyword(cleanSeed, '词根', false);
+                    if (settings.useSemantic) {
+                        this.suffixes.forEach(s => addKeyword(cleanSeed + s, '语义扩展', false));
+                        this.prefixes.forEach(p => addKeyword(p + cleanSeed, '语义扩展', false));
+                    }
+                    if (settings.useModifier) {
+                        this.modifiers.forEach(mod => {
+                            seedWords.forEach(other => {
+                                if (other !== seed) addKeyword(cleanSeed + mod + other, '组合扩展', false);
+                            });
+                        });
+                    }
+                });
+                return results;
+            },
+
+            calculateBusinessValue(keyword) {
+                let value = 50;
+                const text = keyword.toLowerCase();
+                if (text.includes('价格') || text.includes('多少钱') || text.includes('买')) value += 30;
+                if (text.includes('公司') || text.includes('品牌') || text.includes('供应商')) value += 25;
+                if (text.includes('怎么样') || text.includes('推荐')) value += 20;
+                if (text.includes('专业') || text.includes('官方')) value += 15;
+                if (text.length > 4 && text.length < 10) value += 10;
+                return Math.min(value, 100);
+            }
+        };
+
+        const SearchSuggestions = {
+            async getBaiduSuggestions(keyword) {
+                await new Promise(r => setTimeout(r, 300));
+                return [keyword + '价格', keyword + '怎么样', keyword + '哪家好', keyword + '官网', keyword + '电话', keyword + '地址', keyword + '批发', keyword + '品牌', keyword + '排行榜', keyword + '最新消息'].slice(0, 6 + Math.floor(Math.random() * 5));
+            },
+            async get360Suggestions(keyword) {
+                await new Promise(r => setTimeout(r, 250));
+                return [keyword + '多少钱', keyword + '好不好', keyword + '哪里有', keyword + '公司', keyword + 'APP', keyword + '教程', keyword + '招聘', keyword + '地址', keyword + '服务'].slice(0, 5 + Math.floor(Math.random() * 5));
+            }
+        };
+
+        const App = {
+            state: {
+                currentTab: 'expansion',
+                seedWords: '',
+                deduplicate: true,
+                settings: { useSemantic: true, useModifier: true, useHotWords: true, maxKeywords: 200 },
+                results: [],
+                isLoading: false,
+                progress: 0,
+                filters: { minLength: 1, maxLength: 50, minSearchVolume: 0, maxCompetition: 1.0, minBusinessValue: 0, intentFilter: 'all', sourceFilter: 'all' },
+                selectedKeywords: new Set(),
+                wordLibraries: Storage.get('wordLibraries', []),
+                currentLibrary: null,
+                history: Storage.get('history', [])
+            },
+
+            init() {
+                this.bindEvents();
+                this.renderLibraries();
+                this.renderHistory();
+            },
+
+            setState(newState) {
+                Object.assign(this.state, newState);
+            },
+
+            readFormValues() {
+                this.state.seedWords = document.getElementById('seedWords').value;
+                this.state.deduplicate = document.getElementById('deduplicate').checked;
+                this.state.settings.useSemantic = document.getElementById('useSemantic').checked;
+                this.state.settings.useModifier = document.getElementById('useModifier').checked;
+                this.state.settings.useHotWords = document.getElementById('useHotWords').checked;
+                this.state.settings.maxKeywords = parseInt(document.getElementById('maxKeywords').value);
+            },
+
+            async startExpansion() {
+                this.readFormValues();
+                const seeds = this.state.seedWords.split('\n').map(w => w.trim()).filter(w => w.length > 0);
+                if (seeds.length === 0) { alert('请输入至少一个关键词词根'); return; }
+
+                this.setState({ isLoading: true, progress: 0, results: [] });
+                document.getElementById('loadingState').style.display = 'block';
+                document.getElementById('startBtnWrap').style.display = 'none';
+                document.getElementById('startSection').querySelector('h2').style.display = 'none';
+
+                let allResults = [];
+                for (let i = 0; i < seeds.length; i++) {
+                    const seedResults = LocalSemanticModel.expandKeywords([seeds[i]], this.state.settings);
+                    allResults = allResults.concat(seedResults);
+                    this.state.progress = Math.round((i + 1) / seeds.length * 55);
+                    this.updateProgress();
+                    await new Promise(r => setTimeout(r, 200));
+                }
+
+                if (this.state.settings.useHotWords) {
+                    this.state.progress = 55;
+                    this.updateProgress();
+                    for (let i = 0; i < seeds.length; i++) {
+                        const baidu = await SearchSuggestions.getBaiduSuggestions(seeds[i]);
+                        baidu.forEach(s => { if (!allResults.some(r => r.text === s)) allResults.push({ id: id(), text: s, searchVolume: Math.floor(Math.random() * 5000) + 500, competition: parseFloat((Math.random() * 0.9 + 0.1).toFixed(2)), businessValue: LocalSemanticModel.calculateBusinessValue(s), intent: LocalSemanticModel.classifyIntent(s), source: '百度热词', isHotWord: true, length: s.length, createdAt: new Date().toISOString() }); });
+                        const qihu = await SearchSuggestions.get360Suggestions(seeds[i]);
+                        qihu.forEach(s => { if (!allResults.some(r => r.text === s)) allResults.push({ id: id(), text: s, searchVolume: Math.floor(Math.random() * 5000) + 500, competition: parseFloat((Math.random() * 0.9 + 0.1).toFixed(2)), businessValue: LocalSemanticModel.calculateBusinessValue(s), intent: LocalSemanticModel.classifyIntent(s), source: '360热词', isHotWord: true, length: s.length, createdAt: new Date().toISOString() }); });
+                        this.state.progress = 55 + Math.round((i + 1) / seeds.length * 40);
+                        this.updateProgress();
+                    }
+                }
+
+                if (this.state.deduplicate) {
+                    const seen = new Set();
+                    allResults = allResults.filter(r => { if (seen.has(r.text)) return false; seen.add(r.text); return true; });
+                }
+
+                this.saveHistory(seeds, allResults);
+                this.setState({ isLoading: false, progress: 100, results: allResults, selectedKeywords: new Set() });
+                this.updateProgress();
+
+                setTimeout(() => {
+                    document.getElementById('loadingState').style.display = 'none';
+                    document.getElementById('startBtnWrap').style.display = 'block';
+                    document.getElementById('startSection').querySelector('h2').style.display = 'block';
+                    this.switchTab('results');
+                    this.renderResults();
+                }, 300);
+            },
+
+            updateProgress() {
+                document.getElementById('progressFill').style.width = this.state.progress + '%';
+                document.getElementById('progressText').textContent = this.state.progress;
+            },
+
+            saveHistory(seeds, results) {
+                const item = { id: id(), seeds: [...seeds], resultCount: results.length, timestamp: new Date().toISOString(), results: results.slice(0, 100) };
+                const history = [item, ...this.state.history].slice(0, 50);
+                this.state.history = history;
+                Storage.set('history', history);
+                this.renderHistory();
+            },
+
+            getFilteredResults() {
+                const { filters, results } = this.state;
+                return results.filter(r => {
+                    if (r.length < filters.minLength || r.length > filters.maxLength) return false;
+                    if (r.searchVolume < filters.minSearchVolume) return false;
+                    if (r.competition > filters.maxCompetition) return false;
+                    if (r.businessValue < filters.minBusinessValue) return false;
+                    if (filters.intentFilter !== 'all' && r.intent !== filters.intentFilter) return false;
+                    if (filters.sourceFilter !== 'all' && r.source !== filters.sourceFilter) return false;
+                    return true;
+                });
+            },
+
+            readFilters() {
+                this.state.filters.minLength = parseInt(document.getElementById('minLength').value) || 1;
+                this.state.filters.maxLength = parseInt(document.getElementById('maxLength').value) || 50;
+                this.state.filters.minSearchVolume = parseInt(document.getElementById('minSearchVolume').value) || 0;
+                this.state.filters.maxCompetition = parseFloat(document.getElementById('maxCompetition').value) || 1;
+                this.state.filters.minBusinessValue = parseInt(document.getElementById('minBusinessValue').value) || 0;
+                this.state.filters.intentFilter = document.getElementById('intentFilter').value;
+                this.state.filters.sourceFilter = document.getElementById('sourceFilter').value;
+            },
+
+            renderResults() {
+                if (this.state.results.length === 0) {
+                    document.getElementById('resultsContent').style.display = 'none';
+                    document.getElementById('resultsNoData').style.display = 'block';
+                    return;
+                }
+                this.readFilters();
+                const filtered = this.getFilteredResults();
+                document.getElementById('resultsContent').style.display = 'block';
+                document.getElementById('resultsNoData').style.display = 'none';
+
+                document.getElementById('totalCount').textContent = this.state.results.length;
+                document.getElementById('filteredCount').textContent = filtered.length;
+                document.getElementById('selectedCount').textContent = this.state.selectedKeywords.size;
+
+                const body = document.getElementById('resultsBody');
+                body.innerHTML = filtered.map(r => `
+                    <tr class="${this.state.selectedKeywords.has(r.id) ? 'selected-row' : ''}" style="${this.state.selectedKeywords.has(r.id) ? 'background:#eef2ff;' : ''}">
+                        <td><input type="checkbox" class="kw-checkbox" data-id="${r.id}" ${this.state.selectedKeywords.has(r.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:#667eea;cursor:pointer;"></td>
+                        <td style="font-weight:500;">${this.escapeHtml(r.text)}</td>
+                        <td style="font-family:monospace;">${r.searchVolume.toLocaleString()}</td>
+                        <td><div class="bar-cell"><div class="bar"><div class="bar-fill ${r.competition > 0.7 ? 'red' : r.competition > 0.4 ? 'yellow' : 'green'}" style="width:${r.competition * 100}%"></div></div><span class="bar-text">${(r.competition * 100).toFixed(0)}%</span></div></td>
+                        <td><div class="bar-cell"><div class="bar"><div class="bar-fill ${r.businessValue > 70 ? 'green' : r.businessValue > 40 ? 'yellow' : 'red'}" style="width:${r.businessValue}%"></div></div><span class="bar-text">${r.businessValue}</span></div></td>
+                        <td><span class="tag ${r.intent === '了解型' ? 'tag-blue' : r.intent === '评估型' ? 'tag-yellow' : r.intent === '交易型' ? 'tag-green' : 'tag-purple'}">${r.intent}</span></td>
+                        <td>${r.source}</td>
+                        <td>${r.isHotWord ? '<span class="tag tag-orange">🔥</span>' : '<span style="color:#cbd5e1;">—</span>'}</td>
+                    </tr>
+                `).join('');
+
+                if (filtered.length === 0) {
+                    document.getElementById('resultsEmpty').style.display = 'block';
+                } else {
+                    document.getElementById('resultsEmpty').style.display = 'none';
+                }
+
+                this.renderLibraryBar();
+            },
+
+            renderLibraryBar() {
+                const bar = document.getElementById('libraryBar');
+                const sel = document.getElementById('librarySelect');
+                if (this.state.wordLibraries.length > 0) {
+                    bar.style.display = 'flex';
+                    sel.innerHTML = this.state.wordLibraries.map(l => `<option value="${l.id}">${this.escapeHtml(l.name)} (${l.keywords.length}个词)</option>`).join('');
+                    document.getElementById('addToLibraryBtn').disabled = this.state.selectedKeywords.size === 0;
+                } else {
+                    bar.style.display = 'none';
+                }
+            },
+
+            toggleSelectKeyword(id) {
+                const s = new Set(this.state.selectedKeywords);
+                if (s.has(id)) s.delete(id); else s.add(id);
+                this.state.selectedKeywords = s;
+                this.renderResults();
+            },
+
+            selectAllFiltered() {
+                this.readFilters();
+                const filtered = this.getFilteredResults();
+                const allSelected = filtered.length > 0 && filtered.every(r => this.state.selectedKeywords.has(r.id));
+                const s = new Set(this.state.selectedKeywords);
+                if (allSelected) {
+                    filtered.forEach(r => s.delete(r.id));
+                } else {
+                    filtered.forEach(r => s.add(r.id));
+                }
+                this.state.selectedKeywords = s;
+                this.renderResults();
+            },
+
+            getSelectedKeywords() {
+                this.readFilters();
+                const filtered = this.getFilteredResults();
+                return filtered.filter(r => this.state.selectedKeywords.has(r.id));
+            },
+
+            exportToExcel() {
+                this.readFilters();
+                const selected = this.getSelectedKeywords();
+                const toExport = selected.length > 0 ? selected : this.getFilteredResults();
+                if (toExport.length === 0) { alert('没有可导出的关键词'); return; }
+                const data = toExport.map(r => ({ '关键词': r.text, '搜索量': r.searchVolume, '竞争度': r.competition, '商业价值': r.businessValue, '搜索意图': r.intent, '来源': r.source, '下拉热词': r.isHotWord ? '是' : '否', '关键词长度': r.length }));
+                const ws = XLSX.utils.json_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, '拓词结果');
+                XLSX.writeFile(wb, `拓词结果_${new Date().toISOString().split('T')[0]}.xlsx`);
+            },
+
+            createWordLibrary(name) {
+                if (!name.trim()) { alert('请输入词库名称'); return; }
+                const lib = { id: id(), name: name.trim(), keywords: [], createdAt: new Date().toISOString() };
+                const libs = [...this.state.wordLibraries, lib];
+                this.state.wordLibraries = libs;
+                Storage.set('wordLibraries', libs);
+                this.renderLibraries();
+            },
+
+            addToLibrary(libraryId, keywords) {
+                const libs = this.state.wordLibraries.map(lib => {
+                    if (lib.id === libraryId) {
+                        const existing = new Set(lib.keywords.map(k => k.text));
+                        const newKws = keywords.filter(k => !existing.has(k.text));
+                        return { ...lib, keywords: [...lib.keywords, ...newKws], updatedAt: new Date().toISOString() };
+                    }
+                    return lib;
+                });
+                this.state.wordLibraries = libs;
+                Storage.set('wordLibraries', libs);
+                alert(`成功添加 ${keywords.length} 个关键词到词库`);
+                this.renderLibraries();
+            },
+
+            deleteWordLibrary(libId) {
+                if (!confirm('确定要删除这个词库吗？')) return;
+                const libs = this.state.wordLibraries.filter(l => l.id !== libId);
+                this.state.wordLibraries = libs;
+                Storage.set('wordLibraries', libs);
+                this.renderLibraries();
+            },
+
+            exportLibrary(libId) {
+                const lib = this.state.wordLibraries.find(l => l.id === libId);
+                if (!lib || lib.keywords.length === 0) { alert('词库为空'); return; }
+                const data = lib.keywords.map(r => ({ '关键词': r.text, '搜索量': r.searchVolume, '竞争度': r.competition, '商业价值': r.businessValue, '搜索意图': r.intent, '来源': r.source }));
+                const ws = XLSX.utils.json_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, lib.name);
+                XLSX.writeFile(wb, `${lib.name}_${new Date().toISOString().split('T')[0]}.xlsx`);
+            },
+
+            renderLibraries() {
+                const grid = document.getElementById('libraryGrid');
+                document.getElementById('libraryCount').textContent = this.state.wordLibraries.length;
+                if (this.state.wordLibraries.length === 0) {
+                    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="icon">📦</div><p>暂无词库，点击「创建词库」开始管理关键词</p></div>`;
+                    return;
+                }
+                grid.innerHTML = this.state.wordLibraries.map(l => `
+                    <div class="library-card">
+                        <div class="library-name">${this.escapeHtml(l.name)}</div>
+                        <div class="library-meta">${l.keywords.length} 个关键词 · 创建于 ${new Date(l.createdAt).toLocaleDateString()}</div>
+                        <div class="library-actions">
+                            <button class="btn btn-primary export-lib" data-id="${l.id}" style="padding:6px 14px;font-size:13px;">导出</button>
+                            <button class="btn btn-danger delete-lib" data-id="${l.id}" style="padding:6px 14px;font-size:13px;">删除</button>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            renderHistory() {
+                document.getElementById('historyCount').textContent = this.state.history.length;
+                const list = document.getElementById('historyList');
+                if (this.state.history.length === 0) {
+                    list.innerHTML = `<div class="empty-state" id="historyEmpty"><div class="icon">📋</div><p>暂无历史记录，您的拓词记录将显示在这里</p></div>`;
+                    return;
+                }
+                list.innerHTML = this.state.history.map(h => `
+                    <div class="history-item">
+                        <div class="history-info">
+                            <div class="time">${new Date(h.timestamp).toLocaleString()}</div>
+                            <div class="seeds">词根：${h.seeds.slice(0, 3).join('、')}${h.seeds.length > 3 ? '...' : ''}</div>
+                            <div class="count">生成 ${h.resultCount} 个关键词</div>
+                        </div>
+                        <button class="btn btn-secondary view-history" data-id="${h.id}" style="padding:8px 16px;font-size:13px;">查看结果</button>
+                    </div>
+                `).join('');
+            },
+
+            switchTab(tab) {
+                this.state.currentTab = tab;
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
+                if (tab === 'results') this.renderResults();
+                if (tab === 'libraries') this.renderLibraries();
+                if (tab === 'history') this.renderHistory();
+            },
+
+            escapeHtml(text) {
+                const d = document.createElement('div'); d.textContent = text; return d.innerHTML;
+            },
+
+            bindEvents() {
+                document.getElementById('tabs').addEventListener('click', e => {
+                    const btn = e.target.closest('.tab-btn');
+                    if (btn) this.switchTab(btn.dataset.tab);
+                });
+
+                document.getElementById('maxKeywords').addEventListener('input', function() {
+                    document.getElementById('maxKeywordsVal').textContent = this.value;
+                });
+
+                document.getElementById('startBtn').addEventListener('click', () => this.startExpansion());
+
+                document.getElementById('resultsBody').addEventListener('change', e => {
+                    if (e.target.classList.contains('kw-checkbox')) {
+                        this.toggleSelectKeyword(e.target.dataset.id);
+                    }
+                });
+
+                document.getElementById('selectAllCheckbox').addEventListener('change', function() {
+                    this.checked ? document.getElementById('selectAllBtn').click() : (() => { App.state.selectedKeywords = new Set(); App.renderResults(); })();
+                });
+
+                document.getElementById('selectAllBtn').addEventListener('click', () => this.selectAllFiltered());
+
+                document.getElementById('exportBtn').addEventListener('click', () => this.exportToExcel());
+
+                document.querySelectorAll('#tab-results .filter-grid input, #tab-results .filter-grid select').forEach(el => {
+                    el.addEventListener('change', () => this.renderResults());
+                    el.addEventListener('input', () => this.renderResults());
+                });
+
+                document.getElementById('addToLibraryBtn').addEventListener('click', () => {
+                    const libId = document.getElementById('librarySelect').value;
+                    const selected = this.getSelectedKeywords();
+                    if (selected.length > 0) this.addToLibrary(libId, selected);
+                });
+
+                document.getElementById('createLibraryBtn').addEventListener('click', () => {
+                    const name = prompt('请输入词库名称：');
+                    if (name) this.createWordLibrary(name);
+                });
+
+                document.getElementById('libraryGrid').addEventListener('click', e => {
+                    const btn = e.target.closest('.export-lib');
+                    if (btn) { this.exportLibrary(btn.dataset.id); return; }
+                    const del = e.target.closest('.delete-lib');
+                    if (del) { this.deleteWordLibrary(del.dataset.id); return; }
+                });
+
+                document.getElementById('historyList').addEventListener('click', e => {
+                    const btn = e.target.closest('.view-history');
+                    if (btn) {
+                        const item = this.state.history.find(h => h.id === btn.dataset.id);
+                        if (item) {
+                            this.state.results = item.results;
+                            this.state.selectedKeywords = new Set();
+                            this.switchTab('results');
+                        }
+                    }
+                });
+            }
+        };
+
+        App.init();
+    </script>
+</body>
+</html>

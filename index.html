@@ -704,7 +704,8 @@
             { id: 'gif-generator', icon: '🎬', text: '动图GIF生成系统', path: 'gif-generator' },
             { id: 'bg-remover', icon: '✂️', text: '一键抠图系统', path: 'bg-remover' },
             { id: 'keyword-analyzer', icon: '📊', text: '关键词分析系统', path: 'keyword-analyzer' },
-            { id: 'search-analyzer', icon: '🔍', text: '搜索词分析系统', path: 'search-analyzer' }
+            { id: 'search-analyzer', icon: '🔍', text: '搜索词分析系统', path: 'search-analyzer' },
+            { id: 'tuoci-system', icon: '🧠', text: '智能拓词系统', path: 'tuoci-system' }
         ];
         
         const STORAGE_KEY = 'navOrder';
@@ -883,7 +884,8 @@
             { action: 'removeBg', keywords: ['抠图', '抠背景', '去除背景', '移除背景', '删除背景', '透明背景', '去背景', '证件照', 'p图', 'ps'] },
             { action: 'generateGif', keywords: ['gif', '动图', '动画', 'gif生成', '制作gif', '生成gif', '做动图', '生成动图', '图片合成'] },
             { action: 'analyzeKeywords', keywords: ['关键词', '关键词分析', 'sem', '推广词', '竞价词', '关键词报告', '关键词统计'] },
-            { action: 'analyzeSearchTerms', keywords: ['搜索词', '搜索词分析', '语义匹配', '匹配度', '否词', '搜索查询', 'query'] }
+            { action: 'analyzeSearchTerms', keywords: ['搜索词', '搜索词分析', '语义匹配', '匹配度', '否词', '搜索查询', 'query'] },
+            { action: 'tuociSystem', keywords: ['拓词', '拓词系统', '关键词扩展', '扩展关键词', '智能拓词', '词根拓词', '关键词拓词'] }
         ];
         
         async function detectIntent(text) {
@@ -1537,7 +1539,8 @@
                         'removeBg': '✂️ 一键抠图',
                         'generateGif': '🎬 生成GIF动图',
                         'analyzeKeywords': '📊 关键词分析',
-                        'analyzeSearchTerms': '🔍 搜索词分析'
+                        'analyzeSearchTerms': '🔍 搜索词分析',
+                        'tuociSystem': '🧠 智能拓词系统'
                     };
                     const descriptions = {
                         'removeBg': '点击下方区域上传需要抠图的图片',
@@ -1553,6 +1556,25 @@
                     };
                     
                     addAssistantText('检测到你的需求是：<b>' + actionLabels[intent.action] + '</b>');
+                    
+                    if (intent.action === 'tuociSystem') {
+                        addAssistantText('正在跳转到智能拓词系统...');
+                        hideTyping();
+                        // 模拟点击导航项
+                        const navItem = document.querySelector('.nav-item[data-page="tuoci-system"]');
+                        if (navItem) {
+                            setTimeout(() => navItem.click(), 500);
+                        } else {
+                            // 如果已经在本页，直接切换
+                            const homeItem = document.querySelector('.nav-item[data-page="home"]');
+                            if (homeItem) homeItem.click();
+                            setTimeout(() => {
+                                const targetItem = document.querySelector('.nav-item[data-page="tuoci-system"]');
+                                if (targetItem) targetItem.click();
+                            }, 300);
+                        }
+                        return;
+                    }
                     
                     if (intent.method === 'keyword') {
                         addAssistantText('（通过关键词匹配识别）');
