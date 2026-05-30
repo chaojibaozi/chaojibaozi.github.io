@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>火箭图标生成器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        canvas {
+            border: 2px solid #333;
+            image-rendering: pixelated;
+        }
+        .preview-large {
+            transform: scale(8);
+            margin: 60px 0;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>火箭图标</h1>
+        <p>原始尺寸 (40x40):</p>
+        <canvas id="rocketCanvas" width="40" height="40"></canvas>
+        <br><br>
+        <p>放大预览:</p>
+        <div class="preview-large">
+            <canvas id="rocketCanvasLarge" width="40" height="40"></canvas>
+        </div>
+        <br>
+        <button onclick="downloadImage()">下载图标 (PNG)</button>
+    </div>
+
+    <script>
+        function drawRocket(canvas) {
+            const ctx = canvas.getContext('2d');
+
+            // 清空画布为白色
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, 40, 40);
+
+            // 绘制火焰
+            // 外层火焰 (橙色)
+            ctx.fillStyle = '#FF8C00';
+            ctx.beginPath();
+            ctx.moveTo(16, 32);
+            ctx.lineTo(12, 40);
+            ctx.lineTo(20, 36);
+            ctx.lineTo(28, 40);
+            ctx.lineTo(24, 32);
+            ctx.closePath();
+            ctx.fill();
+
+            // 内层火焰 (黄色)
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.moveTo(18, 32);
+            ctx.lineTo(16, 38);
+            ctx.lineTo(20, 35);
+            ctx.lineTo(24, 38);
+            ctx.lineTo(22, 32);
+            ctx.closePath();
+            ctx.fill();
+
+            // 绘制火箭主体 (白色)
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.moveTo(20, 4);
+            ctx.lineTo(28, 20);
+            ctx.lineTo(28, 32);
+            ctx.lineTo(12, 32);
+            ctx.lineTo(12, 20);
+            ctx.closePath();
+            ctx.fill();
+
+            // 火箭边框 (灰色)
+            ctx.strokeStyle = '#666666';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // 绘制火箭头部红色尖端
+            ctx.fillStyle = '#FF4444';
+            ctx.beginPath();
+            ctx.moveTo(20, 4);
+            ctx.lineTo(15, 14);
+            ctx.lineTo(25, 14);
+            ctx.closePath();
+            ctx.fill();
+
+            // 绘制窗户
+            ctx.fillStyle = '#87CEEB';
+            ctx.beginPath();
+            ctx.arc(20, 20, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#333333';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // 绘制尾翼
+            ctx.fillStyle = '#CC0000';
+            // 左尾翼
+            ctx.beginPath();
+            ctx.moveTo(12, 28);
+            ctx.lineTo(8, 32);
+            ctx.lineTo(12, 32);
+            ctx.closePath();
+            ctx.fill();
+            // 右尾翼
+            ctx.beginPath();
+            ctx.moveTo(28, 28);
+            ctx.lineTo(32, 32);
+            ctx.lineTo(28, 32);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // 在两个画布上绘制火箭
+        drawRocket(document.getElementById('rocketCanvas'));
+        drawRocket(document.getElementById('rocketCanvasLarge'));
+
+        function downloadImage() {
+            const canvas = document.getElementById('rocketCanvas');
+            const link = document.createElement('a');
+            link.download = 'rocket-icon.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+    </script>
+</body>
+</html>
