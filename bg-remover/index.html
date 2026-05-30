@@ -466,6 +466,8 @@
             let userBgSamples = [];
             let loadedImageEl = null;
 
+            let cachedLocal = null;
+
             const elements = {
                 themeToggle: document.getElementById('theme-toggle'),
                 themeIcon: document.getElementById('theme-icon'),
@@ -645,6 +647,8 @@
                 if (isColorPickMode) {
                     toggleColorPickMode();
                 }
+                cachedLocal = null;
+                elements.showOriginalCb.checked = false;
                 resetZoomAndPan();
             }
 
@@ -727,50 +731,36 @@
                         elements.progressBar.style.width = '25%';
                         elements.progressText.textContent = '正在采样背景颜色...';
 
-                        const tolerance = 20 + smoothValue * 0.8;
-
                         let bgSamples = sampleEdgePixels(procPixels, procW, procH);
 
                         if (userBgSamples.length > 0) {
                             bgSamples = bgSamples.concat(userBgSamples);
                         }
 
-                        elements.progressBar.style.width = '45%';
-                        elements.progressText.textContent = '正在识别主体区域...';
-
-                        const bgMask = floodFillBackground(procPixels, procW, procH, bgSamples, tolerance);
-
-                        elements.progressBar.style.width = '60%';
-                        elements.progressText.textContent = '正在优化遮罩...';
-
-                        const subjectMask = invertMask(bgMask, procW, procH);
-                        const refinedMask = refineSubjectMask(subjectMask, procW, procH);
-                        
-                        const finalBgMask = invertMask(refinedMask, procW, procH);
-
                         const fullCanvas = document.createElement('canvas');
                         fullCanvas.width = image.width;
                         fullCanvas.height = image.height;
                         const fullCtx = fullCanvas.getContext('2d');
-                        
                         fullCtx.clearRect(0, 0, image.width, image.height);
-                        
                         fullCtx.drawImage(image, 0, 0);
                         const fullData = fullCtx.getImageData(0, 0, image.width, image.height);
 
-                        elements.progressBar.style.width = '80%';
-                        elements.progressText.textContent = '正在应用遮罩...';
-                        
-                        applyBackgroundMask(fullData.data, image.width, image.height, finalBgMask, procW, procH, scale);
+                        cachedLocal = {
+                            procPixels: new Uint8Array(procPixels),
+                            procW, procH, scale,
+                            bgSamples: bgSamples.slice(),
+                            imgW: image.width,
+                            imgH: image.height,
+                            fullData: new Uint8ClampedArray(fullData.data),
+                            smoothValue
+                        };
 
+                        const tolerance = 20 + smoothValue * 0.8;
+                        const finalBgMask = runLocalPipeline(procPixels, procW, procH, bgSamples, tolerance);
+                        applyBackgroundMask(fullData.data, image.width, image.height, finalBgMask, procW, procH, scale);
                         const featherRadius = Math.max(1, Math.round(smoothValue / 10));
                         featherEdges(fullData.data, image.width, image.height, featherRadius);
-
                         fullCtx.putImageData(fullData, 0, 0);
-
-                        elements.progressBar.style.width = '95%';
-                        elements.progressText.textContent = '正在生成结果...';
-
                         resultImage = fullCanvas.toDataURL('image/png');
                         elements.resultImage.src = resultImage;
                     }
@@ -1193,7 +1183,39 @@
                 updateResultImageTransform();
             }
 
+            function runLocalPipeline(procPixels, w, h, bgSamples, tolerance) {
+                const bgMask = floodFillBackground(procPixels, w, h, bgSamples, tolerance);
+                const subjectMask = invertMask(bgMask, w, h);
+                const refinedMask = refineSubjectMask(subjectMask, w, h);
+                const finalBgMask = invertMask(refinedMask, w, h);
+                return finalBgMask;
+            }
+
             function handleSmoothChange(e) {
+                const newValue = parseInt(e.target.value);
+                const tolerance = 20 + newValue * 0.8;
+
+                if (!cachedLocal) return;
+
+                const finalBgMask = runLocalPipeline(
+                    cachedLocal.procPixels,
+                    cachedLocal.procW, cachedLocal.procH,
+                    cachedLocal.bgSamples,
+                    tolerance
+                );
+
+                const fullData = new Uint8ClampedArray(cachedLocal.fullData);
+                applyBackgroundMask(fullData, cachedLocal.imgW, cachedLocal.imgH, finalBgMask, cachedLocal.procW, cachedLocal.procH, cachedLocal.scale);
+                const featherRadius = Math.max(1, Math.round(newValue / 10));
+                featherEdges(fullData, cachedLocal.imgW, cachedLocal.imgH, featherRadius);
+
+                const canvas = document.createElement('canvas');
+                canvas.width = cachedLocal.imgW;
+                canvas.height = cachedLocal.imgH;
+                const ctx = canvas.getContext('2d');
+                ctx.putImageData(new ImageData(fullData, cachedLocal.imgW, cachedLocal.imgH), 0, 0);
+                resultImage = canvas.toDataURL('image/png');
+                elements.resultImage.src = resultImage;
             }
 
             function handleWheelZoom(e) {
