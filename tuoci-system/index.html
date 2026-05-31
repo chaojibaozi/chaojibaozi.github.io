@@ -247,6 +247,33 @@
         .pack-actions { display: flex; gap: 6px; flex-wrap: wrap; }
         .pack-actions .btn { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
         .pack-toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        /* 筛选条件帮助提示 */
+        .filter-item { position: relative; }
+        .filter-item label {
+            display: inline-flex; align-items: center; gap: 4px; position: relative; cursor: default;
+        }
+        .filter-help {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 16px; height: 16px; border-radius: 50%;
+            background: #e2e8f0; color: #64748b; font-size: 11px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s ease; line-height: 1; flex-shrink: 0;
+        }
+        .filter-help:hover { background: #667eea; color: #fff; }
+        .filter-help-tip {
+            display: none; position: absolute; z-index: 100;
+            left: 0; top: calc(100% + 8px);
+            background: #1e293b; color: #f1f5f9; font-size: 13px; font-weight: 400;
+            padding: 10px 14px; border-radius: 8px; white-space: nowrap;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2); line-height: 1.5;
+            pointer-events: none;
+        }
+        .filter-help-tip::before {
+            content: ''; position: absolute; top: -5px; left: 12px;
+            width: 10px; height: 10px; background: #1e293b;
+            transform: rotate(45deg);
+        }
+        .filter-help:hover + .filter-help-tip { display: block; }
     </style>
 </head>
 <body>
@@ -265,13 +292,22 @@
                 <button class="tab-btn" data-tab="history">📋 历史记录</button>
             </div>
 
+            <!-- 数据来源提示条 -->
+            <div id="noticeBar" style="display:none;background:linear-gradient(135deg,#eef2ff,#e0e7ff);border:1px solid #a5b4fc;border-radius:10px;padding:12px 16px;margin-bottom:16px;align-items:center;justify-content:space-between;gap:12px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:20px;">📋</span>
+                    <span id="noticeText" style="font-size:14px;color:#4338ca;"></span>
+                </div>
+                <button id="noticeCloseBtn" style="border:none;background:rgba(67,56,202,0.1);border-radius:6px;padding:6px 12px;color:#4338ca;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap;">✕ 关闭</button>
+            </div>
+
             <!-- Tab 1: 开始拓词 -->
             <div class="tab-content active" id="tab-expansion">
                 <div class="grid-2col">
                     <div>
                         <div class="card-section">
                             <h2>词根输入</h2>
-                            <textarea id="seedWords" rows="8"
+                            <textarea id="seedWords" rows="7"
                                 placeholder="请输入关键词词根，每行一个&#10;例如：&#10;SEO优化&#10;网站建设&#10;网络营销"></textarea>
                             <div style="margin-top: 12px;">
                                 <label class="checkbox-item">
@@ -282,6 +318,17 @@
                                     <input type="checkbox" id="dedupPacks" checked>
                                     <span>对已有关键词词包去重</span>
                                 </label>
+                            </div>
+                            <div style="margin-top: 16px;padding-top:12px;border-top:1px solid #e2e8f0;">
+                                <label style="font-size:14px;color:#475569;font-weight:500;display:flex;align-items:center;gap:6px;" title="生成的关键词总数上限，包含语义扩展、组合扩展和搜索热词">
+                                    <span>拓词个数</span>
+                                    <span class="range-value" id="maxKeywordsVal" style="color:#667eea;font-weight:700;min-width:36px;text-align:right;">200</span>
+                                </label>
+                                <div class="range-wrap" style="margin-top:6px;">
+                                    <span style="font-size:12px;color:#94a3b8;">100</span>
+                                    <input type="range" id="maxKeywords" value="200" min="100" max="2000" step="50" style="flex:1;height:6px;background:#e2e8f0;border-radius:3px;appearance:none;cursor:pointer;outline:none;">
+                                    <span style="font-size:12px;color:#94a3b8;">2000</span>
+                                </div>
                             </div>
                         </div>
                         <div class="card-section">
@@ -297,13 +344,6 @@
                             <div class="checkbox-item">
                                 <input type="checkbox" id="useHotWords" checked>
                                 <label for="useHotWords">获取搜索下拉热词（百度+360）</label>
-                            </div>
-                            <div style="margin-top: 12px;">
-                                <label style="font-size:14px;color:#475569;font-weight:500;">最大关键词数量</label>
-                                <div class="range-wrap">
-                                    <input type="range" id="maxKeywords" value="200" min="50" max="500" step="50">
-                                    <span class="range-value" id="maxKeywordsVal">200</span>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -394,7 +434,10 @@
                         <h2>筛选条件</h2>
                         <div class="filter-grid">
                             <div class="filter-item">
-                                <label>关键词长度</label>
+                                <label>关键词长度
+                                    <span class="filter-help">?</span>
+                                    <span class="filter-help-tip">关键词的字符数范围，单位：个字符</span>
+                                </label>
                                 <div style="display:flex;gap:8px;align-items:center;">
                                     <input type="number" id="minLength" value="1" min="1" style="width:70px;">
                                     <span style="color:#94a3b8;">—</span>
@@ -402,19 +445,31 @@
                                 </div>
                             </div>
                             <div class="filter-item">
-                                <label>最小搜索量</label>
-                                <input type="number" id="minSearchVolume" value="0" min="0">
+                                <label>最小热度
+                                    <span class="filter-help">?</span>
+                                    <span class="filter-help-tip">关键词的搜索热度评分，基于百度/360搜索建议位置估算，0~100</span>
+                                </label>
+                                <input type="number" id="minPopularity" value="0" min="0" max="100">
                             </div>
                             <div class="filter-item">
-                                <label>最大竞争度</label>
+                                <label>最大竞争度
+                                    <span class="filter-help">?</span>
+                                    <span class="filter-help-tip">基于关键词文本特征（商业意图、长度等）估算的竞争程度，0~1之间</span>
+                                </label>
                                 <input type="number" id="maxCompetition" value="1" min="0" max="1" step="0.1">
                             </div>
                             <div class="filter-item">
-                                <label>最小商业价值</label>
+                                <label>最小商业价值
+                                    <span class="filter-help">?</span>
+                                    <span class="filter-help-tip">关键词的商业推广价值评分，0~100分，越高越值得投放</span>
+                                </label>
                                 <input type="number" id="minBusinessValue" value="0" min="0" max="100">
                             </div>
                             <div class="filter-item">
-                                <label>搜索意图</label>
+                                <label>搜索意图
+                                    <span class="filter-help">?</span>
+                                    <span class="filter-help-tip">关键词对应的用户搜索意图分类：了解型、评估型、交易型、探索型</span>
+                                </label>
                                 <select id="intentFilter">
                                     <option value="all">全部</option>
                                     <option value="了解型">了解型</option>
@@ -424,7 +479,10 @@
                                 </select>
                             </div>
                             <div class="filter-item">
-                                <label>来源</label>
+                                <label>来源
+                                    <span class="filter-help">?</span>
+                                    <span class="filter-help-tip">关键词是通过哪种方式扩展生成的：词根、语义扩展、组合扩展、搜索热词</span>
+                                </label>
                                 <select id="sourceFilter">
                                     <option value="all">全部</option>
                                     <option value="词根">词根</option>
@@ -434,6 +492,10 @@
                                     <option value="360热词">360热词</option>
                                 </select>
                             </div>
+                        </div>
+                        <div style="display:flex;gap:10px;margin-top:14px;">
+                            <button id="applyFilterBtn" class="btn btn-primary" style="padding:8px 20px;font-size:14px;">🔍 应用筛选</button>
+                            <button id="resetFilterBtn" class="btn btn-secondary" style="padding:8px 20px;font-size:14px;">↺ 重置</button>
                         </div>
                     </div>
 
@@ -461,7 +523,7 @@
                                     <tr>
                                         <th style="width:40px;"><input type="checkbox" id="selectAllCheckbox" style="width:16px;height:16px;accent-color:#667eea;cursor:pointer;"></th>
                                         <th>关键词</th>
-                                        <th>搜索量</th>
+                                        <th>搜索热度</th>
                                         <th>竞争度</th>
                                         <th>商业价值</th>
                                         <th>搜索意图</th>
@@ -473,8 +535,9 @@
                             </table>
                         </div>
                         <div class="empty-state" id="resultsEmpty" style="display:none;">
-                            <div class="icon">📊</div>
-                            <p>暂无关键词数据，请先进行拓词</p>
+                            <div class="icon">🔍</div>
+                            <p>当前筛选条件下无匹配结果</p>
+                            <p style="font-size:13px;color:#94a3b8;margin-top:4px;">请调整筛选条件后点击「应用筛选」重试</p>
                         </div>
                     </div>
                 </div>
@@ -524,7 +587,7 @@
                         <tr>
                             <th>#</th>
                             <th>关键词</th>
-                            <th>搜索量</th>
+                            <th>搜索热度</th>
                             <th>商业价值</th>
                             <th>搜索意图</th>
                         </tr>
@@ -564,11 +627,7 @@
                 if (text.includes('怎么样') || text.includes('好不好') || text.includes('对比') || text.includes('比较') || text.includes('哪个好') || text.includes('怎么选')) return '评估型';
                 if (text.includes('什么') || text.includes('怎么') || text.includes('如何') || text.includes('教程') || text.includes('方法') || text.includes('技巧')) return '了解型';
                 if (text.includes('哪家') || text.includes('公司') || text.includes('品牌') || text.includes('供应商') || text.includes('厂家')) return '探索型';
-                const r = Math.random();
-                if (r < 0.35) return '了解型';
-                if (r < 0.65) return '评估型';
-                if (r < 0.85) return '交易型';
-                return '探索型';
+                return '了解型';
             },
 
             expandKeywords(seedWords, settings, globalSeen) {
@@ -580,10 +639,11 @@
                     seen.add(key);
                     results.push({
                         id: id(), text, source: source || '词根', isHotWord: !!isHotWord,
-                        searchVolume: Math.floor(Math.random() * 10000) + 50,
-                        competition: parseFloat((Math.random() * 0.9 + 0.1).toFixed(2)),
-                        businessValue: this.calculateBusinessValue(text),
-                        intent: this.classifyIntent(text),
+                        popularity: 0,
+                        volume: '—',
+                        competition: SearchSuggestions.estimateCompetition(text),
+                        businessValue: SearchSuggestions.estimateBusinessValue(text),
+                        intent: SearchSuggestions.classifyIntent(text),
                         length: text.length,
                         createdAt: new Date().toISOString()
                     });
@@ -607,7 +667,95 @@
                 return results;
             },
 
-            calculateBusinessValue(keyword) {
+        };
+
+        const SearchSuggestions = {
+            // JSONP 工具：通过 script 标签加载跨域数据
+            jsonp(url) {
+                return new Promise((resolve, reject) => {
+                    const callbackName = 'jsonp_cb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+                    const script = document.createElement('script');
+                    const fullUrl = url.replace('{callback}', callbackName);
+                    window[callbackName] = function(data) {
+                        delete window[callbackName];
+                        document.head.removeChild(script);
+                        resolve(data);
+                    };
+                    script.src = fullUrl;
+                    script.onerror = function() {
+                        delete window[callbackName];
+                        document.head.removeChild(script);
+                        reject(new Error('JSONP 请求失败'));
+                    };
+                    document.head.appendChild(script);
+                    setTimeout(function() {
+                        if (window[callbackName]) {
+                            delete window[callbackName];
+                            document.head.removeChild(script);
+                            reject(new Error('JSONP 超时'));
+                        }
+                    }, 5000);
+                });
+            },
+
+            async getBaiduSuggestions(keyword) {
+                try {
+                    const data = await this.jsonp('https://suggestion.baidu.com/su?wd=' + encodeURIComponent(keyword) + '&ie=utf-8&cb={callback}');
+                    // 百度返回格式: callback({q: "keyword", s: ["sug1", "sug2", ...]})
+                    return (data && data.s) || [];
+                } catch (e) {
+                    console.warn('[Baidu API] 获取失败:', e.message);
+                    return [];
+                }
+            },
+
+            async get360Suggestions(keyword) {
+                try {
+                    const data = await this.jsonp('https://sug.so.360.cn/suggest?word=' + encodeURIComponent(keyword) + '&callback={callback}');
+                    // 360返回格式: callback({result: {word: [{word: "sug1"}, {word: "sug2"}, ...]}})
+                    if (data && data.result && data.result.word) {
+                        return data.result.word.map(function(w) { return w.word; });
+                    }
+                    return [];
+                } catch (e) {
+                    console.warn('[360 API] 获取失败:', e.message);
+                    return [];
+                }
+            },
+
+            // 根据建议词在列表中的位置估算搜索热度
+            estimatePopularity(index, total) {
+                // 第一个位置热度最高，越往后越低
+                const score = Math.max(5, Math.round((1 - index / total) * 100));
+                return score;
+            },
+
+            // 估算搜索量范围（基于热度评分）
+            estimateVolume(score) {
+                if (score >= 90) return '5000+';
+                if (score >= 70) return '2000-5000';
+                if (score >= 50) return '500-2000';
+                if (score >= 30) return '100-500';
+                return '<100';
+            },
+
+            // 估算竞争度（基于关键词文本特征）
+            estimateCompetition(keyword) {
+                const text = keyword.toLowerCase();
+                let score = 0.3;
+                // 商业词竞争度高
+                if (text.includes('价格') || text.includes('多少钱') || text.includes('买') || text.includes('报价') || text.includes('批发')) score += 0.3;
+                if (text.includes('公司') || text.includes('品牌') || text.includes('供应商') || text.includes('厂家')) score += 0.2;
+                if (text.includes('推荐') || text.includes('排行榜') || text.includes('官网')) score += 0.15;
+                if (text.includes('哪家') || text.includes('怎么选') || text.includes('对比')) score += 0.1;
+                // 短词竞争通常更高
+                if (text.length <= 6) score += 0.15;
+                if (text.length > 12) score -= 0.1;
+                return Math.min(0.95, Math.max(0.1, parseFloat(score.toFixed(2))));
+            },
+
+            // 估算商业价值（基于关键词文本特征）
+            estimateBusinessValue(keyword) {
                 let value = 50;
                 const text = keyword.toLowerCase();
                 if (text.includes('价格') || text.includes('多少钱') || text.includes('买')) value += 30;
@@ -616,17 +764,67 @@
                 if (text.includes('专业') || text.includes('官方')) value += 15;
                 if (text.length > 4 && text.length < 10) value += 10;
                 return Math.min(value, 100);
-            }
-        };
-
-        const SearchSuggestions = {
-            async getBaiduSuggestions(keyword) {
-                await new Promise(r => setTimeout(r, 300));
-                return [keyword + '价格', keyword + '怎么样', keyword + '哪家好', keyword + '官网', keyword + '电话', keyword + '地址', keyword + '批发', keyword + '品牌', keyword + '排行榜', keyword + '最新消息'].slice(0, 6 + Math.floor(Math.random() * 5));
             },
-            async get360Suggestions(keyword) {
-                await new Promise(r => setTimeout(r, 250));
-                return [keyword + '多少钱', keyword + '好不好', keyword + '哪里有', keyword + '公司', keyword + 'APP', keyword + '教程', keyword + '招聘', keyword + '地址', keyword + '服务'].slice(0, 5 + Math.floor(Math.random() * 5));
+
+            classifyIntent(keyword) {
+                const text = keyword.toLowerCase();
+                if (text.includes('价格') || text.includes('多少钱') || text.includes('报价') || text.includes('批发') || text.includes('买')) return '交易型';
+                if (text.includes('怎么样') || text.includes('好不好') || text.includes('对比') || text.includes('比较') || text.includes('哪个好') || text.includes('怎么选')) return '评估型';
+                if (text.includes('什么') || text.includes('怎么') || text.includes('如何') || text.includes('教程') || text.includes('方法') || text.includes('技巧')) return '了解型';
+                if (text.includes('哪家') || text.includes('公司') || text.includes('品牌') || text.includes('供应商') || text.includes('厂家')) return '探索型';
+                return '了解型';
+            },
+
+            // 从建议 API 获取并构建关键词数据
+            async fetchHotKeywords(seeds, seenSet) {
+                const results = [];
+                for (let i = 0; i < seeds.length; i++) {
+                    const seed = seeds[i].trim();
+                    if (!seed) continue;
+
+                    // 并行请求百度+360
+                    const [baiduWords, qihuWords] = await Promise.all([
+                        this.getBaiduSuggestions(seed),
+                        this.get360Suggestions(seed)
+                    ]);
+
+                    // 处理百度结果
+                    baiduWords.forEach(function(word, idx) {
+                        const key = word.replace(/\s+/g, '');
+                        if (seenSet && seenSet.has(key)) return;
+                        if (seenSet) seenSet.add(key);
+                        const popScore = SearchSuggestions.estimatePopularity(idx, baiduWords.length);
+                        results.push({
+                            id: id(), text: word, source: '百度热词', isHotWord: true,
+                            popularity: popScore,
+                            volume: SearchSuggestions.estimateVolume(popScore),
+                            competition: SearchSuggestions.estimateCompetition(word),
+                            businessValue: SearchSuggestions.estimateBusinessValue(word),
+                            intent: SearchSuggestions.classifyIntent(word),
+                            length: word.length,
+                            createdAt: new Date().toISOString()
+                        });
+                    });
+
+                    // 处理360结果（在百度后面追加索引，热度略低于百度）
+                    qihuWords.forEach(function(word, idx) {
+                        const key = word.replace(/\s+/g, '');
+                        if (seenSet && seenSet.has(key)) return;
+                        if (seenSet) seenSet.add(key);
+                        const popScore = Math.max(5, SearchSuggestions.estimatePopularity(idx, qihuWords.length) - 10);
+                        results.push({
+                            id: id(), text: word, source: '360热词', isHotWord: true,
+                            popularity: popScore,
+                            volume: SearchSuggestions.estimateVolume(popScore),
+                            competition: SearchSuggestions.estimateCompetition(word),
+                            businessValue: SearchSuggestions.estimateBusinessValue(word),
+                            intent: SearchSuggestions.classifyIntent(word),
+                            length: word.length,
+                            createdAt: new Date().toISOString()
+                        });
+                    });
+                }
+                return results;
             }
         };
 
@@ -640,7 +838,7 @@
                 results: [],
                 isLoading: false,
                 progress: 0,
-                filters: { minLength: 1, maxLength: 50, minSearchVolume: 0, maxCompetition: 1.0, minBusinessValue: 0, intentFilter: 'all', sourceFilter: 'all' },
+                filters: { minLength: 1, maxLength: 50, minPopularity: 0, maxCompetition: 1.0, minBusinessValue: 0, intentFilter: 'all', sourceFilter: 'all' },
                 selectedKeywords: new Set(),
                 wordLibraries: Storage.get('wordLibraries', []),
                 currentLibrary: null,
@@ -653,6 +851,67 @@
                 this.renderPacks();
                 this.renderLibraries();
                 this.renderHistory();
+
+                // 检测是否从首页AI携带数据跳转过来
+                try {
+                    const storedSeeds = localStorage.getItem('tuoci_seeds');
+                    const storedTimestamp = localStorage.getItem('tuoci_timestamp');
+                    const storedResults = localStorage.getItem('tuoci_results');
+
+                    if (storedSeeds && storedTimestamp) {
+                        const now = Date.now();
+                        const ts = parseInt(storedTimestamp);
+                        // 30秒内的数据视为有效的跳转数据
+                        if (now - ts < 30000) {
+                            const seeds = JSON.parse(storedSeeds);
+                            if (seeds && seeds.length > 0) {
+                                // 填充文本域
+                                document.getElementById('seedWords').value = seeds.join('\n');
+                                this.state.seedWords = seeds.join('\n');
+
+                                // 如果有完整结果数据，直接导入
+                                if (storedResults) {
+                                    try {
+                                        let results = JSON.parse(storedResults);
+                                        if (results && results.length > 0) {
+                                            // 补充 id 和 length 字段（首页AI生成的结果可能缺少这些字段）
+                                            results = results.map(r => ({
+                                                ...r,
+                                                id: r.id || id(),
+                                                length: r.length || r.text.length,
+                                                createdAt: r.createdAt || new Date().toISOString()
+                                            }));
+                                            this.state.results = results;
+                                            this.state.selectedKeywords = new Set();
+                                            setTimeout(() => {
+                                                this.switchTab('results');
+                                            }, 200);
+                                            // 添加提示
+                                            this.addNotice('已从首页AI导入 ' + seeds.length + ' 个词根，共 ' + results.length + ' 个关键词');
+                                        }
+                                    } catch (e) {}
+                                }
+
+                                // 清除标记，防止重复
+                                localStorage.removeItem('tuoci_seeds');
+                                localStorage.removeItem('tuoci_results');
+                                localStorage.removeItem('tuoci_timestamp');
+
+                                // 如果没有预加载结果，自动开始拓词
+                                if (!storedResults) {
+                                    setTimeout(() => {
+                                        this.startExpansion();
+                                    }, 300);
+                                }
+                            }
+                        } else {
+                            // 过期数据清理
+                            localStorage.removeItem('tuoci_seeds');
+                            localStorage.removeItem('tuoci_results');
+                            localStorage.removeItem('tuoci_timestamp');
+                        }
+                    }
+                } catch (e) {}
             },
 
             setState(newState) {
@@ -693,31 +952,16 @@
                     await new Promise(r => setTimeout(r, 200));
                 }
 
+                // 从百度/360搜索建议 API 获取真实下拉热词
                 if (this.state.settings.useHotWords) {
                     this.state.progress = 55;
-                    this.updateProgress();
-                    for (let i = 0; i < seeds.length; i++) {
-                        const baidu = await SearchSuggestions.getBaiduSuggestions(seeds[i]);
-                        baidu.forEach(s => {
-                            const key = s.replace(/\s+/g, '');
-                            if (globalSeen && globalSeen.has(key)) return;
-                            if (!allResults.some(r => r.text === s)) {
-                                if (globalSeen) globalSeen.add(key);
-                                allResults.push({ id: id(), text: s, searchVolume: Math.floor(Math.random() * 5000) + 500, competition: parseFloat((Math.random() * 0.9 + 0.1).toFixed(2)), businessValue: LocalSemanticModel.calculateBusinessValue(s), intent: LocalSemanticModel.classifyIntent(s), source: '百度热词', isHotWord: true, length: s.length, createdAt: new Date().toISOString() });
-                            }
-                        });
-                        const qihu = await SearchSuggestions.get360Suggestions(seeds[i]);
-                        qihu.forEach(s => {
-                            const key = s.replace(/\s+/g, '');
-                            if (globalSeen && globalSeen.has(key)) return;
-                            if (!allResults.some(r => r.text === s)) {
-                                if (globalSeen) globalSeen.add(key);
-                                allResults.push({ id: id(), text: s, searchVolume: Math.floor(Math.random() * 5000) + 500, competition: parseFloat((Math.random() * 0.9 + 0.1).toFixed(2)), businessValue: LocalSemanticModel.calculateBusinessValue(s), intent: LocalSemanticModel.classifyIntent(s), source: '360热词', isHotWord: true, length: s.length, createdAt: new Date().toISOString() });
-                            }
-                        });
-                        this.state.progress = 55 + Math.round((i + 1) / seeds.length * 40);
-                        this.updateProgress();
-                    }
+                    document.getElementById('progressFill').style.width = '55%';
+                    document.getElementById('progressText').textContent = '正在获取百度/360搜索热词...';
+                    const hotKeywords = await SearchSuggestions.fetchHotKeywords(seeds, globalSeen);
+                    allResults = allResults.concat(hotKeywords);
+                    this.state.progress = 95;
+                    document.getElementById('progressFill').style.width = '95%';
+                    document.getElementById('progressText').textContent = '处理完成';
                 }
 
                 this.saveHistory(seeds, allResults);
@@ -750,7 +994,7 @@
                 const { filters, results } = this.state;
                 return results.filter(r => {
                     if (r.length < filters.minLength || r.length > filters.maxLength) return false;
-                    if (r.searchVolume < filters.minSearchVolume) return false;
+                    if (r.popularity < filters.minPopularity) return false;
                     if (r.competition > filters.maxCompetition) return false;
                     if (r.businessValue < filters.minBusinessValue) return false;
                     if (filters.intentFilter !== 'all' && r.intent !== filters.intentFilter) return false;
@@ -762,7 +1006,7 @@
             readFilters() {
                 this.state.filters.minLength = parseInt(document.getElementById('minLength').value) || 1;
                 this.state.filters.maxLength = parseInt(document.getElementById('maxLength').value) || 50;
-                this.state.filters.minSearchVolume = parseInt(document.getElementById('minSearchVolume').value) || 0;
+                this.state.filters.minPopularity = parseInt(document.getElementById('minPopularity').value) || 0;
                 this.state.filters.maxCompetition = parseFloat(document.getElementById('maxCompetition').value) || 1;
                 this.state.filters.minBusinessValue = parseInt(document.getElementById('minBusinessValue').value) || 0;
                 this.state.filters.intentFilter = document.getElementById('intentFilter').value;
@@ -789,7 +1033,7 @@
                     <tr class="${this.state.selectedKeywords.has(r.id) ? 'selected-row' : ''}" style="${this.state.selectedKeywords.has(r.id) ? 'background:#eef2ff;' : ''}">
                         <td><input type="checkbox" class="kw-checkbox" data-id="${r.id}" ${this.state.selectedKeywords.has(r.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:#667eea;cursor:pointer;"></td>
                         <td style="font-weight:500;">${this.escapeHtml(r.text)}</td>
-                        <td style="font-family:monospace;">${r.searchVolume.toLocaleString()}</td>
+                        <td style="font-family:monospace;">${r.volume}</td>
                         <td><div class="bar-cell"><div class="bar"><div class="bar-fill ${r.competition > 0.7 ? 'red' : r.competition > 0.4 ? 'yellow' : 'green'}" style="width:${r.competition * 100}%"></div></div><span class="bar-text">${(r.competition * 100).toFixed(0)}%</span></div></td>
                         <td><div class="bar-cell"><div class="bar"><div class="bar-fill ${r.businessValue > 70 ? 'green' : r.businessValue > 40 ? 'yellow' : 'red'}" style="width:${r.businessValue}%"></div></div><span class="bar-text">${r.businessValue}</span></div></td>
                         <td><span class="tag ${r.intent === '了解型' ? 'tag-blue' : r.intent === '评估型' ? 'tag-yellow' : r.intent === '交易型' ? 'tag-green' : 'tag-purple'}">${r.intent}</span></td>
@@ -854,7 +1098,7 @@
                 const selected = this.getSelectedKeywords();
                 const toExport = selected.length > 0 ? selected : this.getFilteredResults();
                 if (toExport.length === 0) { alert('没有可导出的关键词'); return; }
-                const data = toExport.map(r => ({ '关键词': r.text, '搜索量': r.searchVolume, '竞争度': r.competition, '商业价值': r.businessValue, '搜索意图': r.intent, '来源': r.source, '下拉热词': r.isHotWord ? '是' : '否', '关键词长度': r.length }));
+                const data = toExport.map(r => ({ '关键词': r.text, '搜索热度': r.volume, '竞争度': r.competition, '商业价值': r.businessValue, '搜索意图': r.intent, '来源': r.source, '下拉热词': r.isHotWord ? '是' : '否', '关键词长度': r.length }));
                 const ws = XLSX.utils.json_to_sheet(data);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, '拓词结果');
@@ -896,7 +1140,7 @@
             exportLibrary(libId) {
                 const lib = this.state.wordLibraries.find(l => l.id === libId);
                 if (!lib || lib.keywords.length === 0) { alert('词库为空'); return; }
-                const data = lib.keywords.map(r => ({ '关键词': r.text, '搜索量': r.searchVolume, '竞争度': r.competition, '商业价值': r.businessValue, '搜索意图': r.intent, '来源': r.source }));
+                const data = lib.keywords.map(r => ({ '关键词': r.text, '搜索热度': r.volume, '竞争度': r.competition, '商业价值': r.businessValue, '搜索意图': r.intent, '来源': r.source }));
                 const ws = XLSX.utils.json_to_sheet(data);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, lib.name);
@@ -917,7 +1161,7 @@
                         <tr>
                             <td>${i + 1}</td>
                             <td>${this.escapeHtml(kw.text || kw)}</td>
-                            <td>${kw.searchVolume || '-'}</td>
+                            <td>${kw.volume || '-'}</td>
                             <td>${kw.businessValue || '-'}</td>
                             <td>${kw.intent || '-'}</td>
                         </tr>
@@ -1078,6 +1322,20 @@
                 const d = document.createElement('div'); d.textContent = text; return d.innerHTML;
             },
 
+            addNotice(message) {
+                const bar = document.getElementById('noticeBar');
+                const text = document.getElementById('noticeText');
+                if (bar && text) {
+                    text.textContent = message;
+                    bar.style.display = 'flex';
+                }
+            },
+
+            hideNotice() {
+                const bar = document.getElementById('noticeBar');
+                if (bar) bar.style.display = 'none';
+            },
+
             bindEvents() {
                 document.getElementById('tabs').addEventListener('click', e => {
                     const btn = e.target.closest('.tab-btn');
@@ -1104,8 +1362,18 @@
 
                 document.getElementById('exportBtn').addEventListener('click', () => this.exportToExcel());
 
-                document.querySelectorAll('#tab-results .filter-grid input, #tab-results .filter-grid select').forEach(el => {
-                    el.addEventListener('input', () => this.renderResults());
+                document.getElementById('applyFilterBtn').addEventListener('click', () => this.renderResults());
+
+                document.getElementById('resetFilterBtn').addEventListener('click', () => {
+                    document.getElementById('minLength').value = 1;
+                    document.getElementById('maxLength').value = 50;
+                    document.getElementById('minPopularity').value = 0;
+                    document.getElementById('maxCompetition').value = 1;
+                    document.getElementById('minBusinessValue').value = 0;
+                    document.getElementById('intentFilter').value = 'all';
+                    document.getElementById('sourceFilter').value = 'all';
+                    this.readFilters();
+                    this.renderResults();
                 });
 
                 document.getElementById('addToLibraryBtn').addEventListener('click', () => {
@@ -1142,7 +1410,14 @@
                     if (btn) {
                         const item = this.state.history.find(h => h.id === btn.dataset.id);
                         if (item) {
-                            this.state.results = item.results;
+                            // 兼容旧数据（searchVolume → volume）
+                            this.state.results = (item.results || []).map(function(r) {
+                                if (r.volume === undefined && r.searchVolume !== undefined) {
+                                    r.volume = r.searchVolume.toLocaleString ? r.searchVolume.toLocaleString() : String(r.searchVolume || '—');
+                                }
+                                if (r.popularity === undefined) r.popularity = 0;
+                                return r;
+                            });
                             this.state.selectedKeywords = new Set();
                             this.switchTab('results');
                         }
@@ -1162,6 +1437,9 @@
                 if (packGrid2) packGrid2.addEventListener('click', e => {
                     this.handlePackGridClick(e);
                 });
+
+                const noticeClose = document.getElementById('noticeCloseBtn');
+                if (noticeClose) noticeClose.addEventListener('click', () => this.hideNotice());
             }
         };
 
