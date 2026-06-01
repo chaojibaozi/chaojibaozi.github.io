@@ -286,7 +286,7 @@
         <div class="main-card">
             <div class="tabs" id="tabs">
                 <button class="tab-btn active" data-tab="expansion">🔍 开始拓词</button>
-                <button class="tab-btn" data-tab="packs">📦 关键词词包</button>
+                <button class="tab-btn" data-tab="packs">📦 账户已有关键词词包</button>
                 <button class="tab-btn" data-tab="results">📊 结果展示</button>
                 <button class="tab-btn" data-tab="libraries">📦 词库管理</button>
                 <button class="tab-btn" data-tab="history">📋 历史记录</button>
@@ -316,7 +316,7 @@
                                 </label>
                                 <label class="checkbox-item" id="dedupPacksWrap" style="display:none;">
                                     <input type="checkbox" id="dedupPacks" checked>
-                                    <span>对已有关键词词包去重</span>
+                                    <span>对账户已有关键词词包去重</span>
                                 </label>
                             </div>
                             <div style="margin-top: 16px;padding-top:12px;border-top:1px solid #e2e8f0;">
@@ -367,12 +367,22 @@
                         </div>
                         <div class="card-section">
                             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-                                <h2 style="margin-bottom:0;">📦 已有关键词词包</h2>
+                                <h2 style="margin-bottom:0;">📦 账户已有关键词词包</h2>
                                 <button id="createPackBtn" class="btn btn-primary" style="padding:6px 14px;font-size:13px;">+ 新增词包</button>
                             </div>
-                            <div class="pack-grid" id="packGrid">
-                                <div class="empty-state" id="packsEmpty" style="padding:20px;">
-                                    <p>暂无词包，点击「新增词包」创建关键词词包</p>
+                            <div id="packSelectorArea">
+                                <div id="packSelectorBar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+                                    <select id="expansionPackSelect" style="flex:1;min-width:120px;padding:7px 10px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none;"></select>
+                                    <button id="addSeedsToPackBtn" class="btn btn-success" style="padding:7px 14px;font-size:13px;white-space:nowrap;">+ 添加到词包</button>
+                                </div>
+                                <div class="empty-state" id="packsEmptyExpansion" style="padding:20px;">
+                                    <p>暂无词包，点击「新增词包」创建账户已有关键词词包</p>
+                                </div>
+                                <div id="selectedPackPreview" style="display:none;margin-top:12px;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                                        <span style="font-size:13px;color:#475569;font-weight:500;">「<span id="selectedPackName" style="color:#667eea;"></span>」 — <span id="selectedPackCount">0</span> 个关键词</span>
+                                    </div>
+                                    <textarea id="packPreviewTextarea" rows="5" readonly placeholder="选择词包后显示关键词列表" style="background:#f1f5f9;cursor:default;color:#475569;"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -413,7 +423,7 @@
                 </div>
             </div>
 
-            <!-- Tab 1.5: 关键词词包 -->
+            <!-- Tab 1.5: 账户已有关键词词包 -->
             <div class="tab-content" id="tab-packs">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
                     <p style="color:#64748b;">共 <strong id="packsCount">0</strong> 个词包</p>
@@ -422,7 +432,7 @@
                 <div class="pack-grid" id="packGrid2">
                     <div class="empty-state" id="packsEmpty2" style="padding:40px 20px;">
                         <div class="icon">📦</div>
-                        <p>暂无词包，点击「新增词包」创建关键词词包</p>
+                        <p>暂无词包，点击「新增词包」创建账户已有关键词词包</p>
                     </div>
                 </div>
             </div>
@@ -939,10 +949,6 @@
 
                 const globalSeen = this.state.deduplicate ? new Set() : null;
 
-                if (globalSeen && this.state.dedupPacks && this.state.keywordPacks.length > 0) {
-                    this.state.keywordPacks.forEach(p => p.keywords.forEach(k => globalSeen.add(k.replace(/\s+/g, ''))));
-                }
-
                 let allResults = [];
                 for (let i = 0; i < seeds.length; i++) {
                     const seedResults = LocalSemanticModel.expandKeywords([seeds[i]], this.state.settings, globalSeen);
@@ -962,6 +968,12 @@
                     this.state.progress = 95;
                     document.getElementById('progressFill').style.width = '95%';
                     document.getElementById('progressText').textContent = '处理完成';
+                }
+
+                if (this.state.dedupPacks && this.state.keywordPacks.length > 0) {
+                    const packSet = new Set();
+                    this.state.keywordPacks.forEach(p => p.keywords.forEach(k => packSet.add(k.replace(/\s+/g, ''))));
+                    allResults = allResults.filter(r => !packSet.has(r.text.replace(/\s+/g, '')));
                 }
 
                 this.saveHistory(seeds, allResults);
@@ -1210,7 +1222,7 @@
             },
 
             createPack() {
-                const name = prompt('请输入关键词词包名称：');
+                const name = prompt('请输入账户已有关键词词包名称：');
                 if (!name || !name.trim()) return;
                 const pack = { id: id(), name: name.trim(), keywords: [], createdAt: new Date().toISOString() };
                 const packs = [...this.state.keywordPacks, pack];
@@ -1220,7 +1232,7 @@
             },
 
             deletePack(packId) {
-                if (!confirm('确定要删除这个词包吗？')) return;
+                if (!confirm('确定要删除这个账户已有关键词词包吗？')) return;
                 const packs = this.state.keywordPacks.filter(p => p.id !== packId);
                 this.state.keywordPacks = packs;
                 Storage.set('keywordPacks', packs);
@@ -1237,7 +1249,7 @@
                 });
                 this.state.keywordPacks = packs;
                 Storage.set('keywordPacks', packs);
-                alert(`✅ 词包已保存，共 ${lines.length} 个关键词`);
+                alert(`✅ 账户已有关键词词包已保存，共 ${lines.length} 个关键词`);
                 this.renderPacks();
             },
 
@@ -1254,44 +1266,97 @@
                 });
                 this.state.keywordPacks = packs;
                 Storage.set('keywordPacks', packs);
-                alert(`成功添加 ${selected.length} 个关键词到词包`);
+                alert(`成功添加 ${selected.length} 个关键词到账户已有关键词词包`);
                 this.renderPacks();
             },
 
-            renderPacks() {
-                const renderTo = (gridId, countId) => {
-                    const grid = document.getElementById(gridId);
-                    if (!grid) return;
-                    const countEl = document.getElementById(countId);
-                    if (countEl) countEl.textContent = this.state.keywordPacks.length;
-                    const dedupWrap = document.getElementById('dedupPacksWrap');
-                    if (this.state.keywordPacks.length === 0) {
-                        grid.innerHTML = `<div class="empty-state" style="padding:20px;"><p>暂无词包，点击「新增词包」创建关键词词包</p></div>`;
-                        if (dedupWrap && gridId === 'packGrid') dedupWrap.style.display = 'none';
-                        return;
+            updatePackSelector() {
+                const sel = document.getElementById('expansionPackSelect');
+                const bar = document.getElementById('packSelectorBar');
+                const empty = document.getElementById('packsEmptyExpansion');
+                const preview = document.getElementById('selectedPackPreview');
+                if (this.state.keywordPacks.length === 0) {
+                    bar.style.display = 'none';
+                    empty.style.display = 'block';
+                    preview.style.display = 'none';
+                    document.getElementById('dedupPacksWrap').style.display = 'none';
+                    return;
+                }
+                bar.style.display = 'flex';
+                empty.style.display = 'none';
+                document.getElementById('dedupPacksWrap').style.display = 'flex';
+                const currentVal = sel.value;
+                sel.innerHTML = this.state.keywordPacks.map(p =>
+                    `<option value="${p.id}">${this.escapeHtml(p.name)}（${p.keywords.length}个词）</option>`
+                ).join('');
+                if (currentVal && this.state.keywordPacks.some(p => p.id === currentVal)) {
+                    sel.value = currentVal;
+                }
+                this.showSelectedPackPreview(sel.value);
+            },
+
+            showSelectedPackPreview(packId) {
+                const pack = this.state.keywordPacks.find(p => p.id === packId);
+                const preview = document.getElementById('selectedPackPreview');
+                const textarea = document.getElementById('packPreviewTextarea');
+                if (!pack) {
+                    preview.style.display = 'none';
+                    return;
+                }
+                preview.style.display = 'block';
+                document.getElementById('selectedPackName').textContent = pack.name;
+                document.getElementById('selectedPackCount').textContent = pack.keywords.length;
+                textarea.value = pack.keywords.join('\n') || (pack.keywords.length === 0 ? '（这个词包还没有关键词）' : '');
+            },
+
+            addSeedsToSelectedPack() {
+                const sel = document.getElementById('expansionPackSelect');
+                const packId = sel.value;
+                if (!packId) { alert('请先选择一个词包'); return; }
+                const keywords = document.getElementById('seedWords').value.split('\n').map(w => w.trim()).filter(w => w.length > 0);
+                if (keywords.length === 0) { alert('请先在词根输入框中输入要添加的关键词'); return; }
+                const packs = this.state.keywordPacks.map(p => {
+                    if (p.id === packId) {
+                        const existing = new Set(p.keywords);
+                        const newKws = keywords.filter(k => !existing.has(k));
+                        return { ...p, keywords: [...p.keywords, ...newKws], updatedAt: new Date().toISOString() };
                     }
-                    if (dedupWrap && gridId === 'packGrid') dedupWrap.style.display = 'flex';
-                    grid.innerHTML = this.state.keywordPacks.map(p => `
-                        <div class="pack-card">
-                            <div class="pack-card-header">
-                                <div class="pack-info">
-                                    <span class="pack-name">${this.escapeHtml(p.name)}</span>
-                                    <span class="pack-meta">${p.keywords.length} 个关键词</span>
-                                </div>
-                                <div class="pack-toolbar">
-                                    <button class="btn btn-success save-pack" data-id="${p.id}" style="padding:5px 12px;font-size:12px;">💾 保存</button>
-                                    <button class="btn btn-secondary add-to-pack" data-id="${p.id}" style="padding:5px 12px;font-size:12px;">+ 添加结果</button>
-                                    <button class="btn btn-danger delete-pack" data-id="${p.id}" style="padding:5px 12px;font-size:12px;">🗑 删除</button>
-                                </div>
+                    return p;
+                });
+                this.state.keywordPacks = packs;
+                Storage.set('keywordPacks', packs);
+                this.updatePackSelector();
+                alert(`✅ 成功添加 ${keywords.length} 个关键词到「${packs.find(p => p.id === packId).name}」`);
+            },
+
+            renderPacks() {
+                this.updatePackSelector();
+                const grid2 = document.getElementById('packGrid2');
+                const countEl = document.getElementById('packsCount');
+                if (countEl) countEl.textContent = this.state.keywordPacks.length;
+                if (!grid2) return;
+                if (this.state.keywordPacks.length === 0) {
+                    grid2.innerHTML = `<div class="empty-state" style="padding:40px 20px;"><div class="icon">📦</div><p>暂无词包，点击「新增词包」创建账户已有关键词词包</p></div>`;
+                    return;
+                }
+                grid2.innerHTML = this.state.keywordPacks.map(p => `
+                    <div class="pack-card">
+                        <div class="pack-card-header">
+                            <div class="pack-info">
+                                <span class="pack-name">${this.escapeHtml(p.name)}</span>
+                                <span class="pack-meta">${p.keywords.length} 个关键词</span>
                             </div>
-                            <div class="pack-card-body open">
-                                <textarea id="pack-kw-${p.id}" placeholder="每行一个关键词">${p.keywords.join('\n')}</textarea>
+                            <div class="pack-toolbar">
+                                <button class="btn btn-success save-pack" data-id="${p.id}" style="padding:5px 12px;font-size:12px;">💾 保存</button>
+                                <button class="btn btn-secondary add-to-pack" data-id="${p.id}" style="padding:5px 12px;font-size:12px;">+ 添加结果</button>
+                                <button class="btn btn-danger delete-pack" data-id="${p.id}" style="padding:5px 12px;font-size:12px;">🗑 删除</button>
                             </div>
                         </div>
-                    `).join('');
-                };
-                renderTo('packGrid', null);
-                renderTo('packGrid2', 'packsCount');
+                        <div class="pack-card-body open">
+                            <textarea id="pack-kw-${p.id}" placeholder="每行一个关键词">${p.keywords.join('\n')}</textarea>
+                        </div>
+                    </div>
+                `).join('');
             },
 
             handlePackGridClick(e) {
@@ -1355,7 +1420,16 @@
                 });
 
                 document.getElementById('selectAllCheckbox').addEventListener('change', function() {
-                    this.checked ? document.getElementById('selectAllBtn').click() : (() => { App.state.selectedKeywords = new Set(); App.renderResults(); })();
+                    if (this.checked) {
+                        document.getElementById('selectAllBtn').click();
+                    } else {
+                        App.readFilters();
+                        const filtered = App.getFilteredResults();
+                        const s = new Set(App.state.selectedKeywords);
+                        filtered.forEach(r => s.delete(r.id));
+                        App.state.selectedKeywords = s;
+                        App.renderResults();
+                    }
                 });
 
                 document.getElementById('selectAllBtn').addEventListener('click', () => this.selectAllFiltered());
@@ -1426,9 +1500,11 @@
 
                 document.getElementById('createPackBtn').addEventListener('click', () => this.createPack());
 
-                document.getElementById('packGrid').addEventListener('click', e => {
-                    this.handlePackGridClick(e);
+                document.getElementById('expansionPackSelect').addEventListener('change', function() {
+                    App.showSelectedPackPreview(this.value);
                 });
+
+                document.getElementById('addSeedsToPackBtn').addEventListener('click', () => this.addSeedsToSelectedPack());
 
                 const packBtn2 = document.getElementById('createPackBtn2');
                 if (packBtn2) packBtn2.addEventListener('click', () => this.createPack());

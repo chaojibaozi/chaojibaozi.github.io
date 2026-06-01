@@ -29,9 +29,9 @@
             top: 0;
             width: 70px;
             height: 100vh;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
             transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
             z-index: 9999;
@@ -1242,10 +1242,10 @@
 
         async function detectIntent(text) {
             // 1. 先用关键词快速匹配（兜底）
+            //    关键词匹配对短文本和精确词更可靠
             const kwResult = fallbackDetectIntent(text);
-            const kwConfidence = 0.8;
 
-            // 2. 如果 AI 模型可用，用语义向量做更精准的判断
+            // 2. 如果 AI 模型可用，用语义向量做模糊匹配
             if (embeddingPipeline && intentEmbeddings) {
                 try {
                     const userVec = await embeddingPipeline(text, { pooling: 'mean', normalize: true });
@@ -1264,20 +1264,36 @@
                         }
                     }
 
-                    const threshold = 0.4;
-                    if (bestScore >= threshold) {
-                        // 如果关键词结果与语义结果一致，信任度更高
-                        if (kwResult && kwResult.action === bestAction) {
-                            return { action: bestAction, confidence: Math.max(bestScore, kwConfidence), method: 'ai' };
-                        }
+                    const aiThreshold = 0.4;
+
+                    // 情况1：关键词和 AI 一致 → 直接信任，置信度取最大值
+                    if (kwResult && kwResult.action === bestAction) {
+                        return { action: bestAction, confidence: Math.max(bestScore, kwResult.confidence), method: 'ai' };
+                    }
+
+                    // 情况2：无关键词匹配，AI 得分够高 → 用 AI 结果
+                    if (!kwResult && bestScore >= aiThreshold) {
                         return { action: bestAction, confidence: bestScore, method: 'ai' };
                     }
+
+                    // 情况3：关键词和 AI 不一致 → 仅当 AI 置信度非常高时才覆盖关键词
+                    //    对于短中文，all-MiniLM-L6-v2 的语义不够精准，关键词更可靠
+                    if (kwResult && kwResult.action !== bestAction) {
+                        if (bestScore >= 0.7) {
+                            return { action: bestAction, confidence: bestScore, method: 'ai' };
+                        }
+                        // AI 不够自信，保留关键词结果
+                        console.log('[AI] 语义结果偏离关键词，保留关键词匹配:', kwResult.action, 'AI得分:', bestScore.toFixed(3));
+                        return kwResult;
+                    }
+
+                    // 情况4：AI 得分低于阈值，无关键词 → 返回 null
                 } catch (e) {
                     console.warn('[AI] 语义检测失败，回退关键词:', e.message);
                 }
             }
 
-            // 3. 兜底使用关键词匹配
+            // 3. 兜底返回关键词结果（可能为 null）
             return kwResult;
         }
 
@@ -1289,16 +1305,9 @@
             }
 
             aiLoading = true;
+            updateAIStatus('loading', 'AI引擎加载中...');
 
-            // SharedArrayBuffer 不可用时（缺少 COOP/COEP 头）静默降级
-            if (typeof SharedArrayBuffer === 'undefined') {
-                aiLoading = false;
-                updateAIStatus('offline', '关键词匹配');
-                console.log('[AI Init] SharedArrayBuffer 不可用，跳过模型加载');
-                return false;
-            }
-
-            // 分阶段：库加载(10%) → 模型下载(10%-80%) → 嵌入计算(80%-95%) → 完成(100%)
+            // 分阶段：库加载(1-8%) → 模型下载(10-80%) → 语义向量(82-95%) → 完成(100%)
             let realProgress = 0;
 
             function setProgress(pct, label) {
@@ -1335,15 +1344,15 @@
 
                 setProgress(8, '引擎就绪');
 
-                // 配置 ONNX WASM 路径
+                // 配置 ONNX WASM：proxy=true 避免依赖 SharedArrayBuffer，兼容任意 HTTP 服务
                 if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
+                    env.backends.onnx.wasm.proxy = true;
                     env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0-dev.20250409-89f8206ba4/dist/';
                 }
 
-                // 配置模型路径：优先本地，失败时从网络下载
-                env.localModelPath = '/models/';
+                // 配置模型来源：仅从 CDN 加载（GitHub Pages 无本地模型）
                 env.allowRemoteModels = true;
-                env.allowLocalModels = true;
+                env.allowLocalModels = false;
 
                 setProgress(10, '下载AI模型');
 

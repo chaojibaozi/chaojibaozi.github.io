@@ -51,30 +51,22 @@
                     throw new Error('浏览器不支持 WebAssembly');
                 }
 
-                // 1.5 检查 SharedArrayBuffer 支持（COOP/COEP 头必须开启）
-                logMsg('检查 SharedArrayBuffer...', 'info');
-                if (typeof SharedArrayBuffer === 'undefined') {
-                    logMsg('✗ SharedArrayBuffer 不可用 (缺少COOP/COEP响应头)', 'error');
-                    throw new Error('SharedArrayBuffer 不可用，请使用 python server.py 启动服务');
-                }
-                logMsg('✓ SharedArrayBuffer 支持', 'success');
-
                 // 2. 加载 transformers.js
                 logMsg('加载 @huggingface/transformers v3...', 'info');
                 const { env, pipeline } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2/+esm');
                 logMsg('✓ transformers.js 加载成功', 'success');
 
-                // 3. 配置 ONNX WASM 路径（使用 onnxruntime-web 的标准 WASM 文件，版本需匹配）
+                // 3. 配置 ONNX WASM：proxy=true 避免依赖 SharedArrayBuffer
                 if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
+                    env.backends.onnx.wasm.proxy = true;
                     env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0-dev.20250409-89f8206ba4/dist/';
-                    logMsg('  ONNX WASM 路径已配置', 'success');
+                    logMsg('  ONNX proxy mode + WASM 路径已配置', 'success');
                 }
 
-                // 4. 尝试本地加载
-                env.localModelPath = '/models/';
+                // 4. 配置模型：仅从 CDN 加载
                 env.allowRemoteModels = true;
-                env.allowLocalModels = true;
-                logMsg('配置: localModelPath=/models/, allowRemoteModels=true', 'info');
+                env.allowLocalModels = false;
+                logMsg('配置: allowRemoteModels=true, allowLocalModels=false', 'info');
 
                 // 5. 加载模型
                 logMsg('正在加载模型 all-MiniLM-L6-v2 (Q8量化, ~22MB)...', 'info');

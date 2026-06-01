@@ -1,38 +1,53 @@
 #!/usr/bin/env python3
-"""HTTP server with COOP/COEP headers needed for SharedArrayBuffer (ONNX runtime)."""
+"""轻量 HTTP 服务，自动打开浏览器，端口冲突时自动+1"""
 import http.server
 import socketserver
 import os
-import mimetypes
+import sys
+import socket
+import subprocess
 
-PORT = 8000
-DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+DIR = os.path.dirname(os.path.abspath(__file__))
 
-mimetypes.add_type("application/wasm", ".wasm")
-mimetypes.add_type("application/octet-stream", ".onnx")
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=DIRECTORY, **kwargs)
-
-    def end_headers(self):
-        # Required for SharedArrayBuffer support in ONNX runtime
-        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
-        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
-        # Allow CDN resources
-        self.send_header("Access-Control-Allow-Origin", "*")
-        super().end_headers()
+        super().__init__(*args, directory=DIR, **kwargs)
 
     def guess_type(self, path):
-        mime = mimetypes.guess_type(path)[0]
-        if path.endswith(".onnx"):
-            return "application/octet-stream"
         if path.endswith(".wasm"):
             return "application/wasm"
-        return mime or "application/octet-stream"
+        return super().guess_type(path)
+
+    def log_message(self, fmt, *args):
+        if "/@vite/" in str(args):
+            return
+        super().log_message(fmt, *args)
+
+
+def find_free_port(start):
+    for p in range(start, start + 100):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("127.0.0.1", p)) != 0:
+                return p
+    return None
+
 
 if __name__ == "__main__":
-    os.chdir(DIRECTORY)
-    with socketserver.TCPServer(("", PORT), Handler) as httpd:
-        print(f"Serving at http://localhost:{PORT} with COOP/COEP headers")
+    os.chdir(DIR)
+    port = find_free_port(PORT)
+    if port is None:
+        print("错误：找不到可用端口")
+        sys.exit(1)
+
+    with socketserver.TCPServer(("", port), Handler) as httpd:
+        url = f"http://localhost:{port}"
+        print(f"\n  ✅ 服务已启动: {url}")
+        print()
+        try:
+            subprocess.Popen(["cmd", "/c", "start", url], shell=True)
+        except Exception:
+            pass
+        print("  按 Ctrl+C 停止服务\n")
         httpd.serve_forever()
