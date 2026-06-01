@@ -29,9 +29,9 @@
             top: 0;
             width: 70px;
             height: 100vh;
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(2px);
-            -webkit-backdrop-filter: blur(2px);
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
             z-index: 9999;
@@ -1067,11 +1067,11 @@
         // ============================================================
         const navItems = [
             { id: 'home', icon: '🏠', text: '首页（AI助手）', path: null },
-            { id: 'gif-generator', icon: '🎬', text: '动图GIF生成系统', path: 'gif-generator' },
-            { id: 'bg-remover', icon: '✂️', text: '一键抠图系统', path: 'bg-remover' },
-            { id: 'keyword-analyzer', icon: '📊', text: '关键词分析系统', path: 'keyword-analyzer' },
-            { id: 'search-analyzer', icon: '🔍', text: '搜索词分析系统', path: 'search-analyzer' },
-            { id: 'tuoci-system', icon: '🧠', text: '智能拓词系统', path: 'tuoci-system' }
+            { id: 'gif-generator', icon: '🎬', text: '动图GIF生成', path: 'gif-generator' },
+            { id: 'bg-remover', icon: '✂️', text: '一键智能抠图', path: 'bg-remover' },
+            { id: 'keyword-analyzer', icon: '📊', text: '关键词转化数分析', path: 'keyword-analyzer' },
+            { id: 'search-analyzer', icon: '🔍', text: '搜索词匹配度分析', path: 'search-analyzer' },
+            { id: 'tuoci-system', icon: '🧠', text: '智能词根拓词', path: 'tuoci-system' }
         ];
         
         const STORAGE_KEY = 'navOrder';
@@ -2523,11 +2523,11 @@
         // 8. 发送消息 & AI对话
         // ============================================================
         const actionLabels = {
-            'removeBg': '✂️ 一键抠图',
-            'generateGif': '🎬 生成GIF动图',
-            'analyzeKeywords': '📊 关键词分析',
-            'analyzeSearchTerms': '🔍 搜索词分析',
-            'tuociSystem': '🧠 智能拓词系统'
+            'removeBg': '✂️ 一键智能抠图',
+            'generateGif': '🎬 动图GIF生成',
+            'analyzeKeywords': '📊 关键词转化数分析',
+            'analyzeSearchTerms': '🔍 搜索词匹配度分析',
+            'tuociSystem': '🧠 智能词根拓词'
         };
         const actionDescriptions = {
             'removeBg': '点击下方区域上传需要抠图的图片',
