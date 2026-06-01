@@ -179,6 +179,7 @@
             padding-top: calc(var(--nav-height) + var(--safe-top));
             padding-bottom: calc(var(--tab-height) + var(--safe-bottom));
             height: 100%;
+            overflow: hidden;
         }
         .tab-page {
             display: none;
@@ -260,7 +261,6 @@
         .tool-page-body {
             flex: 1;
             overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
             padding: 16px;
         }
 
@@ -611,7 +611,6 @@
             padding: 12px 14px;
             background: #fafbfc;
             min-height: 0;
-            -webkit-overflow-scrolling: touch;
         }
         .chat-message { margin-bottom: 12px; animation: messageIn 0.35s ease; }
         .chat-message:last-child { margin-bottom: 0; }
@@ -736,7 +735,6 @@
             gap: 4px;
             margin-bottom: 6px;
             overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
             padding-bottom: 2px;
         }
         .toolbar-btn {
@@ -931,6 +929,132 @@
         @media (min-width: 500px) {
             .home-grid { grid-template-columns: repeat(3, 1fr); }
         }
+
+        /* ========== 滑块组件 ========== */
+        .tool-slider-wrap {
+            background: white;
+            border-radius: 12px;
+            padding: 14px 16px;
+            border: 1px solid #f1f5f9;
+            margin-bottom: 14px;
+        }
+        .tool-slider-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .tool-slider-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #334155;
+        }
+        .tool-slider-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+            background: rgba(102,126,234,0.1);
+            padding: 2px 12px;
+            border-radius: 8px;
+            min-width: 48px;
+            text-align: center;
+        }
+        .tool-slider-input {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            outline: none;
+            transition: opacity 0.2s;
+        }
+        .tool-slider-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid var(--primary);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(102,126,234,0.3);
+            transition: all 0.2s;
+        }
+        .tool-slider-input::-webkit-slider-thumb:active {
+            transform: scale(1.15);
+        }
+        .tool-slider-input::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid var(--primary);
+            cursor: pointer;
+        }
+        .tool-slider-hint {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        /* ========== AI智能体 ========== */
+        .agent-step {
+            margin: 6px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .agent-step-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .agent-step-icon.done { background: rgba(16,185,129,0.15); }
+        .agent-step-icon.pending { background: rgba(245,158,11,0.15); }
+        .agent-step-text {
+            font-size: 13px;
+            color: #475569;
+            line-height: 1.5;
+        }
+        .agent-step-text strong {
+            color: #1e293b;
+        }
+        .agent-thinking {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+        }
+        .agent-thinking-dots {
+            display: flex;
+            gap: 4px;
+        }
+        .agent-thinking-dots span {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--primary);
+            animation: agentThink 1.4s infinite;
+        }
+        .agent-thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .agent-thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes agentThink {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-5px); opacity: 1; }
+        }
+        .agent-thinking-text {
+            font-size: 13px;
+            color: #64748b;
+        }
     </style>
 </head>
 <body>
@@ -1058,6 +1182,18 @@
                 </div>
             </div>
             <div class="chat-input-area">
+                <div id="chatTuociSlider" style="display:none;margin-bottom:8px;" class="tool-slider-wrap">
+                    <div class="tool-slider-header">
+                        <span class="tool-slider-label">📊 拓词个数</span>
+                        <span class="tool-slider-value" id="chatTuociCount">50</span>
+                    </div>
+                    <input type="range" class="tool-slider-input" id="chatTuociSliderInput" min="10" max="500" value="50" step="10" oninput="document.getElementById('chatTuociCount').textContent=this.value">
+                    <div class="tool-slider-hint">
+                        <span>少而精</span>
+                        <span>推荐 50</span>
+                        <span>全面覆盖</span>
+                    </div>
+                </div>
                 <div class="input-toolbar" id="mobileToolbar">
                     <button class="toolbar-btn" data-action="bg">✂️ 抠图</button>
                     <button class="toolbar-btn" data-action="gif">🎬 做GIF</button>
@@ -1099,6 +1235,18 @@
             <textarea class="tool-textarea" id="tpTuociInput" rows="4" placeholder="每行输入一个词根，例如：&#10;SEO优化&#10;网站建设&#10;网络营销"></textarea>
             <div class="tool-input-hint">每行一个词根，至少输入1个</div>
             <button class="tool-btn-primary" id="tpTuociBtn" onclick="tpHandleTuoci()">🧠 开始智能拓词</button>
+        </div>
+        <div class="tool-slider-wrap">
+            <div class="tool-slider-header">
+                <span class="tool-slider-label">📊 拓词个数</span>
+                <span class="tool-slider-value" id="tpTuociCount">50</span>
+            </div>
+            <input type="range" class="tool-slider-input" id="tpTuociSlider" min="10" max="500" value="50" step="10" oninput="document.getElementById('tpTuociCount').textContent=this.value">
+            <div class="tool-slider-hint">
+                <span>少而精（10）</span>
+                <span>推荐 50</span>
+                <span>全面覆盖（500）</span>
+            </div>
         </div>
         <div id="tpTuociResult"></div>
     </div>
@@ -1263,6 +1411,10 @@ function switchTab(tab) {
 
     const titles = { home: '推广优化师系统', chat: 'AI对话', tools: '全部工具' };
     document.getElementById('navTitle').textContent = titles[tab] || '推广优化师系统';
+
+    pendingIntent = null;
+    const slider = document.getElementById('chatTuociSlider');
+    if (slider) slider.style.display = 'none';
 
     closeDrawer();
 }
@@ -1671,12 +1823,12 @@ const MobileTuociEngine = {
         return '探索型';
     },
 
-    expandKeywords(text) {
+    expandKeywords(text, maxCount) {
         const results = [];
         const seen = new Set();
         const seeds = text.split('\n').map(w => w.trim()).filter(w => w.length > 0);
         if (seeds.length === 0) return results;
-        const maxKeywords = 200;
+        const maxKeywords = maxCount || 200;
         const addKeyword = (kw, src, hot) => {
             const key = kw.replace(/\s+/g, '');
             if (seen.has(key) || results.length >= maxKeywords) return;
@@ -1714,7 +1866,95 @@ const MobileTuociEngine = {
 };
 
 // ============================================================
-// 7. 对话消息处理
+// 7. 轻量级AI智能体
+// ============================================================
+const mobileAgent = {
+    context: [],
+    currentStep: null,
+    maxContext: 10,
+
+    reset() {
+        this.context = [];
+        this.currentStep = null;
+    },
+
+    addContext(role, text) {
+        this.context.push({ role, text, time: Date.now() });
+        if (this.context.length > this.maxContext) {
+            this.context = this.context.slice(-this.maxContext);
+        }
+    },
+
+    getLastUserMessage() {
+        for (let i = this.context.length - 1; i >= 0; i--) {
+            if (this.context[i].role === 'user') return this.context[i].text;
+        }
+        return null;
+    },
+
+    getContextSummary() {
+        if (this.context.length === 0) return '暂无对话记录';
+        const count = this.context.filter(c => c.role === 'user').length;
+        return '已进行 ' + count + ' 轮对话';
+    },
+
+    analyzeIntent(text) {
+        const lower = text.toLowerCase();
+
+        const patterns = [
+            { action: 'greeting', keywords: ['你好', '嗨', 'hi', 'hello', '嘿', '在吗', '你好吗', '上午好', '下午好', '晚上好'], response: '你好！我是推广优化师AI助手，可以帮你完成以下任务：<br><br>🎬 生成动画GIF<br>✂️ 一键抠图<br>📊 关键词分析<br>🔍 搜索词分析<br>🧠 智能拓词<br><br>请告诉我你想做什么？' },
+            { action: 'help', keywords: ['帮助', '帮助', '说明', '怎么用', '如何使用', '功能', '能做什么', '什么功能', 'help', '有哪些'], response: '让我为你介绍一下全部功能：<br><br>🧠 <b>智能拓词</b> — 输入词根，AI扩展关键词<br>📊 <b>关键词分析</b> — 上传SEM报表，图表化分析<br>🔍 <b>搜索词分析</b> — 搜索词语义匹配与统计<br>✂️ <b>一键抠图</b> — 上传图片，去除背景<br>🎬 <b>动图GIF生成</b> — 多张图片合成动图<br><br>直接告诉我你想用哪个功能，也可以点击下方工具栏按钮快速进入！' },
+            { action: 'thanks', keywords: ['谢谢', '感谢', '多谢', 'thank', 'ok', '好的', '明白了', '了解', '清楚了'], response: '不客气！随时需要帮助都可以找我~ 😊' },
+            { action: 'capabilities', keywords: ['你会什么', '你能干嘛', '有哪些工具', '工具有哪些', '有什么功能', '产品功能', '工具列表', '展示'], response: '🎯 <b>系统功能一览</b><br><br>🧠 <b>智能拓词系统</b><br>输入词根 → 批量扩展关键词 → 输出搜索量/竞争度/意图标签<br><br>📊 <b>关键词分析</b><br>上传SEM报表 → 自动汇总统计 → 转化趋势曲线 → TOP20明细<br><br>🔍 <b>搜索词分析</b><br>上传搜索词数据 → 语义匹配 → 频次统计<br><br>✂️ <b>一键抠图</b><br>上传图片 → 像素级显著性检测 → 去除背景 → 下载PNG<br><br>🎬 <b>动图GIF生成</b><br>选择多张图片 → gif.js编码 → 预览 → 下载GIF<br><br>回复关键词或点击工具栏即可开始！' },
+            { action: 'feedback', keywords: ['建议', '反馈', '意见', 'bug', '问题', '不好用', '报错', '出错了'], response: '感谢你的反馈！目前这是本地运行的移动版系统，所有处理都在浏览器中完成。遇到任何问题可以关闭页面重试，或者回到首页使用独立工具页面获得更好的体验。' }
+        ];
+
+        for (const p of patterns) {
+            for (const kw of p.keywords) {
+                if (lower.includes(kw)) {
+                    return { action: p.action, response: p.response, method: 'agent' };
+                }
+            }
+        }
+        return null;
+    },
+
+    async process(text) {
+        this.addContext('user', text);
+
+        const intent = await detectMobileIntent(text);
+
+        if (intent) {
+            this.currentStep = intent.action;
+            this.addContext('assistant', '检测到意图: ' + intent.action);
+            return {
+                type: 'tool',
+                action: intent.action,
+                confidence: intent.confidence,
+                method: intent.method,
+                message: null
+            };
+        }
+
+        const agentReply = this.analyzeIntent(text);
+        if (agentReply) {
+            this.addContext('assistant', agentReply.action);
+            return {
+                type: 'reply',
+                message: agentReply.response
+            };
+        }
+
+        this.addContext('assistant', 'fallback');
+        return {
+            type: 'fallback',
+            message: null
+        };
+    }
+};
+
+// ============================================================
+// 8. 对话消息处理
 // ============================================================
 function addMobileMessage(role, html, extraClass) {
     const container = document.getElementById('mobileChatMessages');
@@ -1734,6 +1974,55 @@ function addMobileUserText(text) {
 
 function addMobileAssistantText(text) {
     return addMobileMessage('assistant', '<div class="message-row"><div class="message-avatar">🤖</div><div class="message-bubble">' + text.replace(/\n/g, '<br>') + '</div></div>');
+}
+
+function addMobileAssistantTyping(text) {
+    const DELAY = 33;
+    const container = document.getElementById('mobileChatMessages');
+    const div = document.createElement('div');
+    div.className = 'chat-message assistant-message';
+    div.innerHTML = '<div class="message-row"><div class="message-avatar">🤖</div><div class="message-bubble" style="min-height:1.2em;"></div></div>';
+    container.appendChild(div);
+    const bubble = div.querySelector('.message-bubble');
+
+    const chars = Array.from(text);
+    const chunks = [];
+    for (let i = 0; i < chars.length;) {
+        const ch = chars[i];
+        if (ch === '<') {
+            let tag = '<';
+            i++;
+            while (i < chars.length && chars[i] !== '>') { tag += chars[i]; i++; }
+            if (i < chars.length) { tag += '>'; i++; }
+            chunks.push({ html: tag, visible: false });
+        } else if (ch === '&') {
+            let ent = '&';
+            i++;
+            while (i < chars.length && chars[i] !== ';') { ent += chars[i]; i++; }
+            if (i < chars.length) { ent += ';'; i++; }
+            chunks.push({ html: ent, visible: true });
+        } else {
+            chunks.push({ html: ch, visible: ch !== '\n' && ch !== '\r' });
+            i++;
+        }
+    }
+
+    let idx = 0;
+    let rendered = '';
+    function renderChunk() {
+        if (idx >= chunks.length) return;
+        rendered += chunks[idx].html;
+        bubble.innerHTML = rendered;
+        container.scrollTop = container.scrollHeight;
+        const delay = chunks[idx].visible ? DELAY : 0;
+        idx++;
+        if (idx < chunks.length) {
+            if (delay > 0) setTimeout(renderChunk, delay);
+            else renderChunk();
+        }
+    }
+    renderChunk();
+    return div;
 }
 
 function showMobileTyping() {
@@ -1785,24 +2074,26 @@ function triggerMobileToolAction(action) {
         'gif': '点击下方区域上传多张图片（至少2张）',
         'keyword': '点击下方区域上传SEM数据报表（CSV/Excel格式）',
         'search': '点击下方区域上传搜索词数据（CSV/Excel格式）',
-        'tuoci': '请在下方的输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇<br><small>例如：SEO优化、网站建设、网络营销</small>'
+        'tuoci': '请在下方的输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇<br><small>例如：SEO优化、网站建设、网络营销</small><br><small>💡 拖拽下方滑块可调整拓词数量</small>'
     };
     const accepts = { 'bg': 'image/*', 'gif': 'image/*', 'keyword': '.csv,.xlsx,.xls', 'search': '.csv,.xlsx,.xls' };
     const actionMap = { 'bg': 'removeBg', 'gif': 'generateGif', 'keyword': 'analyzeKeywords', 'search': 'analyzeSearchTerms', 'tuoci': 'tuociSystem' };
 
     if (action === 'tuoci') {
         pendingIntent = 'tuociSystem';
-        addMobileAssistantText(descriptions.tuoci);
+        addMobileAssistantTyping(descriptions.tuoci);
+        document.getElementById('chatTuociSlider').style.display = 'block';
         return;
     }
+    document.getElementById('chatTuociSlider').style.display = 'none';
     const mapped = actionMap[action];
     pendingIntent = mapped;
-    addMobileAssistantText(descriptions[action]);
+    addMobileAssistantTyping(descriptions[action]);
     addMobileUploadPrompt(mapped, accepts[action], action === 'gif', descriptions[action]);
 }
 
 // ============================================================
-// 8. 文件处理
+// 9. 文件处理
 // ============================================================
 function handleMobileFileUpload(files) {
     if (!pendingIntent || !files || files.length === 0) return;
@@ -1913,7 +2204,7 @@ async function handleMobileDataAnalysis(file, action) {
 }
 
 // ============================================================
-// 9. 显示分析结果
+// 10. 显示分析结果
 // ============================================================
 const mobileChartInstances = {};
 const mobileChartHidden = {};
@@ -2019,7 +2310,7 @@ function initMobileKeywordChart(chartId, chartData) {
 }
 
 // ============================================================
-// 10. 发送消息
+// 11. 发送消息
 // ============================================================
 async function sendMobileMessage() {
     const input = document.getElementById('mobileChatInput');
@@ -2030,16 +2321,24 @@ async function sendMobileMessage() {
 
     if (pendingIntent === 'tuociSystem') {
         pendingIntent = null;
+        const chatSlider = document.getElementById('chatTuociSlider');
+        chatSlider.style.display = 'none';
+        const maxCount = parseInt(document.getElementById('chatTuociSliderInput').value) || 50;
         addMobileUserText(text);
         showMobileTyping();
         await new Promise(r => setTimeout(r, 100));
         hideMobileTyping();
-        const results = MobileTuociEngine.expandKeywords(text);
+        const results = MobileTuociEngine.expandKeywords(text, maxCount);
         if (results.length === 0) {
             addMobileAssistantText('⚠️ 未输入有效的词根，请重新输入，每行一个关键词');
             return;
         }
-        displayMobileTuociResults(results);
+        displayMobileTuociResults(results, maxCount);
+        return;
+    }
+
+    if (pendingIntent === 'removeBg' || pendingIntent === 'generateGif' || pendingIntent === 'analyzeKeywords' || pendingIntent === 'analyzeSearchTerms') {
+        addMobileAssistantTyping('请点击上方的上传区域选择文件，我会自动处理~');
         return;
     }
 
@@ -2047,26 +2346,32 @@ async function sendMobileMessage() {
     showMobileTyping();
 
     try {
-        const intent = await detectMobileIntent(text);
-        if (intent) {
+        const result = await mobileAgent.process(text);
+
+        if (result.type === 'tool') {
             hideMobileTyping();
-            addMobileAssistantText('检测到你的需求是：<b>' + (ACTION_LABELS[intent.action] || intent.action) + '</b>');
-            if (intent.action === 'tuociSystem') {
-                addMobileAssistantText('请在下方的输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇');
+            addMobileAssistantTyping('检测到你的需求是：<b>' + (ACTION_LABELS[result.action] || result.action) + '</b>');
+            if (result.action === 'tuociSystem') {
+                addMobileAssistantTyping('请在下方的输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇<br><small>💡 拖拽输入框上方的滑块可调整拓词数量</small>');
                 hideMobileTyping();
                 pendingIntent = 'tuociSystem';
+                document.getElementById('chatTuociSlider').style.display = 'block';
                 return;
             }
-            if (intent.method === 'keyword') {
-                addMobileAssistantText('（通过关键词匹配识别）');
+            if (result.method === 'keyword') {
+                addMobileAssistantTyping('（通过关键词匹配识别）');
             } else {
-                addMobileAssistantText('（通过AI语义理解识别，可信度：' + Math.round(intent.confidence * 100) + '%）');
+                addMobileAssistantTyping('（通过AI语义理解识别，可信度：' + Math.round(result.confidence * 100) + '%）');
             }
-            addMobileUploadPrompt(intent.action, ACTION_ACCEPTS[intent.action] || 'image/*', intent.action === 'generateGif', ACTION_DESCS[intent.action] || '点击上传文件');
-            pendingIntent = intent.action;
+            addMobileUploadPrompt(result.action, ACTION_ACCEPTS[result.action] || 'image/*', result.action === 'generateGif', ACTION_DESCS[result.action] || '点击上传文件');
+            pendingIntent = result.action;
+        } else if (result.type === 'reply') {
+            hideMobileTyping();
+            await new Promise(r => setTimeout(r, 150));
+            addMobileAssistantTyping(result.message);
         } else {
             hideMobileTyping();
-            addMobileAssistantText('我可以帮你完成以下任务：<br><br>🎬 生成动画GIF — 上传多张图片合成GIF<br>✂️ 一键抠图 — 去除图片背景<br>📊 关键词分析 — 上传SEM数据报表分析<br>🔍 搜索词分析 — 上传搜索词数据语义匹配<br>🧠 智能拓词 — 输入词根智能扩展关键词<br><br>请直接告诉我你想做什么，比如"帮我抠图"、"分析关键词"、"帮我拓词"~');
+            addMobileAssistantTyping('我可以帮你完成以下任务：<br><br>🎬 生成动画GIF — 上传多张图片合成GIF<br>✂️ 一键抠图 — 去除图片背景<br>📊 关键词分析 — 上传SEM数据报表分析<br>🔍 搜索词分析 — 上传搜索词数据语义匹配<br>🧠 智能拓词 — 输入词根智能扩展关键词<br><br>请直接告诉我你想做什么，比如"帮我抠图"、"分析关键词"、"帮我拓词"~');
         }
     } catch (e) {
         hideMobileTyping();
@@ -2074,23 +2379,24 @@ async function sendMobileMessage() {
     }
 }
 
-function displayMobileTuociResults(results) {
+function displayMobileTuociResults(results, maxCount) {
     if (!results || results.length === 0) {
         addMobileAssistantText('⚠️ 未生成关键词，请检查词根是否有效');
         return;
     }
+    const showCount = Math.min(results.length, Math.min(maxCount || 50, 50));
     const seeds = results.filter(r => r.source === '词根').map(r => r.text);
     const seedStr = seeds.length > 3 ? seeds.slice(0, 3).join('、') + '...' : seeds.join('、');
-    const rows = results.slice(0, 30).map((r, i) => {
+    const rows = results.slice(0, showCount).map((r, i) => {
         const tagClass = r.intent === '了解型' ? 'tag-blue' : r.intent === '评估型' ? 'tag-yellow' : r.intent === '交易型' ? 'tag-green' : 'tag-purple';
         return '<tr><td>' + (i + 1) + '</td><td><strong>' + escapeMobileHtml(r.text) + '</strong></td><td style="font-family:monospace;">' + r.searchVolume.toLocaleString() + '</td><td><span class="tag ' + tagClass + '">' + r.intent + '</span></td><td>' + r.source + '</td></tr>';
     }).join('');
-    const html = '<div class="message-row"><div class="message-avatar">🤖</div><div class="message-bubble">✅ 拓词完成！基于词根：' + escapeMobileHtml(seedStr) + '<div style="margin:6px 0;font-size:12px;color:#64748b;">共扩展 <strong>' + results.length + '</strong> 个关键词，显示前 30 条</div><div class="result-table-wrap"><table class="result-table"><thead><tr><th>#</th><th>关键词</th><th>搜索量</th><th>意图</th><th>来源</th></tr></thead><tbody>' + rows + '</tbody></table></div></div></div>';
+    const html = '<div class="message-row"><div class="message-avatar">🤖</div><div class="message-bubble">✅ 拓词完成！基于词根：' + escapeMobileHtml(seedStr) + '<div style="margin:6px 0;font-size:12px;color:#64748b;">共扩展 <strong>' + results.length + '</strong> 个关键词，显示前 ' + showCount + ' 条</div><div class="result-table-wrap"><table class="result-table"><thead><tr><th>#</th><th>关键词</th><th>搜索量</th><th>意图</th><th>来源</th></tr></thead><tbody>' + rows + '</tbody></table></div></div></div>';
     addMobileMessage('assistant', html);
 }
 
 // ============================================================
-// 11. 辅助函数
+// 12. 辅助函数
 // ============================================================
 function downloadMobileResult(dataUrl, fileName) {
     const a = document.createElement('a');
@@ -2116,7 +2422,7 @@ function showMobileToast(msg, type) {
 }
 
 // ============================================================
-// 12. 工具页渲染
+// 13. 工具页渲染
 // ============================================================
 function renderToolsPage() {
     const tools = [
@@ -2159,13 +2465,13 @@ function getToolInlineContent(type) {
         case 'search':
             return '<div class="upload-area" onclick="document.getElementById(\'toolSearchInput\').click()"><div class="upload-icon">🔍</div><div class="upload-text">点击上传搜索词数据</div><div class="upload-hint">支持 CSV / Excel 格式</div></div><input type="file" id="toolSearchInput" style="display:none" accept=".csv,.xlsx,.xls" onchange="toolHandleData(this,\'search\')"><div id="toolSearchResult"></div>';
         case 'tuoci':
-            return '<textarea id="toolTuociInput" rows="3" placeholder="每行输入一个词根，例如：&#10;SEO优化&#10;网站建设&#10;网络营销"></textarea><button class="tool-btn" onclick="toolHandleTuoci()">🧠 开始拓词</button><div id="toolTuociResult" class="result-info"></div>';
+            return '<textarea id="toolTuociInput" rows="3" placeholder="每行输入一个词根，例如：&#10;SEO优化&#10;网站建设&#10;网络营销"></textarea><div style="margin:10px 0;"><div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#64748b;margin-bottom:4px;"><span>📊 拓词个数</span><span id="toolTuociCount" style="font-weight:700;color:var(--primary);">50</span></div><input type="range" min="10" max="500" value="50" step="10" style="width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:linear-gradient(90deg,#667eea,#764ba2);outline:none;" oninput="document.getElementById(\'toolTuociCount\').textContent=this.value"><div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;">少而精（10） 推荐 50  全面覆盖（500）</div></div><button class="tool-btn" onclick="toolHandleTuoci()">🧠 开始拓词</button><div id="toolTuociResult" class="result-info"></div>';
         default: return '';
     }
 }
 
 // ============================================================
-// 13. 工具页独立功能
+// 14. 工具页独立功能
 // ============================================================
 async function toolHandleBg(input) {
     const file = input.files && input.files[0];
@@ -2269,18 +2575,21 @@ function toolHandleTuoci() {
     const input = document.getElementById('toolTuociInput');
     const text = input.value.trim();
     if (!text) { showMobileToast('请输入词根', 'error'); return; }
+    const slider = document.getElementById('toolTuociResult')?.parentElement?.querySelector?.('input[type="range"]');
+    const maxCount = slider ? parseInt(slider.value) : 50;
     const resultDiv = document.getElementById('toolTuociResult');
-    const results = MobileTuociEngine.expandKeywords(text);
+    const results = MobileTuociEngine.expandKeywords(text, maxCount);
     if (results.length === 0) { resultDiv.innerHTML = '<p style="color:#ef4444;">未生成关键词</p>'; return; }
-    const rows = results.slice(0, 30).map((r, i) => {
+    const showCount = Math.min(results.length, Math.min(maxCount, 50));
+    const rows = results.slice(0, showCount).map((r, i) => {
         const tagClass = r.intent === '了解型' ? 'tag-blue' : r.intent === '评估型' ? 'tag-yellow' : r.intent === '交易型' ? 'tag-green' : 'tag-purple';
         return '<tr><td>' + (i + 1) + '</td><td>' + escapeMobileHtml(r.text) + '</td><td>' + r.searchVolume.toLocaleString() + '</td><td><span class="tag ' + tagClass + '">' + r.intent + '</span></td></tr>';
     }).join('');
-    resultDiv.innerHTML = '<div style="margin-bottom:6px;font-size:12px;color:#64748b;">共扩展 <strong>' + results.length + '</strong> 个关键词</div><div class="result-table-wrap"><table class="result-table"><thead><tr><th>#</th><th>关键词</th><th>搜索量</th><th>意图</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    resultDiv.innerHTML = '<div style="margin-bottom:6px;font-size:12px;color:#64748b;">共扩展 <strong>' + results.length + '</strong> 个关键词，显示前 ' + showCount + ' 条</div><div class="result-table-wrap"><table class="result-table"><thead><tr><th>#</th><th>关键词</th><th>搜索量</th><th>意图</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
 }
 
 // ============================================================
-// 14. 独立工具页 - 导航控制
+// 15. 独立工具页 - 导航控制
 // ============================================================
 function openToolPage(name) {
     document.querySelectorAll('.tool-page').forEach(p => p.classList.remove('open'));
@@ -2300,7 +2609,7 @@ function closeToolPage() {
 }
 
 // ============================================================
-// 15. 独立工具页 - 一键抠图
+// 16. 独立工具页 - 一键抠图
 // ============================================================
 let tpBgDataUrl = null;
 
@@ -2331,7 +2640,7 @@ function tpHandleBg(input) {
 }
 
 // ============================================================
-// 16. 独立工具页 - 动图GIF生成
+// 17. 独立工具页 - 动图GIF生成
 // ============================================================
 let tpGifFiles = [];
 
@@ -2411,7 +2720,7 @@ async function tpGenerateGif() {
 }
 
 // ============================================================
-// 17. 独立工具页 - 数据分析（关键词/搜索词）
+// 18. 独立工具页 - 数据分析（关键词/搜索词）
 // ============================================================
 async function tpHandleData(input, type) {
     const file = input.files && input.files[0];
@@ -2451,7 +2760,11 @@ async function tpHandleData(input, type) {
         let chartHtml = '';
         if (isKw && result.chartData && result.chartData.dates && result.chartData.dates.length > 0) {
             const cid = 'tpchart-' + Date.now();
-            chartHtml = '<div class="tool-result-card"><div class="tool-result-card-header">📈 TOP20转化趋势曲线</div><div class="tool-result-card-body"><div id="' + cid + '" style="width:100%;height:240px;"></div></div></div>';
+            const colors = ['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#10b981','#14b8a6','#06b6d4','#0ea5e9','#3b82f6','#6366f1','#8b5cf6','#a855f7','#d946ef','#ec4899','#f43f5e','#e11d48','#be123c','#9f1239'];
+            const legendItems = result.chartData.topKeywords.map((k, idx) => {
+                return '<span class="chart-legend-item" data-idx="' + idx + '"><span class="chart-legend-dot" style="background:' + colors[idx % 20] + '"></span>' + escapeMobileHtml(k.keyword) + '</span>';
+            }).join('');
+            chartHtml = '<div class="tool-result-card"><div class="tool-result-card-header">📈 TOP20转化趋势曲线</div><div class="tool-result-card-body"><div id="' + cid + '" style="width:100%;height:240px;"></div><div class="chart-legend" id="' + cid + '-legend">' + legendItems + '</div></div></div>';
             setTimeout(() => initMobileKeywordChart(cid, result.chartData), 50);
         }
         resultDiv.innerHTML = '<div class="tool-status success" style="margin-bottom:12px;">✅ 分析完成！共 ' + rows.length + ' 行数据</div>' + summaryHtml + chartHtml + '<div class="tool-result-card"><div class="tool-result-card-header">📋 TOP20明细表</div><div class="tool-result-card-body" style="padding:0;"><div class="result-table-wrap" style="border:none;border-radius:0;max-height:320px;"><table class="result-table"><thead>' + header + '</thead><tbody>' + rowsHtml + '</tbody></table></div></div></div><div style="text-align:center;font-size:12px;color:#94a3b8;padding:4px 0;">共 ' + stats.length + ' 条，显示 TOP20</div>';
@@ -2461,36 +2774,39 @@ async function tpHandleData(input, type) {
 }
 
 // ============================================================
-// 18. 独立工具页 - 智能拓词
+// 19. 独立工具页 - 智能拓词
 // ============================================================
 function tpHandleTuoci() {
     const input = document.getElementById('tpTuociInput');
     const text = input.value.trim();
     if (!text) { showMobileToast('请输入词根', 'error'); return; }
+    const slider = document.getElementById('tpTuociSlider');
+    const maxCount = parseInt(slider.value) || 50;
     const resultDiv = document.getElementById('tpTuociResult');
     const btn = document.getElementById('tpTuociBtn');
     btn.disabled = true;
     btn.textContent = '⏳ 拓词中...';
     setTimeout(() => {
-        const results = MobileTuociEngine.expandKeywords(text);
+        const results = MobileTuociEngine.expandKeywords(text, maxCount);
         if (results.length === 0) {
             resultDiv.innerHTML = '<div class="tool-status error">⚠️ 未生成关键词，请检查词根是否有效</div>';
             btn.disabled = false;
             btn.textContent = '🧠 开始智能拓词';
             return;
         }
-        const rows = results.slice(0, 30).map((r, i) => {
+        const showCount = Math.min(results.length, Math.min(maxCount, 50));
+        const rows = results.slice(0, showCount).map((r, i) => {
             const tagClass = r.intent === '了解型' ? 'tag-blue' : r.intent === '评估型' ? 'tag-yellow' : r.intent === '交易型' ? 'tag-green' : 'tag-purple';
             return '<tr><td>' + (i + 1) + '</td><td><strong>' + escapeMobileHtml(r.text) + '</strong></td><td style="font-family:monospace;">' + r.searchVolume.toLocaleString() + '</td><td><span class="tag ' + tagClass + '">' + r.intent + '</span></td><td>' + r.source + '</td></tr>';
         }).join('');
-        resultDiv.innerHTML = '<div class="tool-result-card"><div class="tool-result-card-header">✅ 拓词完成</div><div class="tool-result-card-body"><div style="font-size:13px;color:#64748b;margin-bottom:10px;">共扩展 <strong>' + results.length + '</strong> 个关键词，显示前 30 条</div><div class="result-table-wrap" style="max-height:340px;"><table class="result-table"><thead><tr><th>#</th><th>关键词</th><th>搜索量</th><th>意图</th><th>来源</th></tr></thead><tbody>' + rows + '</tbody></table></div></div></div>';
+        resultDiv.innerHTML = '<div class="tool-result-card"><div class="tool-result-card-header">✅ 拓词完成</div><div class="tool-result-card-body"><div style="font-size:13px;color:#64748b;margin-bottom:10px;">共扩展 <strong>' + results.length + '</strong> 个关键词，显示前 ' + showCount + ' 条</div><div class="result-table-wrap" style="max-height:400px;"><table class="result-table"><thead><tr><th>#</th><th>关键词</th><th>搜索量</th><th>意图</th><th>来源</th></tr></thead><tbody>' + rows + '</tbody></table></div></div></div>';
         btn.disabled = false;
         btn.textContent = '🧠 继续拓词';
     }, 100);
 }
 
 // ============================================================
-// 19. 事件绑定 & 初始化
+// 20. 事件绑定 & 初始化
 // ============================================================
 function initMobileApp() {
     renderToolsPage();

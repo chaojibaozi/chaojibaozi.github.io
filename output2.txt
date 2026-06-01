@@ -1,0 +1,31 @@
+start
+chrome ok
+page loaded
+wait 60s...
+  10s
+  20s
+  30s
+  40s
+  50s
+  60s
+=== page ===
+status class: warn
+status text: ⏳ 正在加载模型...
+log:
+[11:46:11] === 开始诊断 ===
+[11:46:11] 浏览器: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36
+[11:46:12] 检查 WebAssembly 支持...
+[11:46:12] ✓ WebAssembly 支持
+[11:46:12] ⚠ SharedArrayBuffer 不可用，将使用单线程代理模式
+[11:46:12] 加载 @huggingface/transformers v3...
+[11:46:13] ✓ transformers.js 加载成功
+[11:46:13]   单线程代理模式已启用
+[11:46:13] 配置: localModelPath=/models/, allowRemoteModels=true
+[11:46:13] 正在加载模型 all-MiniLM-L6-v2 (Q8量化, ~22MB)...
+=== console ===
+[INFO] console-api 0:22 "undetected chromedriver 1337!"
+[INFO] console-api 0:22 "undetected chromedriver 1337!"
+[SEVERE] http://localhost:8000/favicon.ico - Failed to load resource: the server responded with a status of 404 (File not found)
+[WARNING] https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2/+esm 72:18538 "dtype not specified for \"model\". Using the default dtype (q8) for this device (wasm)."
+done. h=439
+quit

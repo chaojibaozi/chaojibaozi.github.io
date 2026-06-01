@@ -1080,9 +1080,6 @@
         let aiModel = null;
         let aiReady = false;
         let aiLoading = false;
-        let aiRetryCount = 0;
-        let aiRetryTimer = null;
-        const MAX_AI_RETRIES = 3;
         let conversationHistory = [];
         let aiResponding = false;
 
@@ -1292,47 +1289,72 @@
             }
 
             aiLoading = true;
-            updateAIStatus('loading', 'AI引擎加载中...');
 
-            let progressTimer = null;
-            let simulatedPct = 0;
-
-            function updateProgress(pct) {
-                simulatedPct = pct;
-                const label = document.getElementById('aiStatusText');
-                if (label) label.textContent = 'AI引擎加载中 ' + Math.round(pct) + '%';
+            // SharedArrayBuffer 不可用时（缺少 COOP/COEP 头）静默降级
+            if (typeof SharedArrayBuffer === 'undefined') {
+                aiLoading = false;
+                updateAIStatus('offline', '关键词匹配');
+                console.log('[AI Init] SharedArrayBuffer 不可用，跳过模型加载');
+                return false;
             }
 
-            // 启动进度动画
-            progressTimer = setInterval(() => {
-                if (simulatedPct < 90) {
-                    const step = simulatedPct < 50 ? 5 + Math.random() * 4 : 2 + Math.random() * 2;
-                    simulatedPct = Math.min(90, simulatedPct + step);
-                    const label = document.getElementById('aiStatusText');
-                    if (label) label.textContent = 'AI引擎加载中 ' + Math.round(simulatedPct) + '%';
+            // 分阶段：库加载(10%) → 模型下载(10%-80%) → 嵌入计算(80%-95%) → 完成(100%)
+            let realProgress = 0;
+
+            function setProgress(pct, label) {
+                realProgress = Math.min(pct, 99);
+                const statusText = document.getElementById('aiStatusText');
+                if (statusText) statusText.textContent = label + ' ' + Math.round(realProgress) + '%';
+            }
+
+            // 模型下载的真实进度回调
+            function onDownloadProgress(data) {
+                if (data.status === 'progress' && data.total > 0) {
+                    const pct = 10 + (data.loaded / data.total) * 70;
+                    const fileName = data.name || data.file || '模型文件';
+                    const loadedMB = (data.loaded / 1024 / 1024).toFixed(1);
+                    const totalMB = (data.total / 1024 / 1024).toFixed(1);
+                    setProgress(pct, '下载 ' + fileName + ' (' + loadedMB + '/' + totalMB + 'MB)');
+                } else if (data.status === 'initiate') {
+                    const fileName = data.name || data.file || '';
+                    updateAIStatus('loading', '准备下载 ' + fileName);
                 }
-            }, 300);
+            }
 
             try {
-                updateProgress(5);
+                setProgress(1, '加载AI引擎');
 
-                // 动态加载 @huggingface/transformers v3
-                const { env, pipeline } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2');
+                // 设置 60 秒超时
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('模型加载超时(>60秒)')), 60000)
+                );
 
-                updateProgress(20);
+                // 动态加载 @huggingface/transformers v3（使用 ESM 入口）
+                const loadPromise = import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2/+esm');
+                const { env, pipeline } = await Promise.race([loadPromise, timeoutPromise]);
 
-                // 配置本地模型路径（从 /models/ 目录加载）
+                setProgress(8, '引擎就绪');
+
+                // 配置 ONNX WASM 路径
+                if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
+                    env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0-dev.20250409-89f8206ba4/dist/';
+                }
+
+                // 配置模型路径：优先本地，失败时从网络下载
                 env.localModelPath = '/models/';
-                env.allowRemoteModels = false;
+                env.allowRemoteModels = true;
+                env.allowLocalModels = true;
 
-                updateProgress(30);
+                setProgress(10, '下载AI模型');
 
-                // 加载特征提取 pipeline（22MB 本地量化模型）
+                // 加载特征提取 pipeline（带真实进度回调）
                 const pipe = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
                     quantized: true,
+                    progress_callback: onDownloadProgress,
                 });
 
-                updateProgress(70);
+                setProgress(82, '计算语义向量');
+
                 embeddingPipeline = pipe;
 
                 // 预计算所有意图示例的嵌入向量
@@ -1347,42 +1369,27 @@
                     }
                     intentEmbeddings[action] = vectors;
                     done++;
-                    updateProgress(70 + (done / entries.length) * 20);
+                    setProgress(82 + (done / entries.length) * 13, '计算语义向量');
                 }
-
-                clearInterval(progressTimer);
-                progressTimer = null;
 
                 aiReady = true;
                 aiLoading = false;
-                aiRetryCount = 0;
                 updateAIStatus('online', 'AI已就绪');
-                console.log('[AI Init] 语义引擎就绪，模型: all-MiniLM-L6-v2 (22MB 本地量化)');
+                console.log('[AI Init] 语义引擎就绪');
                 return true;
 
             } catch (e) {
-                clearInterval(progressTimer);
-                progressTimer = null;
-                console.warn('[AI Init] 加载失败:', e.message);
-
-                // 降级为纯关键词模式
-                aiReady = true;
                 aiLoading = false;
-                updateAIStatus('online', '关键词模式');
-                console.log('[AI Init] 降级为关键词匹配模式');
-                return true;
+                updateAIStatus('offline', '关键词匹配');
+                console.log('[AI Init] 模型加载失败:', e.message);
+                return false;
             }
         }
 
         function retryLoadAI() {
             if (aiReady || aiLoading) return;
-            if (aiRetryTimer) {
-                clearTimeout(aiRetryTimer);
-                aiRetryTimer = null;
-            }
-            const statusText = document.getElementById('aiStatusText');
-            if (statusText) statusText.classList.remove('clickable');
-            aiRetryCount = 0;
+            aiReady = false;
+            updateAIStatus('loading', 'AI加载中...');
             initAI();
         }
         
@@ -2804,12 +2811,6 @@
         renderNavMenu();
         initAI();
         initPanelDivider();
-
-        document.getElementById('aiStatusText').addEventListener('click', function() {
-            if (this.classList.contains('clickable')) {
-                retryLoadAI();
-            }
-        });
     </script>
     <script>
 var _hmt = _hmt || [];
