@@ -1,0 +1,413 @@
+{
+  "test1_round1": {
+    "errors": 3,
+    "errorDetails": [
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+    ],
+    "logCount": 4,
+    "aiStatus": {
+      "dotClass": "status-dot offline",
+      "statusText": "关键词匹配"
+    },
+    "navItems": [
+      "home",
+      "gif-generator",
+      "bg-remover",
+      "keyword-analyzer",
+      "search-analyzer",
+      "tuoci-system"
+    ],
+    "msgCount": 1,
+    "initialMessage": "\n                                        你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传"
+  },
+  "test1_round2": {
+    "errors": 3,
+    "errorDetails": [
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+    ],
+    "logCount": 4,
+    "aiStatus": {
+      "dotClass": "status-dot offline",
+      "statusText": "关键词匹配"
+    },
+    "navItems": [
+      "home",
+      "gif-generator",
+      "bg-remover",
+      "keyword-analyzer",
+      "search-analyzer",
+      "tuoci-system"
+    ],
+    "msgCount": 1,
+    "initialMessage": "\n                                        你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传"
+  },
+  "test1_round3": {
+    "errors": 0,
+    "errorDetails": [],
+    "logCount": 0,
+    "aiStatus": {
+      "dotClass": "status-dot loading",
+      "statusText": "准备下载 Xenova/all-MiniLM-L6-v2"
+    },
+    "navItems": [
+      "home",
+      "gif-generator",
+      "bg-remover",
+      "keyword-analyzer",
+      "search-analyzer",
+      "tuoci-system"
+    ],
+    "msgCount": 1,
+    "initialMessage": "\n                                        你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传"
+  },
+  "test2_drag_round1": {
+    "orderAfterDrag": [
+      "home",
+      "bg-remover",
+      "gif-generator",
+      "keyword-analyzer",
+      "search-analyzer",
+      "tuoci-system"
+    ],
+    "orderAfterReload": [
+      "home",
+      "bg-remover",
+      "gif-generator",
+      "keyword-analyzer",
+      "search-analyzer",
+      "tuoci-system"
+    ]
+  },
+  "test2_drag_round2": {
+    "orderAfterDrag": [
+      "home",
+      "gif-generator",
+      "bg-remover",
+      "keyword-analyzer",
+      "search-analyzer",
+      "tuoci-system"
+    ],
+    "orderAfterReload": [
+      "home",
+      "gif-generator",
+      "bg-remover",
+      "keyword-analyzer",
+      "search-analyzer",
+      "tuoci-system"
+    ]
+  },
+  "test2_drag_round3": {
+    "orderAfterDrag": [
+      "home",
+      "bg-remover",
+      "gif-generator",
+      "keyword-analyzer",
+      "search-analyzer",
+      "tuoci-system"
+    ],
+    "orderAfterReload": [
+      "home",
+      "bg-remover",
+      "gif-generator",
+      "keyword-analyzer",
+      "search-analyzer",
+      "tuoci-system"
+    ]
+  },
+  "test3_拓词吧_r1": {
+    "messages": [
+      {
+        "role": "assistant",
+        "text": "你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传多张图片合成GIF\n                                        ✂️ 一键抠图 — 去除图片背景\n                                        📊 关键词分析 — 上传S"
+      },
+      {
+        "role": "user",
+        "text": "拓词吧"
+      },
+      {
+        "role": "assistant",
+        "text": "检测到你的需求"
+      },
+      {
+        "role": "assistant",
+        "text": "请在下方的输入框中输入需要拓词的基础关键词词根，每行一个👇例如：SEO优化、网站建设、网络营销"
+      }
+    ],
+    "errors": 3,
+    "errorLogs": [
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+    ]
+  },
+  "test3_拓词吧_r2": {
+    "messages": [
+      {
+        "role": "assistant",
+        "text": "你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传多张图片合成GIF\n                                        ✂️ 一键抠图 — 去除图片背景\n                                        📊 关键词分析 — 上传S"
+      },
+      {
+        "role": "user",
+        "text": "拓词吧"
+      },
+      {
+        "role": "assistant",
+        "text": "检测到你的需求"
+      },
+      {
+        "role": "assistant",
+        "text": "请在下方的输入框中输入需要拓词的基础关键词词根，每行一个👇例如：SEO优化、网站建设、网络营销"
+      }
+    ],
+    "errors": 0,
+    "errorLogs": []
+  },
+  "test3_拓词吧_r3": {
+    "messages": [
+      {
+        "role": "assistant",
+        "text": "你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传多张图片合成GIF\n                                        ✂️ 一键抠图 — 去除图片背景\n                                        📊 关键词分析 — 上传S"
+      },
+      {
+        "role": "user",
+        "text": "拓词吧"
+      },
+      {
+        "role": "assistant",
+        "text": "检测到你的需求"
+      },
+      {
+        "role": "assistant",
+        "text": "请在下方的输入框中输入需要拓词的基础关键词词根，每行一个👇例如：SEO优化、网站建设、网络营销"
+      }
+    ],
+    "errors": 3,
+    "errorLogs": [
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+    ]
+  },
+  "test3_帮我抠图_r1": {
+    "messages": [
+      {
+        "role": "assistant",
+        "text": "你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传多张图片合成GIF\n                                        ✂️ 一键抠图 — 去除图片背景\n                                        📊 关键词分析 — 上传S"
+      },
+      {
+        "role": "user",
+        "text": "帮我抠图"
+      },
+      {
+        "role": "assistant",
+        "text": "检测到你的需求是：✂️ 一键智能抠图（通过关键词匹配识别）"
+      },
+      {
+        "role": "assistant",
+        "text": "📤\n                            点击下方区域上传需要抠图的图片\n                            点击此处选择文件"
+      }
+    ],
+    "errors": 3,
+    "errorLogs": [
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+    ]
+  },
+  "test3_帮我抠图_r2": {
+    "messages": [
+      {
+        "role": "assistant",
+        "text": "你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传多张图片合成GIF\n                                        ✂️ 一键抠图 — 去除图片背景\n                                        📊 关键词分析 — 上传S"
+      },
+      {
+        "role": "user",
+        "text": "帮我抠图"
+      },
+      {
+        "role": "assistant",
+        "text": "检测到你的需求是：✂️ 一键智能抠图（通过关键词匹配识别）"
+      },
+      {
+        "role": "assistant",
+        "text": "📤\n                            点击下方区域上传需要抠图的图片\n                            点击此处选择文件"
+      }
+    ],
+    "errors": 0,
+    "errorLogs": []
+  },
+  "test3_帮我抠图_r3": {
+    "messages": [
+      {
+        "role": "assistant",
+        "text": "你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传多张图片合成GIF\n                                        ✂️ 一键抠图 — 去除图片背景\n                                        📊 关键词分析 — 上传S"
+      },
+      {
+        "role": "user",
+        "text": "帮我抠图"
+      },
+      {
+        "role": "assistant",
+        "text": "检测到你的需求是：✂️ 一键智能抠图（通过关键词匹配识别）"
+      },
+      {
+        "role": "assistant",
+        "text": "📤\n                            点击下方区域上传需要抠图的图片\n                            点击此处选择文件"
+      }
+    ],
+    "errors": 3,
+    "errorLogs": [
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+    ]
+  },
+  "test3_分析关键词_r1": {
+    "messages": [
+      {
+        "role": "assistant",
+        "text": "你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传多张图片合成GIF\n                                        ✂️ 一键抠图 — 去除图片背景\n                                        📊 关键词分析 — 上传S"
+      },
+      {
+        "role": "user",
+        "text": "分析关键词"
+      },
+      {
+        "role": "assistant",
+        "text": "检测到你的需求是：📊 关键词转化数分析（通过关键词匹配识别）"
+      },
+      {
+        "role": "assistant",
+        "text": "📤\n                            点击下方区域上传SEM数据报表（CSV格式）\n                            点击此处选择文件"
+      }
+    ],
+    "errors": 0,
+    "errorLogs": []
+  },
+  "test3_分析关键词_r2": {
+    "messages": [
+      {
+        "role": "assistant",
+        "text": "你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传多张图片合成GIF\n                                        ✂️ 一键抠图 — 去除图片背景\n                                        📊 关键词分析 — 上传S"
+      },
+      {
+        "role": "user",
+        "text": "分析关键词"
+      },
+      {
+        "role": "assistant",
+        "text": "检测到你的需求是：📊 关键词转化数分析（通过关键词匹配识别）"
+      },
+      {
+        "role": "assistant",
+        "text": "📤\n                            点击下方区域上传SEM数据报表（CSV格式）\n                            点击此处选择文件"
+      }
+    ],
+    "errors": 0,
+    "errorLogs": []
+  },
+  "test3_分析关键词_r3": {
+    "messages": [
+      {
+        "role": "assistant",
+        "text": "你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传多张图片合成GIF\n                                        ✂️ 一键抠图 — 去除图片背景\n                                        📊 关键词分析 — 上传S"
+      },
+      {
+        "role": "user",
+        "text": "分析关键词"
+      },
+      {
+        "role": "assistant",
+        "text": "检测到你的需求是：📊 关键词转化数分析（通过关键词匹配识别）"
+      },
+      {
+        "role": "assistant",
+        "text": "📤\n                            点击下方区域上传SEM数据报表（CSV格式）\n                            点击此处选择文件"
+      }
+    ],
+    "errors": 0,
+    "errorLogs": []
+  },
+  "test3_生成动图_r1": {
+    "messages": [
+      {
+        "role": "assistant",
+        "text": "你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传多张图片合成GIF\n                                        ✂️ 一键抠图 — 去除图片背景\n                                        📊 关键词分析 — 上传S"
+      },
+      {
+        "role": "user",
+        "text": "生成动图"
+      },
+      {
+        "role": "assistant",
+        "text": "检测到你的需求是：🎬 动图GIF生成（通过关键词匹配识别）"
+      },
+      {
+        "role": "assistant",
+        "text": "📤\n                            点击下方区域上传多张图片（至少2张）\n                            点击此处选择文件"
+      }
+    ],
+    "errors": 3,
+    "errorLogs": [
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+    ]
+  },
+  "test3_生成动图_r2": {
+    "messages": [
+      {
+        "role": "assistant",
+        "text": "你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传多张图片合成GIF\n                                        ✂️ 一键抠图 — 去除图片背景\n                                        📊 关键词分析 — 上传S"
+      },
+      {
+        "role": "user",
+        "text": "生成动图"
+      },
+      {
+        "role": "assistant",
+        "text": "检测到你的需求是：🎬 动图GIF生成（通过关键词匹配识别）"
+      },
+      {
+        "role": "assistant",
+        "text": "📤\n                            点击下方区域上传多张图片（至少2张）\n                            点击此处选择文件"
+      }
+    ],
+    "errors": 3,
+    "errorLogs": [
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+    ]
+  },
+  "test3_生成动图_r3": {
+    "messages": [
+      {
+        "role": "assistant",
+        "text": "你好！我是本地AI助手，可以帮你完成以下任务：\n                                        🎬 生成动画GIF — 上传多张图片合成GIF\n                                        ✂️ 一键抠图 — 去除图片背景\n                                        📊 关键词分析 — 上传S"
+      },
+      {
+        "role": "user",
+        "text": "生成动图"
+      },
+      {
+        "role": "assistant",
+        "text": "检测到你的需求是：🎬 动图GIF生成（通过关键词匹配识别）"
+      },
+      {
+        "role": "assistant",
+        "text": "📤\n                            点击下方区域上传多张图片（至少2张）\n                            点击此处选择文件"
+      }
+    ],
+    "errors": 3,
+    "errorLogs": [
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
+      "Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED"
+    ]
+  }
+}

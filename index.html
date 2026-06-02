@@ -1241,11 +1241,18 @@
         }
 
         async function detectIntent(text) {
-            // 1. 先用关键词快速匹配（兜底）
-            //    关键词匹配对短文本和精确词更可靠
+            // 1. 先用关键词快速匹配（优先级最高！）
+            //    对于短中文，关键词匹配比AI语义匹配更可靠
             const kwResult = fallbackDetectIntent(text);
+            
+            // 2. 如果关键词匹配成功，直接返回关键词结果！
+            //    不允许AI覆盖关键词匹配，避免"拓词吧"被识别为"抠图"的问题
+            if (kwResult) {
+                console.log('[Intent] 关键词匹配成功:', kwResult.action);
+                return kwResult;
+            }
 
-            // 2. 如果 AI 模型可用，用语义向量做模糊匹配
+            // 3. 只有在关键词匹配失败时，才尝试AI语义匹配
             if (embeddingPipeline && intentEmbeddings) {
                 try {
                     const userVec = await embeddingPipeline(text, { pooling: 'mean', normalize: true });
@@ -1253,6 +1260,7 @@
 
                     let bestAction = null;
                     let bestScore = -1;
+                    let bestExample = '';
 
                     for (const [action, examples] of Object.entries(intentEmbeddings)) {
                         for (const example of examples) {
@@ -1260,41 +1268,24 @@
                             if (sim > bestScore) {
                                 bestScore = sim;
                                 bestAction = action;
+                                bestExample = example;
                             }
                         }
                     }
 
-                    const aiThreshold = 0.4;
+                    const aiThreshold = 0.6;
+                    console.log('[AI] 语义匹配:', bestAction, '得分:', bestScore.toFixed(3), '最匹配示例:', bestExample);
 
-                    // 情况1：关键词和 AI 一致 → 直接信任，置信度取最大值
-                    if (kwResult && kwResult.action === bestAction) {
-                        return { action: bestAction, confidence: Math.max(bestScore, kwResult.confidence), method: 'ai' };
-                    }
-
-                    // 情况2：无关键词匹配，AI 得分够高 → 用 AI 结果
-                    if (!kwResult && bestScore >= aiThreshold) {
+                    if (bestScore >= aiThreshold) {
                         return { action: bestAction, confidence: bestScore, method: 'ai' };
                     }
-
-                    // 情况3：关键词和 AI 不一致 → 仅当 AI 置信度非常高时才覆盖关键词
-                    //    对于短中文，all-MiniLM-L6-v2 的语义不够精准，关键词更可靠
-                    if (kwResult && kwResult.action !== bestAction) {
-                        if (bestScore >= 0.7) {
-                            return { action: bestAction, confidence: bestScore, method: 'ai' };
-                        }
-                        // AI 不够自信，保留关键词结果
-                        console.log('[AI] 语义结果偏离关键词，保留关键词匹配:', kwResult.action, 'AI得分:', bestScore.toFixed(3));
-                        return kwResult;
-                    }
-
-                    // 情况4：AI 得分低于阈值，无关键词 → 返回 null
                 } catch (e) {
-                    console.warn('[AI] 语义检测失败，回退关键词:', e.message);
+                    console.warn('[AI] 语义检测失败:', e.message);
                 }
             }
 
-            // 3. 兜底返回关键词结果（可能为 null）
-            return kwResult;
+            // 4. 兜底返回 null
+            return null;
         }
 
         async function initAI() {
