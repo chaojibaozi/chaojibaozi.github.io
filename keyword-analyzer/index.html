@@ -22,6 +22,15 @@
         .header { text-align: center; color: white; margin-bottom: 20px; }
         .header h1 { font-size: 1.8em; margin-bottom: 6px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
         .header p { font-size: 0.95em; opacity: 0.9; }
+        .header .subtitle {
+            font-size: 0.85em; margin-top: 4px;
+            background: linear-gradient(90deg, #ff0000, #ff7700, #ffff00, #00ff00, #0077ff, #8b00ff, #ff0000);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: rainbowCycle 3s linear infinite;
+        }
         .upload-section {
             background: white; border-radius: 12px; padding: 24px;
             margin-bottom: 20px; box-shadow: 0 6px 20px rgba(0,0,0,0.1);
@@ -213,6 +222,7 @@
             animation: spin 0.8s linear infinite; margin: 0 auto 16px;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes rainbowCycle { 0% { background-position: 0% center; } 100% { background-position: 200% center; } }
         .file-info {
             background: #e8f5e9; border-left: 3px solid #4caf50;
             padding: 12px 18px; margin-top: 16px; border-radius: 0 6px 6px 0; display: none;
@@ -235,6 +245,7 @@
         <div class="header">
             <h1>SEM关键词效果分析系统</h1>
             <p>智能分析广告数据，洞察关键词转化效果</p>
+            <p class="subtitle">直接丢入 分日搜索词效果评估报告，即刻生成分析结果。</p>
         </div>
         <div class="upload-section">
             <div class="upload-area" id="uploadArea">
