@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Parser Test</title>
+    <style>body{font-family:monospace;white-space:pre-wrap;padding:20px;background:#1e1e1e;color:#dcdcdc}</style>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div id="out"></div>
+<script>
+// 模拟用户真实数据 (制表符分隔)
+const csvData = '时间\t推广账户\t推广计划\t关键词\t搜索词\t展示次数\t点击次数\t点击率\t总费用\t平均每次点击费用\t转化数\n' +
+    '2026/5/22\t测试账户\tA05-行业\t全国肿瘤医院排名\t福州市第二中医院\t3\t0\t0%\t0\t0\t0\n' +
+    '2026/5/22\t测试账户\tA05-行业\t在线问诊\t弋矶山网上预约\t21\t4\t19.05%\t22.66\t5.67\t1\n' +
+    '2026/5/22\t测试账户\tA12-行业\t河北一洲肿瘤医院\t河北燕达医院\t4\t0\t0%\t0\t0\t0';
+
+let out = '';
+const log = (s) => { out += s + '\n'; console.log(s); };
+
+function normalizeKey(k) {
+    if (k === undefined || k === null) return '';
+    return String(k)
+        .replace(/\ufeff/g, '')
+        .replace(/\s+/g, '')
+        .replace(/[\u3000]/g, '')
+        .replace(/[：:（）()【】\[\]"'"'"'""'"]/g, '')
+        .toLowerCase();
+}
+
+function buildKeyIndex(row) {
+    const keys = Object.keys(row);
+    const index = new Map();
+    for (let k of keys) {
+        const norm = normalizeKey(k);
+        if (norm && !index.has(norm)) index.set(norm, k);
+    }
+    return index;
+}
+
+function getValue(row, keys, keyIndex) {
+    const idx = keyIndex || buildKeyIndex(row);
+    for (let key of keys) {
+        const norm = normalizeKey(key);
+        if (idx.has(norm)) {
+            const v = row[idx.get(norm)];
+            if (v !== undefined && v !== null && v !== '') return v;
+        }
+    }
+    for (let key of keys) {
+        const norm = normalizeKey(key);
+        for (let [n, orig] of idx.entries()) {
+            if (n.includes(norm) || norm.includes(n)) {
+                const v = row[orig];
+                if (v !== undefined && v !== null && v !== '') return v;
+            }
+        }
+    }
+    return null;
+}
+
+function parseNumber(val) {
+    if (val === undefined || val === null || val === '') return NaN;
+    if (typeof val === 'number') return val;
+    let s = String(val).trim();
+    s = s.replace(/[,\s¥$￥€£]/g, '');
+    s = s.replace(/%$/, '');
+    const n = parseFloat(s);
+    return isNaN(n) ? NaN : n;
+}
+
+function normalizeDate(dateStr) {
+    if (!dateStr) return '';
+    if (typeof dateStr === 'object' && dateStr instanceof Date) {
+        return dateStr.getFullYear() + '-' + String(dateStr.getMonth() + 1).padStart(2, '0') + '-' + String(dateStr.getDate()).padStart(2, '0');
+    }
+    let s = String(dateStr).trim();
+    s = s.replace(/年|月/g, '-').replace(/日/g, '');
+    const m1 = s.match(/^(\d{4})[-\/\.](\d{1,2})[-\/\.](\d{1,2})/);
+    if (m1) return m1[1] + '-' + String(parseInt(m1[2])).padStart(2, '0') + '-' + String(parseInt(m1[3])).padStart(2, '0');
+    return s;
+}
+
+log('=== 步骤1: 检测分隔符 ===');
+const firstLine = csvData.split(/\r?\n/)[0];
+let sep = ',';
+if (firstLine.indexOf('\t') >= 0) sep = '\t';
+else if (firstLine.indexOf(',') >= 0) sep = ',';
+log('分隔符: ' + (sep === '\t' ? 'TAB' : sep));
+
+log('\n=== 步骤2: XLSX 解析 ===');
+const workbook = XLSX.read(csvData, { type: 'string', raw: true, FS: sep });
+const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+const jsonData = XLSX.utils.sheet_to_json(firstSheet, { defval: '', FS: sep });
+log('行数: ' + jsonData.length);
+
+if (jsonData.length > 0) {
+    const keys = Object.keys(jsonData[0]);
+    log('列名: [' + keys.join(', ') + ']');
+
+    log('\n=== 步骤3: 标准化列名 ===');
+    const keyIndex = buildKeyIndex(jsonData[0]);
+    log('标准化: [' + Array.from(keyIndex.keys()).join(', ') + ']');
+
+    log('\n=== 步骤4: 遍历每行提取关键词 ===');
+    let validRows = 0;
+    jsonData.forEach((row, i) => {
+        const kw = getValue(row, ['关键词', '搜索词', 'SearchTerm', 'Keyword', 'search_term', 'searchWord'], keyIndex);
+        const cost = parseNumber(getValue(row, ['总费用', '消费', '费用', 'Cost', 'cost'], keyIndex));
+        const conv = parseNumber(getValue(row, ['转化数', '转化', 'Conversions'], keyIndex));
+        const clicks = parseNumber(getValue(row, ['点击次数', '点击', 'Clicks'], keyIndex));
+        const date = normalizeDate(getValue(row, ['时间', '日期', 'Date'], keyIndex));
+        if (kw) {
+            validRows++;
+            log('  第' + (i + 1) + '行: 关键词=' + kw + ', 日期=' + date + ', 费用=' + cost + ', 转化=' + conv + ', 点击=' + clicks);
+        } else {
+            log('  第' + (i + 1) + '行: ✗ 未找到关键词');
+        }
+    });
+
+    log('\n=== 步骤5: 汇总 ===');
+    log('有效数据行: ' + validRows);
+    log('结果: ' + (validRows > 0 ? '✓ 成功' : '✗ 失败'));
+}
+
+document.getElementById('out').textContent = out;
+</script>
+</body>
+</html>

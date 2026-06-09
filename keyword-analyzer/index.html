@@ -23,13 +23,17 @@
         .header h1 { font-size: 1.8em; margin-bottom: 6px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
         .header p { font-size: 0.95em; opacity: 0.9; }
         .header .subtitle {
-            font-size: 0.85em; margin-top: 4px;
-            background: linear-gradient(90deg, #ff0000, #ff7700, #ffff00, #00ff00, #0077ff, #8b00ff, #ff0000);
+            font-size: 0.85em; opacity: 0.85; margin-top: 4px;
+            background: linear-gradient(to right, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff, #5f27cd);
             background-size: 200% auto;
             -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             background-clip: text;
-            color: transparent;
-            animation: rainbowCycle 3s linear infinite;
+            animation: rainbow 3s linear infinite;
+        }
+        @keyframes rainbow {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
         }
         .upload-section {
             background: white; border-radius: 12px; padding: 24px;
@@ -222,7 +226,6 @@
             animation: spin 0.8s linear infinite; margin: 0 auto 16px;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes rainbowCycle { 0% { background-position: 0% center; } 100% { background-position: 200% center; } }
         .file-info {
             background: #e8f5e9; border-left: 3px solid #4caf50;
             padding: 12px 18px; margin-top: 16px; border-radius: 0 6px 6px 0; display: none;
@@ -416,30 +419,79 @@
             document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(2) + ' KB';
             document.getElementById('fileInfo').classList.add('show');
             document.getElementById('loading').style.display = 'block';
-            const isCSV = file.name.toLowerCase().endsWith('.csv');
+
+            const lowerName = file.name.toLowerCase();
+            const isExcel = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls');
+            const isText = lowerName.endsWith('.csv') || lowerName.endsWith('.tsv') || lowerName.endsWith('.txt');
+
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
                     let workbook;
-                    if (isCSV) {
-                        workbook = XLSX.read(e.target.result, { type: 'string', raw: true });
-                    } else {
+                    let jsonData;
+
+                    if (isExcel) {
                         const data = new Uint8Array(e.target.result);
                         workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        jsonData = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+                    } else {
+                        let text;
+                        const raw = new Uint8Array(e.target.result);
+
+                        if (raw.length >= 3 && raw[0] === 0xEF && raw[1] === 0xBB && raw[2] === 0xBF) {
+                            text = new TextDecoder('utf-8').decode(raw);
+                        } else if (raw.length >= 2 && raw[0] === 0xFF && raw[1] === 0xFE) {
+                            text = new TextDecoder('utf-16le').decode(raw);
+                        } else {
+                            try {
+                                text = new TextDecoder('utf-8', { fatal: true }).decode(raw);
+                                if (text.indexOf('\uFFFD') >= 0) throw new Error('含替换字符');
+                            } catch (err) {
+                                try {
+                                    text = new TextDecoder('gbk').decode(raw);
+                                } catch (err2) {
+                                    text = new TextDecoder('utf-8').decode(raw);
+                                }
+                            }
+                        }
+
+                        if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+                        let sep = ',';
+                        const firstLine = text.split(/\r?\n/)[0] || '';
+                        if (firstLine.indexOf('\t') >= 0) sep = '\t';
+                        else if (firstLine.indexOf(',') >= 0) sep = ',';
+                        else if (firstLine.indexOf('|') >= 0) sep = '|';
+                        else if (firstLine.indexOf(';') >= 0) sep = ';';
+
+                        console.log('自动检测到分隔符:', sep === '\t' ? '制表符(TAB)' : sep);
+
+                        workbook = XLSX.read(text, { type: 'string', raw: true, FS: sep });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        jsonData = XLSX.utils.sheet_to_json(firstSheet, { defval: '', FS: sep });
                     }
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
                     if (!jsonData || jsonData.length === 0) {
                         throw new Error('数据为空，请检查文件格式');
                     }
+
                     const firstRow = jsonData[0];
                     const availableKeys = Object.keys(firstRow);
                     console.log('检测到的列名:', availableKeys);
+                    console.log('文件类型:', isExcel ? 'Excel' : '文本 (CSV/TSV/TXT)');
+                    console.log('行数:', jsonData.length);
+
                     rawData = jsonData;
                     analyzeData();
+
                     if (processedData.length === 0) {
-                        console.warn('未找到有效关键词数据，请检查CSV列名是否包含：关键词/搜索词/SearchTerm/Keyword');
-                        alert('未找到有效数据，请确保CSV包含关键词列（关键词/搜索词/SearchTerm/Keyword）');
+                        const normKeys = availableKeys.map(k => normalizeKey(k));
+                        console.warn('无法找到有效关键词列。当前标准化后的列名:', normKeys);
+                        alert('未找到有效数据，当前检测到的列名：\n' + availableKeys.join('、') +
+                            '\n\n请确保文件中包含"关键词"或"搜索词"列');
+                    } else {
+                        console.log('成功解析数据行数:', processedData.length);
                     }
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('analysisSection').style.display = 'block';
@@ -453,20 +505,84 @@
                     document.getElementById('loading').style.display = 'none';
                 }
             };
-            if (isCSV) {
-                reader.readAsText(file);
-            } else {
-                reader.readAsArrayBuffer(file);
-            }
+
+            reader.readAsArrayBuffer(file);
         }
 
-        function getValue(row, keys) {
+        function normalizeKey(k) {
+            if (k === undefined || k === null) return '';
+            return String(k)
+                .replace(/\ufeff/g, '')
+                .replace(/\s+/g, '')
+                .replace(/[\u3000]/g, '')
+                .replace(/[：:（）()【】\[\]"'"'"'""'"]/g, '')
+                .toLowerCase();
+        }
+
+        function buildKeyIndex(row) {
+            const keys = Object.keys(row);
+            const index = new Map();
+            for (let k of keys) {
+                const norm = normalizeKey(k);
+                if (norm && !index.has(norm)) {
+                    index.set(norm, k);
+                }
+            }
+            return index;
+        }
+
+        function getValue(row, keys, keyIndex) {
+            const idx = keyIndex || buildKeyIndex(row);
             for (let key of keys) {
-                if (row[key] !== undefined && row[key] !== null) {
-                    return row[key];
+                const norm = normalizeKey(key);
+                if (idx.has(norm)) {
+                    const v = row[idx.get(norm)];
+                    if (v !== undefined && v !== null && v !== '') return v;
+                }
+            }
+            for (let key of keys) {
+                const norm = normalizeKey(key);
+                for (let [n, orig] of idx.entries()) {
+                    if (n.includes(norm) || norm.includes(n)) {
+                        const v = row[orig];
+                        if (v !== undefined && v !== null && v !== '') return v;
+                    }
                 }
             }
             return null;
+        }
+
+        function parseNumber(val) {
+            if (val === undefined || val === null || val === '') return NaN;
+            if (typeof val === 'number') return val;
+            let s = String(val).trim();
+            s = s.replace(/[,\s¥$￥€£]/g, '');
+            s = s.replace(/%$/, '');
+            const n = parseFloat(s);
+            return isNaN(n) ? NaN : n;
+        }
+
+        function normalizeDate(dateStr) {
+            if (!dateStr) return '';
+            if (typeof dateStr === 'object' && dateStr instanceof Date) {
+                const d = dateStr;
+                return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            }
+            let s = String(dateStr).trim();
+            s = s.replace(/年|月/g, '-').replace(/日/g, '');
+            const m1 = s.match(/^(\d{4})[-/\.](\d{1,2})[-/\.](\d{1,2})/);
+            if (m1) {
+                return m1[1] + '-' + String(parseInt(m1[2])).padStart(2, '0') + '-' + String(parseInt(m1[3])).padStart(2, '0');
+            }
+            const m2 = s.match(/^(\d{1,2})[-/\.](\d{1,2})[-/\.](\d{4})/);
+            if (m2) {
+                return m2[3] + '-' + String(parseInt(m2[1])).padStart(2, '0') + '-' + String(parseInt(m2[2])).padStart(2, '0');
+            }
+            const m3 = s.match(/^(\d{4})(\d{2})(\d{2})$/);
+            if (m3) {
+                return m3[1] + '-' + m3[2] + '-' + m3[3];
+            }
+            return s;
         }
 
         function parseDateRange(dateStr) {
@@ -506,33 +622,87 @@
         }
 
         function analyzeData() {
+            if (!rawData || rawData.length === 0) {
+                processedData = [];
+                return;
+            }
+            const sampleRow = rawData[0];
+            const keyIndex = buildKeyIndex(sampleRow);
+            console.log('标准化后的列名索引:', Array.from(keyIndex.keys()));
+
             processedData = rawData.map((row, idx) => {
                 let keyword = '';
-                const kw = getValue(row, ['关键词', '搜索词', 'SearchTerm', 'Keyword', 'search_term', 'searchWord']);
+                const kw = getValue(row, [
+                    '关键词', '搜索词', '搜索词(搜索关键词)', '搜索关键词',
+                    'SearchTerm', 'Search term', 'Keyword', 'Keyword(搜索关键词)',
+                    'search_term', 'searchWord', '搜索关键词列表'
+                ], keyIndex);
                 if (kw) keyword = String(kw).trim();
-                const timeVal = getValue(row, ['时间', '日期', 'Date', 'date', '统计日期']);
-                const costVal = getValue(row, ['总费用', '消费', '费用', 'Cost', 'cost', '总消费', '花费', '金额']);
-                const convVal = getValue(row, ['转化数', '转化', '转化量', '转化次数', 'Conversions', 'conversions', '转化目标数']);
-                const clicksVal = getValue(row, ['点击次数', '点击', 'Clicks', 'clicks', '点击量']);
-                const cpcVal = getValue(row, ['平均每次点击费用', 'CPC', 'cpc', '平均CPC', '每次点击费用']);
-                const showVal = getValue(row, ['展示次数', '展现', '展现量', '展示', 'Impressions', 'impressions', '曝光']);
-                const crVal = getValue(row, ['点击率', 'CTR', 'ctr', '点击转化率']);
-                const campVal = getValue(row, ['推广计划', '计划', 'Campaign', 'campaign', '计划名称']);
-                const deviceVal = getValue(row, ['投放设备', '设备', 'Device', 'device', '投放平台']);
-                
+                if (keyword === '-' || keyword === '—') keyword = '';
+
+                const timeVal = getValue(row, [
+                    '时间', '日期', 'Date', 'date', '统计日期', '日期范围',
+                    '投放日期', '时间范围', 'Day', 'day'
+                ], keyIndex);
+
+                const costVal = getValue(row, [
+                    '总费用', '消费', '费用', 'Cost', 'cost', '总消费', '花费',
+                    '金额', '消费金额', '消耗金额', '消耗', 'Spend', 'spend',
+                    '总费用(人民币)', '费用(人民币)'
+                ], keyIndex);
+
+                const convVal = getValue(row, [
+                    '转化数', '转化', '转化量', '转化次数', 'Conversions',
+                    'conversions', '转化目标数', '转化数(全部)'
+                ], keyIndex);
+
+                const clicksVal = getValue(row, [
+                    '点击次数', '点击', 'Clicks', 'clicks', '点击量', '总点击次数'
+                ], keyIndex);
+
+                const cpcVal = getValue(row, [
+                    '平均每次点击费用', 'CPC', 'cpc', '平均CPC', '每次点击费用',
+                    '平均每次点击成本', 'Avg. CPC', '平均CPC(人民币)'
+                ], keyIndex);
+
+                const showVal = getValue(row, [
+                    '展示次数', '展现', '展现量', '展示', 'Impressions',
+                    'impressions', '曝光', '总展现量', '总展示次数'
+                ], keyIndex);
+
+                const crVal = getValue(row, [
+                    '点击率', 'CTR', 'ctr', '点击转化率', '点击率(CTR)'
+                ], keyIndex);
+
+                const campVal = getValue(row, [
+                    '推广计划', '计划', 'Campaign', 'campaign', '计划名称',
+                    '广告计划', '广告系列'
+                ], keyIndex);
+
+                const deviceVal = getValue(row, [
+                    '投放设备', '设备', 'Device', 'device', '投放平台',
+                    '设备类型', '设备偏好'
+                ], keyIndex);
+
+                const dateRaw = normalizeDate(timeVal);
+                const cost = parseNumber(costVal) || 0;
+                const conversion = parseNumber(convVal) || 0;
+                const clicks = parseNumber(clicksVal) || 0;
+                const cpc = parseNumber(cpcVal) || 0;
+                const showCount = parseNumber(showVal) || 0;
+                const clickRate = parseNumber(crVal) || 0;
+
                 return {
-                    dateRaw: typeof timeVal === 'object' && timeVal instanceof Date
-                        ? timeVal.getFullYear() + '-' + String(timeVal.getMonth() + 1).padStart(2, '0') + '-' + String(timeVal.getDate()).padStart(2, '0')
-                        : (timeVal || ''),
+                    dateRaw: dateRaw,
                     keyword: keyword,
-                    cost: parseFloat(costVal) || 0,
-                    conversion: parseInt(convVal) || 0,
-                    clicks: parseInt(clicksVal) || 0,
-                    cpc: parseFloat(cpcVal) || 0,
-                    showCount: parseInt(showVal) || 0,
-                    clickRate: parseFloat(crVal) || 0,
-                    campaign: campVal || '',
-                    device: deviceVal || '',
+                    cost: cost,
+                    conversion: conversion,
+                    clicks: clicks,
+                    cpc: cpc,
+                    showCount: showCount,
+                    clickRate: clickRate,
+                    campaign: campVal ? String(campVal).trim() : '',
+                    device: deviceVal ? String(deviceVal).trim() : '',
                     rowIndex: idx
                 };
             }).filter(item => item.keyword !== '');
@@ -1050,18 +1220,31 @@
                         throw new Error('数据为空');
                     }
 
+                    const sampleRow = jsonData[0];
+                    const keyIndex = buildKeyIndex(sampleRow);
+
                     const keywordStats = {};
                     let totalImpressions = 0, totalClicks = 0, totalCost = 0;
 
                     jsonData.forEach(row => {
                         const keyword = String(
-                            getValue(row, ['关键词', '搜索词', 'SearchTerm', 'Keyword', 'search_term', 'searchWord']) || ''
+                            getValue(row, [
+                                '关键词', '搜索词', '搜索词(搜索关键词)', '搜索关键词',
+                                'SearchTerm', 'Search term', 'Keyword', 'Keyword(搜索关键词)',
+                                'search_term', 'searchWord', '搜索关键词列表'
+                            ], keyIndex) || ''
                         ).trim();
-                        if (!keyword) return;
+                        if (!keyword || keyword === '-' || keyword === '—') return;
 
-                        const impressions = parseInt(getValue(row, ['展示次数', '展现', '展现量', '展示', 'Impressions', 'impressions', '曝光'])) || 0;
-                        const clicks = parseInt(getValue(row, ['点击次数', '点击', 'Clicks', 'clicks', '点击量'])) || 0;
-                        const cost = parseFloat(getValue(row, ['总费用', '消费', '费用', 'Cost', 'cost', '总消费', '花费', '金额'])) || 0;
+                        const impressions = parseNumber(
+                            getValue(row, ['展示次数', '展现', '展现量', '展示', 'Impressions', 'impressions', '曝光', '总展现量', '总展示次数'], keyIndex)
+                        ) || 0;
+                        const clicks = parseNumber(
+                            getValue(row, ['点击次数', '点击', 'Clicks', 'clicks', '点击量', '总点击次数'], keyIndex)
+                        ) || 0;
+                        const cost = parseNumber(
+                            getValue(row, ['总费用', '消费', '费用', 'Cost', 'cost', '总消费', '花费', '金额', '消费金额', '消耗金额', '消耗', 'Spend', 'spend', '总费用(人民币)', '费用(人民币)'], keyIndex)
+                        ) || 0;
 
                         if (!keywordStats[keyword]) {
                             keywordStats[keyword] = { keyword: keyword, count: 0, impressions: 0, clicks: 0, cost: 0 };

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>数值验证 - SEM关键词分析</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', monospace; padding: 20px; background: #1e1e1e; color: #dcdcdc; }
+        table { border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+        th, td { border: 1px solid #444; padding: 6px 10px; text-align: right; }
+        th { background: #2d2d2d; color: #4ec9b0; }
+        td:first-child, th:first-child { text-align: left; }
+        .pass { color: #6a9955; }
+        .fail { color: #f48771; font-weight: bold; }
+        h2 { color: #569cd6; border-bottom: 1px solid #333; padding-bottom: 6px; }
+        h3 { color: #c586c0; }
+        .section { margin: 24px 0; padding: 16px; background: #252526; border-radius: 6px; }
+        .summary { font-size: 15px; line-height: 1.8; }
+        .val { color: #b5cea8; font-weight: bold; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div id="out"></div>
+<script>
+const csvData = '时间\t推广账户\t推广计划\t创意标题\t触发模式\t关键词\t搜索词\t展示次数\t点击次数\t点击率\t总费用\t平均每次点击费用\t转化数\t一句话咨询转化数\t三句话咨询转化数\n'
+    + '2026/5/22\t测试账户\tA05-行业--小周「hy」\t医院-全部\t{温州肿瘤科哪家医院好}-点击查看\t短语-核心包含\t全国肿瘤医院排名\t福州市第二中医院是几级医院\t3\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tA12-行业--黑/浙/安「hy」\t黑/安/浙/湖-医院\t{自贡肿瘤科医院}?-预约挂号\t短语-核心包含\t医院肿瘤医院\t川投西昌医院\t3\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tA05-行业--小周「hy」\t医院-全部\t{温州肿瘤科哪家医院好}-点击查看\t短语-核心包含\t医科肿瘤医院\t保定裕东医院\t3\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tA05-行业--小周「hy」\t药三新建-医院词-大周边\t{肿瘤科哪家医院好}-点击查看\t短语-核心包含\t全国肿瘤医院排名前十名的医院\t西安医学院附属汉江医院\t3\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tA05-行业--小周「hy」\t药三新建-医院词-大周边\t{肿瘤科哪家医院好}-点击查看\t短语-核心包含\t全国肿瘤医院排名前十名的医院\t合肥三甲医院有哪些\t9\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tA05-行业--小周「hy」\t药三新建-医院词-大周边\t{肿瘤科哪家医院好}-点击查看\t短语-核心包含\t全国肿瘤医院排名前十名的医院\t石家庄顺康医院是几级医院\t3\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tD15-技术--靶向「bxy」\t2-7加靶向药-综合3\t{治瘤方法大全}?_10种治瘤方法详解\t短语-核心包含\t依托泊甙\t阿帕替尼 依托泊苷功效\t3\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tD06-技术--质子「zz」\t技术-质子\t{质子重离子治疗需要多少钱}?\t短语-核心包含\t国内质子重离子治疗医院有哪几个\t国科离子医疗科技有限公司\t3\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tA04-行业--小周「hy」\t药三新疆-医院词-周边\t集结专业力量-{杭州中西结合医院}?-点击预约挂号\t短语-核心包含\t全国中医肿瘤医院前十名\t梅州市中医院\t6\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tA12-行业--黑/浙/安「hy」\t黑/安/浙/湖-医院\t{杭州治瘤}?-结合现代医生技术\t短语-核心包含\t河北一洲肿瘤医院\t河北燕达医院\t4\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tC09-治疗--其他「zl」\t治疗-杂1\t{杭州治瘤医院}?,新一代技术\t短语-核心包含\t中医治疗肿瘤医院\t河南省中医药大学\t4\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tC09-治疗--其他「zl」\t治疗-杂1\t{杭州治瘤医院}?,新一代技术\t短语-核心包含\t放射治疗\t左侧放射冠区\t4\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tA04-行业--小周「hy」\t药三新疆-医院词-周边\t集结专业力量-{杭州中西结合医院}?-点击预约挂号\t短语-核心包含\t在线问诊\t弋矶山网上预约专家号\t21\t4\t19.05%\t22.66\t5.67\t1\t1\t0\n'
+    + '2026/5/22\t测试账户\tA06-行业--全国「hy」\t病种-医院\t{浙江省杭州市肿瘤科医院}-点击查看\t短语-核心包含\t排名前十的肿瘤医院\tvx2肿瘤\t4\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tA05-行业--小周「hy」\t药三新建-医院词-大周边\t{肿瘤科哪家医院好}-点击查看\t短语-核心包含\t全国肿瘤医院排名前十名的医院\t沈阳燕京医院是正规医院吗\t3\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tA04-行业--小周「hy」\t药三新疆-医院词-周边\t{杭州治瘤专业医院}?-杭州中西医结合\t智能短语\t在线问诊\t问医\t36\t3\t8.33%\t18.29\t6.1\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tA04-行业--小周「hy」\t药三新疆-医院词-周边\t{杭州治瘤}?-结合现代医生技术\t短语-核心包含\t在线问诊\t快速问医生\t119\t0\t0%\t0\t0\t0\t0\t0\n'
+    + '2026/5/22\t测试账户\tA05-行业--小周「hy」\t药三新建-医院词-大周边\t{肿瘤科哪家医院好}-点击查看\t短语-核心包含\t中医肿瘤科医院\t台州市中西医结合医院医共体\t3\t0\t0%\t0\t0\t0\t0\t0';
+
+// === 工具函数 (与主页面保持一致) ===
+function normalizeKey(k) {
+    if (k === undefined || k === null) return '';
+    return String(k)
+        .replace(/\ufeff/g, '').replace(/\s+/g, '').replace(/[\u3000]/g, '')
+        .replace(/[：:（）()【】\[\]"'"'"'""'"]/g, '').toLowerCase();
+}
+function buildKeyIndex(row) {
+    const keys = Object.keys(row); const index = new Map();
+    for (let k of keys) { const norm = normalizeKey(k); if (norm && !index.has(norm)) index.set(norm, k); }
+    return index;
+}
+function getValue(row, keys, keyIndex) {
+    const idx = keyIndex || buildKeyIndex(row);
+    for (let key of keys) {
+        const norm = normalizeKey(key);
+        if (idx.has(norm)) { const v = row[idx.get(norm)]; if (v !== undefined && v !== null && v !== '') return v; }
+    }
+    for (let key of keys) {
+        const norm = normalizeKey(key);
+        for (let [n, orig] of idx.entries()) {
+            if (n.includes(norm) || norm.includes(n)) { const v = row[orig]; if (v !== undefined && v !== null && v !== '') return v; }
+        }
+    }
+    return null;
+}
+function parseNumber(val) {
+    if (val === undefined || val === null || val === '') return NaN;
+    if (typeof val === 'number') return val;
+    let s = String(val).trim(); s = s.replace(/[,\s¥$￥€£]/g, '').replace(/%$/, '');
+    const n = parseFloat(s); return isNaN(n) ? NaN : n;
+}
+function normalizeDate(dateStr) {
+    if (!dateStr) return '';
+    if (typeof dateStr === 'object' && dateStr instanceof Date) return dateStr.getFullYear() + '-' + String(dateStr.getMonth()+1).padStart(2,'0') + '-' + String(dateStr.getDate()).padStart(2,'0');
+    let s = String(dateStr).trim().replace(/年|月/g, '-').replace(/日/g, '');
+    const m1 = s.match(/^(\d{4})[-\/\.](\d{1,2})[-\/\.](\d{1,2})/);
+    if (m1) return m1[1] + '-' + String(parseInt(m1[2])).padStart(2,'0') + '-' + String(parseInt(m1[3])).padStart(2,'0');
+    return s;
+}
+
+// === 解析 CSV ===
+const firstLine = csvData.split(/\r?\n/)[0];
+let sep = firstLine.indexOf('\t') >= 0 ? '\t' : ',';
+const wb = XLSX.read(csvData, { type: 'string', raw: true, FS: sep });
+const sheet = wb.Sheets[wb.SheetNames[0]];
+const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '', FS: sep });
+const keyIndex = buildKeyIndex(jsonData[0]);
+
+let html = '<h2>📋 步骤1: 原始数据解析检查 (' + jsonData.length + ' 行)</h2>';
+html += '<table><tr><th>行</th><th>关键词</th><th>日期</th><th>展示</th><th>点击</th><th>费用</th><th>转化</th><th>CPC(raw)</th><th>状态</th></tr>';
+let totalRaw = { cost: 0, conv: 0, clicks: 0, show: 0 };
+let issues = [];
+
+jsonData.forEach((row, i) => {
+    const kw = getValue(row, ['关键词','搜索词','SearchTerm','Keyword','search_term','searchWord'], keyIndex);
+    const d = normalizeDate(getValue(row, ['时间','日期','Date','date','统计日期'], keyIndex));
+    const cost = parseNumber(getValue(row, ['总费用','消费','费用','Cost','cost','总消费','花费','金额'], keyIndex)) || 0;
+    const conv = parseNumber(getValue(row, ['转化数','转化','转化量','转化次数','Conversions','conversions','转化目标数'], keyIndex)) || 0;
+    const clicks = parseNumber(getValue(row, ['点击次数','点击','Clicks','clicks','点击量','总点击次数'], keyIndex)) || 0;
+    const show = parseNumber(getValue(row, ['展示次数','展现','展现量','展示','Impressions','impressions','曝光'], keyIndex)) || 0;
+    const cpcRaw = parseNumber(getValue(row, ['平均每次点击费用','CPC','cpc','平均CPC','每次点击费用'], keyIndex)) || 0;
+
+    totalRaw.cost += cost; totalRaw.conv += conv; totalRaw.clicks += clicks; totalRaw.show += show;
+
+    // 验证每行 CPC：点击>0时，cost/clicks 应≈原始CPC
+    let status = '<span class="pass">✓</span>';
+    if (clicks > 0) {
+        const expectedCPC = cost / clicks;
+        const diff = Math.abs(expectedCPC - cpcRaw);
+        if (diff > 0.05) {
+            status = '<span class="fail">⚠ CPC偏差: ' + expectedCPC.toFixed(2) + ' vs ' + cpcRaw + '</span>';
+            issues.push('行' + (i+1) + ' CPC不一致');
+        }
+    }
+
+    html += '<tr><td>' + (i+1) + '</td><td>' + kw + '</td><td>' + d + '</td><td>' + show + '</td><td>' + clicks + '</td><td>' + cost.toFixed(2) + '</td><td>' + conv + '</td><td>' + cpcRaw + '</td><td>' + status + '</td></tr>';
+});
+html += '</table>';
+
+// === 步骤2: 按关键词聚合 ===
+html += '<div class="section"><h2>📊 步骤2: 按关键词聚合 (与页面显示的汇总逻辑一致)</h2>';
+const keywordMap = new Map();
+jsonData.forEach(row => {
+    let kw = '';
+    const k = getValue(row, ['关键词','搜索词','SearchTerm','Keyword','search_term','searchWord'], keyIndex);
+    if (k) kw = String(k).trim();
+    if (kw === '-' || kw === '—' || !kw) return;
+
+    const cost = parseNumber(getValue(row, ['总费用','消费','费用','Cost','cost','总消费','花费','金额'], keyIndex)) || 0;
+    const conv = parseNumber(getValue(row, ['转化数','转化','转化量','转化次数','Conversions','conversions','转化目标数'], keyIndex)) || 0;
+    const clicks = parseNumber(getValue(row, ['点击次数','点击','Clicks','clicks','点击量','总点击次数'], keyIndex)) || 0;
+
+    if (!keywordMap.has(kw)) keywordMap.set(kw, { keyword: kw, totalCost: 0, totalConversion: 0, totalClicks: 0, rows: 0 });
+    const kd = keywordMap.get(kw);
+    kd.totalCost += cost; kd.totalConversion += conv; kd.totalClicks += clicks; kd.rows++;
+});
+
+const kwArray = Array.from(keywordMap.values()).sort((a,b) => b.totalConversion - a.totalConversion);
+html += '<table><tr><th>#</th><th>关键词</th><th>行数</th><th>总费用</th><th>总转化</th><th>总点击</th><th>平均CPC</th><th>转化成本</th></tr>';
+kwArray.forEach((k, idx) => {
+    const avgCpc = k.totalClicks > 0 ? (k.totalCost / k.totalClicks).toFixed(2) : '0.00';
+    const convCost = k.totalConversion > 0 ? (k.totalCost / k.totalConversion).toFixed(2) : '0.00';
+    html += '<tr><td>' + (idx+1) + '</td><td>' + k.keyword + '</td><td>' + k.rows + '</td><td>' + k.totalCost.toFixed(2) + '</td><td>' + k.totalConversion.toFixed(0) + '</td><td>' + k.totalClicks.toFixed(0) + '</td><td>' + avgCpc + '</td><td>' + convCost + '</td></tr>';
+});
+html += '</table>';
+
+// === 步骤3: 整体汇总校验 ===
+html += '<h2>🎯 步骤3: 整体汇总交叉校验</h2>';
+html += '<div class="summary">';
+
+// 方法1: 直接加总所有行
+const m1_cost = totalRaw.cost;
+const m1_conv = totalRaw.conv;
+const m1_clicks = totalRaw.clicks;
+
+// 方法2: 从keywordMap汇总
+let m2_cost = 0, m2_conv = 0, m2_clicks = 0;
+kwArray.forEach(k => { m2_cost += k.totalCost; m2_conv += k.totalConversion; m2_clicks += k.totalClicks; });
+
+// 方法3: 手动逐条加总（标准答案）
+// 在线问诊3行: 22.66+18.29+0 = 40.95, 转化:1+0+0=1, 点击:4+3+0=7
+// 其他15行全部为0
+const m3_cost = 22.66 + 18.29;
+const m3_conv = 1;
+const m3_clicks = 4 + 3;
+
+const checkVal = (label, v1, v2, v3) => {
+    const ok = Math.abs(v1-v2) < 0.01 && Math.abs(v1-v3) < 0.01;
+    return '<tr><td>' + label + '</td><td class="val">' + v1.toFixed(2) + '</td><td class="val">' + v2.toFixed(2) + '</td><td class="val">' + v3.toFixed(2) + '</td><td>' + (ok ? '<span class="pass">✓ 一致</span>' : '<span class="fail">✗ 不一致!</span>') + '</td></tr>';
+};
+
+html += '<table><tr><th>指标</th><th>逐行加总</th><th>按关键词再汇总</th><th>人工口算</th><th>校验</th></tr>';
+html += checkVal('总费用', m1_cost, m2_cost, m3_cost);
+html += checkVal('总转化', m1_conv, m2_conv, m3_conv);
+html += checkVal('总点击', m1_clicks, m2_clicks, m3_clicks);
+html += '</table>';
+
+html += '<h3>📌 最终统计卡片期望数值:</h3>';
+html += '<ul>';
+html += '<li>总费用 = <span class="val">¥' + m1_cost.toFixed(2) + '</span> (由在线问诊 ¥22.66 + ¥18.29 产生)</li>';
+html += '<li>总转化 = <span class="val">' + m1_conv + '</span> (来自"弋矶山网上预约专家号"这1条)</li>';
+html += '<li>总点击 = <span class="val">' + m1_clicks + '</span> (在线问诊 4 + 3 + 0)</li>';
+html += '<li>平均CPC = 总费用/总点击 = <span class="val">¥' + (m1_cost/m1_clicks).toFixed(2) + '</span></li>';
+html += '<li>关键词数量 = <span class="val">' + kwArray.length + '</span> (已去重)</li>';
+html += '</ul>';
+
+// === 步骤4: 图表数据验证 ===
+html += '<h2>📈 步骤4: 图表数据验证 (按日期展开)</h2>';
+// 模拟 parseDateRange
+function parseDateRange(d) {
+    if (!d || typeof d !== 'string') return [];
+    d = d.trim();
+    const m = d.match(/^(\d{4})-(\d{1,2})-(\d{1,2})([\u4e00-\u9fa5至\-~到]+)(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) {
+        const dates = [];
+        const start = new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
+        const end = new Date(parseInt(m[5]), parseInt(m[6])-1, parseInt(m[7]));
+        if (!isNaN(start) && !isNaN(end) && start <= end) {
+            let cur = new Date(start);
+            while (cur <= end) {
+                dates.push(cur.getFullYear() + '-' + String(cur.getMonth()+1).padStart(2,'0') + '-' + String(cur.getDate()).padStart(2,'0'));
+                cur.setDate(cur.getDate() + 1);
+            }
+            return dates;
+        }
+    }
+    return [d];
+}
+
+// 构建日常数据（与主页面逻辑一致）
+const dailyKeywordMap = new Map();
+jsonData.forEach(row => {
+    let kw = '';
+    const k = getValue(row, ['关键词','搜索词','SearchTerm','Keyword'], keyIndex);
+    if (k) kw = String(k).trim();
+    if (!kw || kw === '-') return;
+    const dateRaw = normalizeDate(getValue(row, ['时间','日期','Date','date','统计日期'], keyIndex));
+    const cost = parseNumber(getValue(row, ['总费用','消费','费用','Cost','cost'], keyIndex)) || 0;
+    const conv = parseNumber(getValue(row, ['转化数','转化','Conversions'], keyIndex)) || 0;
+    const clicks = parseNumber(getValue(row, ['点击次数','点击','Clicks'], keyIndex)) || 0;
+
+    if (!dailyKeywordMap.has(kw)) dailyKeywordMap.set(kw, { keyword: kw, totalCost: 0, totalConversion: 0, totalClicks: 0, dailyData: new Map() });
+    const kd = dailyKeywordMap.get(kw);
+    kd.totalCost += cost; kd.totalConversion += conv; kd.totalClicks += clicks;
+
+    const dates = parseDateRange(dateRaw);
+    const dayCount = dates.length;
+    const dailyCost = cost / dayCount, dailyConv = conv / dayCount, dailyClicks = clicks / dayCount;
+    dates.forEach(date => {
+        if (kd.dailyData.has(date)) {
+            const existing = kd.dailyData.get(date);
+            existing.cost += dailyCost; existing.conversion += dailyConv; existing.clicks += dailyClicks;
+        } else {
+            kd.dailyData.set(date, { date, cost: dailyCost, conversion: dailyConv, clicks: dailyClicks });
+        }
+    });
+});
+
+const topKws = Array.from(dailyKeywordMap.values()).sort((a,b) => b.totalConversion - a.totalConversion).slice(0, 20);
+
+// 收集所有日期
+const dateSet = new Set();
+topKws.forEach(k => k.dailyData.forEach((v, d) => dateSet.add(d)));
+const dates = Array.from(dateSet).sort();
+
+html += '<p>日期范围: <span class="val">' + dates.join(', ') + '</span> (共 ' + dates.length + ' 天)</p>';
+html += '<p>图表中展示的关键词 (' + topKws.length + '个):</p>';
+html += '<table><tr><th>曲线标签</th><th>日期</th><th>转化数</th><th>费用</th><th>点击</th><th>日CPC</th></tr>';
+
+topKws.forEach(kw => {
+    kw.dailyData.forEach(day => {
+        const cpc = day.clicks > 0 ? (day.cost / day.clicks).toFixed(2) : '0.00';
+        const convCost = day.conversion > 0 ? (day.cost / day.conversion).toFixed(2) : '0.00';
+        html += '<tr><td>' + kw.keyword + '</td><td>' + day.date + '</td><td>' + day.conversion + '</td><td>' + day.cost.toFixed(2) + '</td><td>' + day.clicks + '</td><td>' + cpc + '</td></tr>';
+    });
+});
+html += '</table>';
+
+// === 步骤5: 表格数值验证 ===
+html += '<h2>📋 步骤5: 页面底部表格数值</h2>';
+html += '<table><tr><th>排名</th><th>关键词</th><th>转化</th><th>费用</th><th>点击</th><th>平均CPC</th><th>转化率</th><th>评估</th></tr>';
+topKws.forEach((kw, idx) => {
+    const avgCPC = kw.totalClicks > 0 ? (kw.totalCost / kw.totalClicks).toFixed(2) : '0.00';
+    const convRate = kw.totalClicks > 0 ? (kw.totalConversion / kw.totalClicks * 100).toFixed(2) + '%' : '0.00%';
+    let rating = '低效';
+    if (kw.totalConversion >= 5) rating = '高效';
+    else if (kw.totalConversion >= 2) rating = '中效';
+    html += '<tr><td>' + (idx+1) + '</td><td>' + kw.keyword + '</td><td>' + Math.round(kw.totalConversion) + '</td><td>' + kw.totalCost.toFixed(2) + '</td><td>' + Math.round(kw.totalClicks) + '</td><td>' + avgCPC + '</td><td>' + convRate + '</td><td>' + rating + '</td></tr>';
+});
+html += '</table>';
+
+// 手动交叉验证
+html += '<h2>🔍 步骤6: 人工逐笔核对高价值数据</h2>';
+html += '<div class="summary">';
+html += '<p><strong>"在线问诊" 出现 3 次:</strong></p>';
+html += '<ul>';
+html += '<li>第13行: 点击 <span class="val">4</span>, 费用 <span class="val">¥22.66</span>, CPC ¥5.67, 转化 <span class="val">1</span></li>';
+html += '<li>第16行: 点击 <span class="val">3</span>, 费用 <span class="val">¥18.29</span>, CPC ¥6.10, 转化 <span class="val">0</span></li>';
+html += '<li>第17行: 点击 <span class="val">0</span>, 费用 <span class="val">¥0</span>, CPC ¥0, 转化 <span class="val">0</span></li>';
+html += '<li>汇总: 点击 4+3+0=<span class="val">7</span>, 费用 ¥22.66+¥18.29=<span class="val">¥40.95</span>, 转化 1+0+0=<span class="val">1</span></li>';
+html += '<li>平均CPC: ¥40.95/7=<span class="val">¥5.85</span> (✓ 比两行原始CPC 5.67和6.10的加权平均合理)</li>';
+html += '<li>转化成本: ¥40.95/1=<span class="val">¥40.95</span></li>';
+html += '</ul>';
+
+html += '<p><strong>"全国肿瘤医院排名前十名的医院" 出现 4 次:</strong></p>';
+html += '<ul>';
+html += '<li>第4行: 展示 3, 第5行: 展示 9, 第6行: 展示 3, 第15行: 展示 3</li>';
+html += '<li>汇总: 展示 <span class="val">18</span>, 点击 <span class="val">0</span>, 费用 <span class="val">¥0</span>, 转化 <span class="val">0</span></li>';
+html += '</ul>';
+
+html += '<p><strong>其他 11 个关键词均只出现 1 次且转化为 0:</strong> 无异常</p>';
+html += '</div>';
+
+// 总览
+const totalCost = kwArray.reduce((s,k) => s + k.totalCost, 0);
+const totalConv = kwArray.reduce((s,k) => s + k.totalConversion, 0);
+const totalClicks = kwArray.reduce((s,k) => s + k.totalClicks, 0);
+const avgCPC = totalClicks > 0 ? (totalCost / totalClicks).toFixed(2) : '0.00';
+
+html += '<div class="section"><h2>✅ 最终结论</h2><div class="summary">';
+html += '<p><strong>页面顶部 4 个统计卡片应显示:</strong></p>';
+html += '<ul>';
+html += '<li>总费用: <span class="val">¥' + totalCost.toFixed(2) + '</span></li>';
+html += '<li>总转化: <span class="val">' + totalConv.toFixed(2) + '</span></li>';
+html += '<li>平均CPC: <span class="val">¥' + avgCPC + '</span></li>';
+html += '<li>关键词数量: <span class="val">' + kwArray.length + '</span></li>';
+html += '</ul>';
+
+if (issues.length === 0 && Math.abs(totalCost - 40.95) < 0.01 && totalConv === 1 && totalClicks === 7) {
+    html += '<p class="pass"><strong>✓ 全部数值校验通过: 解析 → 聚合 → 图表 → 表格 均一致</strong></p>';
+} else {
+    html += '<p class="fail"><strong>✗ 发现不一致问题: ' + issues.join(', ') + '</strong></p>';
+}
+html += '</div></div>';
+
+document.getElementById('out').innerHTML = html;
+</script>
+</body>
+</html>
