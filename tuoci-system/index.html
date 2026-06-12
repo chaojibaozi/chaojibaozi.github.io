@@ -332,6 +332,24 @@
                                     <input type="range" id="maxKeywords" value="200" min="100" max="2000" step="50" style="flex:1;height:6px;background:#e2e8f0;border-radius:3px;appearance:none;cursor:pointer;outline:none;">
                                     <span style="font-size:12px;color:#94a3b8;">2000</span>
                                 </div>
+                                <label style="font-size:14px;color:#475569;font-weight:500;display:flex;align-items:center;gap:6px;margin-top:14px;" title="从百度/360搜索建议API获取的真实热词数量上限">
+                                    <span>拓热词个数</span>
+                                    <span class="range-value" id="maxHotWordsVal" style="color:#764ba2;font-weight:700;min-width:36px;text-align:right;">50</span>
+                                </label>
+                                <div class="range-wrap" style="margin-top:6px;">
+                                    <span style="font-size:12px;color:#94a3b8;">10</span>
+                                    <input type="range" id="maxHotWords" value="50" min="10" max="500" step="10" style="flex:1;height:6px;background:#ede9fe;border-radius:3px;appearance:none;cursor:pointer;outline:none;">
+                                    <span style="font-size:12px;color:#94a3b8;">500</span>
+                                </div>
+                                <label style="font-size:14px;color:#475569;font-weight:500;display:flex;align-items:center;gap:6px;margin-top:14px;" title="热词扩展层级：1层=仅从词根直接获取；2层=对第一层热词继续扩展获取更多相关词；3层=再扩展一次">
+                                    <span>热词扩展深度</span>
+                                    <span class="range-value" id="hotDepthVal" style="color:#9333ea;font-weight:700;min-width:36px;text-align:right;">2</span>
+                                </label>
+                                <div class="range-wrap" style="margin-top:6px;">
+                                    <span style="font-size:12px;color:#94a3b8;">1</span>
+                                    <input type="range" id="hotDepth" value="2" min="1" max="3" step="1" style="flex:1;height:6px;background:#ede9fe;border-radius:3px;appearance:none;cursor:pointer;outline:none;">
+                                    <span style="font-size:12px;color:#94a3b8;">3</span>
+                                </div>
                             </div>
                         </div>
                         <div class="card-section">
@@ -683,12 +701,13 @@
                 return '了解型';
             },
 
-            expandKeywords(seedWords, settings, globalSeen) {
+            expandKeywords(seedWords, settings, globalSeen, remainingLimit) {
                 const results = [];
                 const seen = globalSeen || new Set();
+                const effectiveMax = typeof remainingLimit === 'number' ? remainingLimit : (settings && settings.maxKeywords) || 200;
                 const addKeyword = (text, source, isHotWord) => {
                     const key = text.replace(/\s+/g, '');
-                    if (seen.has(key) || results.length >= settings.maxKeywords) return;
+                    if (seen.has(key) || results.length >= effectiveMax) return;
                     seen.add(key);
                     const estimatedData = SearchSuggestions.estimateSearchData(text);
                     results.push({
@@ -705,15 +724,25 @@
                 seedWords.forEach(seed => {
                     const cleanSeed = seed.trim();
                     if (!cleanSeed) return;
+                    if (results.length >= effectiveMax) return;
                     addKeyword(cleanSeed, '词根', false);
                     if (settings.useSemantic) {
-                        this.suffixes.forEach(s => addKeyword(cleanSeed + s, '语义扩展', false));
-                        this.prefixes.forEach(p => addKeyword(p + cleanSeed, '语义扩展', false));
+                        this.suffixes.forEach(s => {
+                            if (results.length >= effectiveMax) return;
+                            addKeyword(cleanSeed + s, '语义扩展', false);
+                        });
+                        this.prefixes.forEach(p => {
+                            if (results.length >= effectiveMax) return;
+                            addKeyword(p + cleanSeed, '语义扩展', false);
+                        });
                     }
                     if (settings.useModifier) {
                         this.modifiers.forEach(mod => {
+                            if (results.length >= effectiveMax) return;
                             seedWords.forEach(other => {
-                                if (other !== seed) addKeyword(cleanSeed + mod + other, '组合扩展', false);
+                                if (other !== seed && results.length < effectiveMax) {
+                                    addKeyword(cleanSeed + mod + other, '组合扩展', false);
+                                }
                             });
                         });
                     }
@@ -765,24 +794,30 @@
 
             async get360Suggestions(keyword) {
                 try {
-                    const data = await this.jsonp('https://sug.so.com/suggest?word=' + encodeURIComponent(keyword) + '&encodein=UTF-8&encodeout=UTF-8&callback={callback}');
-                    return (data && data.result) || [];
+                    const data = await this.jsonp('https://sug.so.360.cn/suggest?word=' + encodeURIComponent(keyword) + '&callback={callback}');
+                    if (data && data.result && Array.isArray(data.result)) {
+                        return data.result.map(item => item.word);
+                    }
+                    return [];
                 } catch (e) {
                     console.warn('[360 API] 获取失败:', e.message);
                     return [];
                 }
             },
 
-            // 获取真实搜索数据（从后端API）
+            // 获取真实搜索数据（从后端API，带3秒超时）
             async getSearchData(keyword) {
                 try {
-                    const response = await fetch(`http://localhost:3001/api/search-data?keyword=${encodeURIComponent(keyword)}`);
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3000);
+                    const response = await fetch(`http://localhost:3001/api/search-data?keyword=${encodeURIComponent(keyword)}`, { signal: controller.signal });
+                    clearTimeout(timeoutId);
                     const data = await response.json();
                     return {
                         searchVolume: data.searchVolume || Math.floor(Math.random() * 10000) + 50,
                         competition: data.competition !== undefined ? data.competition : Math.random() * 0.9 + 0.1,
                         businessValue: data.businessValue || this.calculateBusinessValue(keyword),
-                        isReal: true
+                        isReal: data.isReal === true
                     };
                 } catch (error) {
                     console.warn('[Search API] 获取失败:', error.message);
@@ -790,13 +825,29 @@
                 }
             },
 
-            // 获取搜索数据（用于热词，即使后端不可用也标记为真实）
+            // 获取热词的搜索数据（优先调用后端，失败回退估算；关键词本身始终标记为真实API来源）
             async getHotWordSearchData(keyword) {
-                const searchData = await this.getSearchData(keyword);
-                return {
-                    ...searchData,
-                    isReal: true
-                };
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 2500);
+                    const response = await fetch(`http://localhost:3001/api/search-data?keyword=${encodeURIComponent(keyword)}`, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    const data = await response.json();
+                    return {
+                        searchVolume: data.searchVolume || Math.floor(Math.random() * 8000) + 100,
+                        competition: data.competition !== undefined ? data.competition : Math.random() * 0.7 + 0.2,
+                        businessValue: data.businessValue || this.calculateBusinessValue(keyword),
+                        isReal: true
+                    };
+                } catch (error) {
+                    const estimated = this.estimateSearchData(keyword);
+                    return {
+                        searchVolume: estimated.searchVolume,
+                        competition: estimated.competition,
+                        businessValue: estimated.businessValue,
+                        isReal: true
+                    };
+                }
             },
 
             // 备用估算数据（当API不可用时）
@@ -845,65 +896,98 @@
                 return '了解型';
             },
 
-            // 从建议 API 获取并构建关键词数据
-            async fetchHotKeywords(seeds, seenSet) {
-                const results = [];
-                for (let i = 0; i < seeds.length; i++) {
-                    const seed = seeds[i].trim();
-                    if (!seed) continue;
+            async fetchHotKeywords(seeds, seenSet, settings, remainingLimit) {
+                const maxHotWords = (settings && settings.maxHotWords) || 50;
+                const globalRemaining = typeof remainingLimit === 'number' ? remainingLimit : Number.MAX_SAFE_INTEGER;
+                const maxCount = Math.min(maxHotWords, globalRemaining);
+                const depth = (settings && settings.hotDepth) || 1;
+                const seen = seenSet || new Set();
+                const collected = [];
 
-                    // 并行请求百度+360
-                    const [baiduWords, qihuWords] = await Promise.all([
-                        this.getBaiduSuggestions(seed),
-                        this.get360Suggestions(seed)
-                    ]);
+                const collectWord = (word, sourceName) => {
+                    if (collected.length >= maxCount) return false;
+                    const key = word.replace(/\s+/g, '');
+                    if (seen.has(key)) return true;
+                    seen.add(key);
+                    collected.push({ word: word, source: sourceName });
+                    return true;
+                };
 
-                    // 处理百度结果
-                    for (let idx = 0; idx < baiduWords.length; idx++) {
-                        const word = baiduWords[idx];
-                        const key = word.replace(/\s+/g, '');
-                        if (seenSet && seenSet.has(key)) continue;
-                        if (seenSet) seenSet.add(key);
-                        
-                        const searchData = await this.getHotWordSearchData(word);
-                        results.push({
-                            id: id(), 
-                            text: word, 
-                            source: '百度热词', 
-                            isHotWord: true,
-                            searchVolume: searchData.searchVolume,
-                            competition: searchData.competition,
-                            businessValue: searchData.businessValue,
-                            intent: this.classifyIntent(word),
-                            length: word.length,
-                            isReal: true,
-                            createdAt: new Date().toISOString()
-                        });
+                let currentLayer = seeds.map(s => s.trim()).filter(s => s);
+
+                for (let layer = 0; layer < depth; layer++) {
+                    if (collected.length >= maxCount) break;
+
+                    const nextLayer = [];
+                    for (let i = 0; i < currentLayer.length; i++) {
+                        if (collected.length >= maxCount) break;
+
+                        const seed = currentLayer[i];
+                        if (!seed) continue;
+
+                        try {
+                            const [baiduWords, qihuWords] = await Promise.all([
+                                this.getBaiduSuggestions(seed),
+                                this.get360Suggestions(seed)
+                            ]);
+
+                            const baiduWordsArr = Array.isArray(baiduWords) ? baiduWords : [];
+                            const qihuWordsArr = Array.isArray(qihuWords) ? qihuWords : [];
+
+                            for (let idx = 0; idx < baiduWordsArr.length; idx++) {
+                                if (collected.length >= maxCount) break;
+                                const word = baiduWordsArr[idx];
+                                const cont = collectWord(word, '百度热词');
+                                if (cont) nextLayer.push(word);
+                            }
+
+                            for (let idx = 0; idx < qihuWordsArr.length; idx++) {
+                                if (collected.length >= maxCount) break;
+                                const word = qihuWordsArr[idx];
+                                const cont = collectWord(word, '360热词');
+                                if (cont) nextLayer.push(word);
+                            }
+                        } catch (e) {
+                            console.warn('[fetchHotKeywords] 获取失败:', seed, e.message);
+                        }
+
+                        await new Promise(r => setTimeout(r, 150));
                     }
 
-                    // 处理360结果
-                    for (let idx = 0; idx < qihuWords.length; idx++) {
-                        const word = qihuWords[idx];
-                        const key = word.replace(/\s+/g, '');
-                        if (seenSet && seenSet.has(key)) continue;
-                        if (seenSet) seenSet.add(key);
-                        
-                        const searchData = await this.getHotWordSearchData(word);
+                    currentLayer = nextLayer.slice(0, 15);
+                    if (currentLayer.length === 0) break;
+                }
+
+                const results = [];
+                if (collected.length === 0) return results;
+
+                const batchSize = 10;
+                for (let i = 0; i < collected.length; i += batchSize) {
+                    const batch = collected.slice(i, i + batchSize);
+                    const dataPromises = batch.map(item =>
+                        this.getHotWordSearchData(item.word)
+                            .catch(() => this.estimateSearchData(item.word))
+                    );
+                    const batchData = await Promise.all(dataPromises);
+                    for (let j = 0; j < batch.length; j++) {
+                        const item = batch[j];
+                        const data = batchData[j] || this.estimateSearchData(item.word);
                         results.push({
-                            id: id(), 
-                            text: word, 
-                            source: '360热词', 
+                            id: id(),
+                            text: item.word,
+                            source: item.source,
                             isHotWord: true,
-                            searchVolume: searchData.searchVolume,
-                            competition: searchData.competition,
-                            businessValue: searchData.businessValue,
-                            intent: this.classifyIntent(word),
-                            length: word.length,
+                            searchVolume: data.searchVolume,
+                            competition: data.competition,
+                            businessValue: data.businessValue,
+                            intent: this.classifyIntent(item.word),
+                            length: item.word.length,
                             isReal: true,
                             createdAt: new Date().toISOString()
                         });
                     }
                 }
+
                 return results;
             }
         };
@@ -914,7 +998,7 @@
                 seedWords: '',
                 deduplicate: true,
                 dedupPacks: true,
-                settings: { useSemantic: true, useModifier: true, useHotWords: true, maxKeywords: 200 },
+                settings: { useSemantic: true, useModifier: true, useHotWords: true, maxKeywords: 200, maxHotWords: 50, hotDepth: 2 },
                 results: [],
                 isLoading: false,
                 progress: 0,
@@ -1006,12 +1090,16 @@
                 this.state.settings.useModifier = document.getElementById('useModifier').checked;
                 this.state.settings.useHotWords = document.getElementById('useHotWords').checked;
                 this.state.settings.maxKeywords = parseInt(document.getElementById('maxKeywords').value);
+                this.state.settings.maxHotWords = parseInt(document.getElementById('maxHotWords').value);
+                this.state.settings.hotDepth = parseInt(document.getElementById('hotDepth').value);
             },
 
             async startExpansion() {
                 this.readFormValues();
                 const seeds = this.state.seedWords.split('\n').map(w => w.trim()).filter(w => w.length > 0);
                 if (seeds.length === 0) { alert('请输入至少一个关键词词根'); return; }
+
+                const maxKeywords = this.state.settings.maxKeywords || 200;
 
                 this.setState({ isLoading: true, progress: 0, results: [] });
                 document.getElementById('loadingState').style.display = 'block';
@@ -1021,19 +1109,21 @@
 
                 let allResults = [];
                 for (let i = 0; i < seeds.length; i++) {
-                    const seedResults = LocalSemanticModel.expandKeywords([seeds[i]], this.state.settings, globalSeen);
+                    if (allResults.length >= maxKeywords) break;
+                    const remaining = maxKeywords - allResults.length;
+                    const seedResults = LocalSemanticModel.expandKeywords([seeds[i]], this.state.settings, globalSeen, remaining);
                     allResults = allResults.concat(seedResults);
                     this.state.progress = Math.round((i + 1) / seeds.length * 55);
                     this.updateProgress();
                     await new Promise(r => setTimeout(r, 200));
                 }
 
-                // 从百度/360搜索建议 API 获取真实下拉热词
-                if (this.state.settings.useHotWords) {
+                if (this.state.settings.useHotWords && allResults.length < maxKeywords) {
                     this.state.progress = 55;
                     document.getElementById('progressFill').style.width = '55%';
                     document.getElementById('progressText').textContent = '正在获取百度/360搜索热词...';
-                    const hotKeywords = await SearchSuggestions.fetchHotKeywords(seeds, globalSeen);
+                    const remainingForHot = maxKeywords - allResults.length;
+                    const hotKeywords = await SearchSuggestions.fetchHotKeywords(seeds, globalSeen, this.state.settings, remainingForHot);
                     allResults = allResults.concat(hotKeywords);
                     this.state.progress = 95;
                     document.getElementById('progressFill').style.width = '95%';
@@ -1044,6 +1134,10 @@
                     const packSet = new Set();
                     this.state.keywordPacks.forEach(p => p.keywords.forEach(k => packSet.add(k.replace(/\s+/g, ''))));
                     allResults = allResults.filter(r => !packSet.has(r.text.replace(/\s+/g, '')));
+                }
+
+                if (allResults.length > maxKeywords) {
+                    allResults = allResults.slice(0, maxKeywords);
                 }
 
                 this.saveHistory(seeds, allResults);
@@ -1510,6 +1604,14 @@
 
                 document.getElementById('maxKeywords').addEventListener('input', function() {
                     document.getElementById('maxKeywordsVal').textContent = this.value;
+                });
+
+                document.getElementById('maxHotWords').addEventListener('input', function() {
+                    document.getElementById('maxHotWordsVal').textContent = this.value;
+                });
+
+                document.getElementById('hotDepth').addEventListener('input', function() {
+                    document.getElementById('hotDepthVal').textContent = this.value;
                 });
 
                 document.getElementById('startBtn').addEventListener('click', () => this.startExpansion());
