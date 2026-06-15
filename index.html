@@ -1076,12 +1076,8 @@
         
         const STORAGE_KEY = 'navOrder';
         let currentPage = 'home';
-        let pendingIntent = null;     // AI 状态
-        let aiModel = null;
-        let aiReady = false;
-        let aiLoading = false;
+        let pendingIntent = null;
         let conversationHistory = [];
-        let aiResponding = false;
 
         let pendingFiles = [];
         
@@ -1198,209 +1194,26 @@
         };
 
         // ============================================================
-        // 语义向量引擎（使用本地 all-MiniLM-L6-v2 模型）
+        // 意图检测（纯关键词匹配，无需加载AI模型）
         // ============================================================
 
-        // 每个意图的示例句子（用于语义相似度匹配）
-        const INTENT_EXAMPLES = {
-            removeBg: [
-                '抠图', '去掉背景', '去除背景', '去除底色', '去掉底色',
-                '换背景', '背景替换', '透明背景', '白底图',
-                'p图', 'ps图片', '证件照', '把人抠出来',
-            ],
-            generateGif: [
-                '生成动图', '制作gif', '做动图', '合成GIF', '图片合成动画',
-                '多张图片合成动图', '图片转gif', '制作动画',
-            ],
-            analyzeKeywords: [
-                '关键词分析', 'sem分析', '推广词分析', '分析关键词',
-                '关键词数据', '关键词报表', '竞价词分析',
-            ],
-            analyzeSearchTerms: [
-                '搜索词分析', '分析搜索词', '否词分析', '搜索词匹配',
-                '搜索查询分析', '搜索词数据', '匹配度分析',
-            ],
-            tuociSystem: [
-                '拓词', '智能拓词', '关键词扩展', '词根拓词',
-                '扩展关键词', '词库扩展', '词根扩展',
-            ]
-        };
-
-        // 意图示例的预计算嵌入向量（加载模型后初始化）
-        let intentEmbeddings = null;
-        let embeddingPipeline = null;
-
-        function cosineSimilarity(a, b) {
-            let dot = 0, na = 0, nb = 0;
-            for (let i = 0; i < a.length; i++) {
-                dot += a[i] * b[i];
-                na += a[i] * a[i];
-                nb += b[i] * b[i];
+        function detectIntent(text) {
+            const result = fallbackDetectIntent(text);
+            if (result) {
+                console.log('[Intent] 关键词匹配成功:', result.action);
             }
-            return dot / (Math.sqrt(na) * Math.sqrt(nb));
+            return result;
         }
 
-        async function detectIntent(text) {
-            // 1. 先用关键词快速匹配（优先级最高！）
-            //    对于短中文，关键词匹配比AI语义匹配更可靠
-            const kwResult = fallbackDetectIntent(text);
-            
-            // 2. 如果关键词匹配成功，直接返回关键词结果！
-            //    不允许AI覆盖关键词匹配，避免"拓词吧"被识别为"抠图"的问题
-            if (kwResult) {
-                console.log('[Intent] 关键词匹配成功:', kwResult.action);
-                return kwResult;
-            }
-
-            // 3. 只有在关键词匹配失败时，才尝试AI语义匹配
-            if (embeddingPipeline && intentEmbeddings) {
-                try {
-                    const userVec = await embeddingPipeline(text, { pooling: 'mean', normalize: true });
-                    const userData = userVec.data;
-
-                    let bestAction = null;
-                    let bestScore = -1;
-                    let bestExample = '';
-
-                    for (const [action, examples] of Object.entries(intentEmbeddings)) {
-                        for (const example of examples) {
-                            const sim = cosineSimilarity(userData, example.data);
-                            if (sim > bestScore) {
-                                bestScore = sim;
-                                bestAction = action;
-                                bestExample = example;
-                            }
-                        }
-                    }
-
-                    const aiThreshold = 0.6;
-                    console.log('[AI] 语义匹配:', bestAction, '得分:', bestScore.toFixed(3), '最匹配示例:', bestExample);
-
-                    if (bestScore >= aiThreshold) {
-                        return { action: bestAction, confidence: bestScore, method: 'ai' };
-                    }
-                } catch (e) {
-                    console.warn('[AI] 语义检测失败:', e.message);
-                }
-            }
-
-            // 4. 兜底返回 null
-            return null;
+        function initAI() {
+            updateAIStatus('online', '就绪');
         }
 
-        async function initAI() {
-            if (aiReady) return true;
-            if (aiLoading) {
-                while (aiLoading) await new Promise(r => setTimeout(r, 500));
-                return aiReady;
-            }
-
-            aiLoading = true;
-            updateAIStatus('loading', 'AI引擎加载中...');
-
-            // 分阶段：库加载(1-8%) → 模型下载(10-80%) → 语义向量(82-95%) → 完成(100%)
-            let realProgress = 0;
-
-            function setProgress(pct, label) {
-                realProgress = Math.min(pct, 99);
-                const statusText = document.getElementById('aiStatusText');
-                if (statusText) statusText.textContent = label + ' ' + Math.round(realProgress) + '%';
-            }
-
-            // 模型下载的真实进度回调
-            function onDownloadProgress(data) {
-                if (data.status === 'progress' && data.total > 0) {
-                    const pct = 10 + (data.loaded / data.total) * 70;
-                    const fileName = data.name || data.file || '模型文件';
-                    const loadedMB = (data.loaded / 1024 / 1024).toFixed(1);
-                    const totalMB = (data.total / 1024 / 1024).toFixed(1);
-                    setProgress(pct, '下载 ' + fileName + ' (' + loadedMB + '/' + totalMB + 'MB)');
-                } else if (data.status === 'initiate') {
-                    const fileName = data.name || data.file || '';
-                    updateAIStatus('loading', '准备下载 ' + fileName);
-                }
-            }
-
-            try {
-                setProgress(1, '加载AI引擎');
-
-                // 设置 60 秒超时
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('模型加载超时(>60秒)')), 60000)
-                );
-
-                // 动态加载 @huggingface/transformers v3（使用 ESM 入口）
-                const loadPromise = import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2/+esm');
-                const { env, pipeline } = await Promise.race([loadPromise, timeoutPromise]);
-
-                setProgress(8, '引擎就绪');
-
-                // 配置 ONNX WASM：proxy=true 避免依赖 SharedArrayBuffer，兼容任意 HTTP 服务
-                if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
-                    env.backends.onnx.wasm.proxy = true;
-                    env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0-dev.20250409-89f8206ba4/dist/';
-                }
-
-                // 配置模型来源：仅从 CDN 加载（GitHub Pages 无本地模型）
-                env.allowRemoteModels = true;
-                env.allowLocalModels = false;
-
-                setProgress(10, '下载AI模型');
-
-                // 加载特征提取 pipeline（带真实进度回调）
-                const pipe = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
-                    quantized: true,
-                    progress_callback: onDownloadProgress,
-                });
-
-                setProgress(82, '计算语义向量');
-
-                embeddingPipeline = pipe;
-
-                // 预计算所有意图示例的嵌入向量
-                intentEmbeddings = {};
-                const entries = Object.entries(INTENT_EXAMPLES);
-                let done = 0;
-                for (const [action, examples] of entries) {
-                    const vectors = [];
-                    for (const ex of examples) {
-                        const vec = await pipe(ex, { pooling: 'mean', normalize: true });
-                        vectors.push(vec);
-                    }
-                    intentEmbeddings[action] = vectors;
-                    done++;
-                    setProgress(82 + (done / entries.length) * 13, '计算语义向量');
-                }
-
-                aiReady = true;
-                aiLoading = false;
-                updateAIStatus('online', 'AI已就绪');
-                console.log('[AI Init] 语义引擎就绪');
-                return true;
-
-            } catch (e) {
-                aiLoading = false;
-                updateAIStatus('offline', '关键词匹配');
-                console.log('[AI Init] 模型加载失败:', e.message);
-                return false;
-            }
-        }
-
-        function retryLoadAI() {
-            if (aiReady || aiLoading) return;
-            aiReady = false;
-            updateAIStatus('loading', 'AI加载中...');
-            initAI();
-        }
-        
         function updateAIStatus(status, text) {
             const dot = document.getElementById('aiStatusDot');
             const label = document.getElementById('aiStatusText');
-            dot.className = 'status-dot ' + status;
-            label.textContent = text;
-            if (status === 'online') {
-                label.classList.remove('clickable');
-            }
+            if (dot) dot.className = 'status-dot ' + status;
+            if (label) label.textContent = text;
         }
         
         // 中文关键词检测（增强版，覆盖更全面的情况）
@@ -2568,47 +2381,11 @@
 
             addUserText(text);
 
-            if (aiReady && !aiResponding) {
-                aiResponding = true;
-                showTyping();
-                try {
-                    const intent = await detectIntent(text);
-                    hideTyping();
+            showTyping();
+            await new Promise(r => setTimeout(r, 100));
+            hideTyping();
 
-                    if (intent) {
-                        const methodLabel = intent.method === 'ai'
-                            ? '（AI语义理解，可信度：' + Math.round(intent.confidence * 100) + '%）'
-                            : '（通过关键词匹配识别）';
-                        addAssistantText('检测到你的需求是：<b>' + actionLabels[intent.action] + '</b><br>' + methodLabel);
-
-                        if (intent.action === 'tuociSystem') {
-                            setTimeout(() => {
-                                addAssistantText('请在下方的输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇<br><small>例如：SEO优化、网站建设、网络营销</small>');
-                                pendingIntent = 'tuociSystem';
-                            }, 200);
-                            return;
-                        }
-                        triggerToolAction(intent.action);
-                    } else {
-                        addAssistantText('我可以帮你完成以下任务：<br><br>🎬 生成动画GIF — 上传多张图片合成GIF<br>✂️ 一键抠图 — 去除图片背景<br>📊 关键词分析 — 上传SEM数据报表分析<br>🔍 搜索词分析 — 上传搜索词数据语义匹配<br>🧠 智能拓词 — 输入词根智能扩展关键词<br><br>请直接告诉我你想做什么，比如"帮我抠图"、"分析关键词"、"帮我拓词"~');
-                    }
-                } catch (e) {
-                    hideTyping();
-                    console.warn('AI意图检测失败:', e);
-                    fallbackSend(text);
-                } finally {
-                    aiResponding = false;
-                }
-            } else {
-                showTyping();
-                await new Promise(r => setTimeout(r, 200));
-                hideTyping();
-                fallbackSend(text);
-            }
-        }
-
-        function fallbackSend(text) {
-            const intent = fallbackDetectIntent(text);
+            const intent = detectIntent(text);
 
             if (intent) {
                 addAssistantText('检测到你的需求是：<b>' + actionLabels[intent.action] + '</b><br>（通过关键词匹配识别）');
