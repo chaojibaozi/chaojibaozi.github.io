@@ -34,8 +34,8 @@ label { display: block; margin-bottom: 6px; font-weight: 600; color: #495057; fo
 .size-btn.active { border-color: #667eea; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
 .size-btn.saved::after { content: ' ✓'; color: #10b981; font-weight: bold; }
 .size-btn.active.saved::after { color: #a7f3d0; }
-.ratio-options { display: flex; gap: 6px; margin-bottom: 8px; }
-.ratio-btn { flex: 1; padding: 8px 10px; border: 2px solid #dee2e6; border-radius: 6px; cursor: pointer; text-align: center; font-size: 13px; transition: all 0.2s; background: white; }
+.ratio-options { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.ratio-btn { flex: 0 0 auto; padding: 8px 14px; border: 2px solid #dee2e6; border-radius: 6px; cursor: pointer; text-align: center; font-size: 13px; transition: all 0.2s; background: white; white-space: nowrap; }
 .ratio-btn:hover { border-color: #667eea; }
 .ratio-btn.active { border-color: #667eea; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
 .upload-area { border: 2px dashed #dee2e6; padding: 10px; text-align: center; border-radius: 8px; cursor: pointer; font-size: 13px; color: #6c757d; transition: all 0.2s; }
@@ -273,8 +273,10 @@ label { display: block; margin-bottom: 6px; font-weight: 600; color: #495057; fo
                             <div class="ratio-btn active" data-ratio="free">自由</div>
                             <div class="ratio-btn" data-ratio="1.78">1.78:1</div>
                             <div class="ratio-btn" data-ratio="1.33">1.33:1</div>
+                            <div class="ratio-btn" data-ratio="1.91">1.91:1</div>
+                            <div class="ratio-btn" data-ratio="1">1:1</div>
+                            <button class="btn-auto-generate" id="autoGenerateBtn" disabled>✨ 一键自动出图</button>
                         </div>
-                        <button class="btn-auto-generate" id="autoGenerateBtn" disabled>✨ 一键自动出图</button>
                     </div>
                     <div class="saved-section" id="savedSection" style="display:none;">
                         <label>已保存：</label>
