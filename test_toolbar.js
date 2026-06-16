@@ -1,1067 +1,4 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>推广优化师系统</title>
-    <script>if(/Mobi|Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)&&window.innerWidth<768){window.location.replace('mobile/')}</script>
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #f0f2f5;
-            min-height: 100vh;
-            overflow: hidden;
-        }
-        
-        /* 抽屉式导航栏 - 固定浮层 */
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 70px;
-            height: 100vh;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow: hidden;
-            z-index: 9999;
-            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
-            border-radius: 0 12px 12px 0;
-        }
-        
-        .sidebar:hover {
-            width: 210px;
-        }
-        
-        .sidebar-header {
-            padding: 20px 15px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-        }
-        
-        .sidebar-icon {
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            position: relative;
-            animation: rocketFloat 2s ease-in-out infinite;
-        }
-        .sidebar-icon img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-        .sidebar-icon::after {
-            content: '';
-            position: absolute;
-            bottom: -21px;
-            left: 50%;
-            transform: translateX(-50%);
-            transform-origin: top center;
-            width: 10px;
-            height: 30px;
-            background: linear-gradient(to bottom, #ff6b35 0%, #ffc107 50%, transparent 100%);
-            border-radius: 0 0 50% 50% / 0 0 40% 40%;
-            animation: flameJet 0.3s ease-in-out infinite alternate;
-            filter: blur(1px);
-        }
-        @keyframes rocketFloat {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-3px); }
-        }
-        @keyframes flameJet {
-            0% {
-                opacity: 0.7;
-                transform: translateX(-50%) scaleY(0.4);
-            }
-            25% {
-                transform: translateX(-50%) scaleY(1.3);
-            }
-            50% {
-                transform: translateX(-50%) scaleY(0.7);
-            }
-            75% {
-                transform: translateX(-50%) scaleY(1.1);
-            }
-            100% {
-                opacity: 1;
-                transform: translateX(-50%) scaleY(1.4);
-            }
-        }
-        
-        .sidebar-title {
-            color: #1e293b;
-            font-size: 18px;
-            font-weight: 600;
-            white-space: nowrap;
-            opacity: 0;
-            transition: opacity 0.3s ease 0.1s;
-        }
-        
-        .sidebar:hover .sidebar-title {
-            opacity: 1;
-        }
-        
-        .nav-menu {
-            padding: 10px 10px;
-        }
-        
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 12px;
-            margin-bottom: 4px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            color: #334155;
-            text-decoration: none;
-            user-select: none;
-        }
-        
-        .nav-item:hover {
-            background: rgba(102, 126, 234, 0.15);
-            color: #667eea;
-        }
-        
-        .nav-item.active {
-            background: rgba(102, 126, 234, 0.2);
-            color: #667eea;
-            font-weight: 600;
-        }
-        
-        .nav-item.dragging {
-            opacity: 0.5;
-            transform: scale(0.98);
-        }
-        
-        .nav-item.drag-over {
-            border-top: 3px solid #667eea;
-        }
-        
-        .nav-item-icon {
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            flex-shrink: 0;
-            cursor: grab;
-        }
-        
-        .nav-item-icon:active {
-            cursor: grabbing;
-        }
-        
-        .nav-item-text {
-            white-space: nowrap;
-            opacity: 0;
-            transition: opacity 0.3s ease 0.1s;
-            font-size: 15px;
-            font-weight: 500;
-        }
-        
-        .sidebar:hover .nav-item-text {
-            opacity: 1;
-        }
-        
-        .drag-hint {
-            padding: 8px 15px;
-            color: rgba(0, 0, 0, 0.35);
-            font-size: 11px;
-            opacity: 0;
-            transition: opacity 0.3s ease 0.1s;
-        }
-        
-        .sidebar:hover .drag-hint {
-            opacity: 1;
-        }
-        
-        /* 主内容区域 - iframe容器 */
-        .content-frame {
-            width: calc(100% - 70px);
-            height: 100vh;
-            border: none;
-            display: block;
-            margin-left: 70px;
-            opacity: 0;
-            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .content-frame.loaded {
-            opacity: 1;
-        }
-        
-        /* 页面切换过渡遮罩 */
-        .transition-overlay {
-            position: fixed;
-            top: 0;
-            left: 70px;
-            width: calc(100% - 70px);
-            height: 100vh;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-            pointer-events: none;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .transition-overlay.active {
-            opacity: 1;
-        }
-        
-        /* 首页AI对话界面 */
-        .welcome-page {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            padding-left: 70px;
-        }
-        
-        .welcome-content {
-            flex: 1;
-            display: flex;
-            flex-direction: row;
-            padding: 12px;
-            min-height: 0;
-            gap: 0;
-        }
-        
-        .chat-panel {
-            width: var(--chat-width, 50%);
-            flex-shrink: 0;
-            flex-grow: 0;
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-            min-height: 0;
-        }
-        
-        .result-panel {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-            min-height: 0;
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        }
-        
-        /* 可拖拽分隔条 */
-        .panel-divider {
-            width: 8px;
-            flex-shrink: 0;
-            cursor: col-resize;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background-color 0.15s ease;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-        
-        .panel-divider::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 3px;
-            height: 32px;
-            border-radius: 2px;
-            background: #cbd5e1;
-            box-shadow: -4px 0 0 #cbd5e1, 4px 0 0 #cbd5e1;
-            transition: background 0.15s ease, box-shadow 0.15s ease;
-        }
-        
-        .panel-divider:hover::before,
-        .panel-divider.active::before {
-            background: #667eea;
-            box-shadow: -4px 0 0 #667eea, 4px 0 0 #667eea;
-        }
-        
-        .panel-divider:hover,
-        .panel-divider.active {
-            background: rgba(102, 126, 234, 0.08);
-        }
-        
-        .panel-divider.active {
-            background: rgba(102, 126, 234, 0.15);
-        }
-        
-        body.dragging-panel,
-        body.dragging-panel * {
-            cursor: col-resize !important;
-            -webkit-user-select: none !important;
-            user-select: none !important;
-        }
-        
-        .result-header {
-            padding: 12px 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-shrink: 0;
-        }
-        
-        .result-header-icon {
-            width: 36px;
-            height: 36px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            flex-shrink: 0;
-        }
-        
-        .result-header h2 {
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        .result-header .result-header-sub {
-            font-size: 11px;
-            opacity: 0.8;
-        }
-        
-        .result-clear-btn {
-            margin-left: auto;
-            padding: 5px 14px;
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 6px;
-            color: white;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-family: inherit;
-            flex-shrink: 0;
-        }
-        
-        .result-clear-btn:hover {
-            background: rgba(255,255,255,0.3);
-        }
-        
-        .result-output {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px 20px;
-            background: #fafbfc;
-            min-height: 0;
-        }
-        
-        .result-placeholder {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            min-height: 300px;
-            color: #94a3b8;
-            text-align: center;
-        }
-        
-        .result-placeholder .placeholder-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-        
-        .result-placeholder .placeholder-text {
-            font-size: 14px;
-            line-height: 1.6;
-            max-width: 280px;
-        }
-        
-        /* 对话窗口 */
-        .chat-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            min-height: 0;
-        }
-        
-        .chat-header {
-            padding: 12px 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-shrink: 0;
-        }
-        
-        .chat-header-icon {
-            width: 36px;
-            height: 36px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            flex-shrink: 0;
-        }
-        
-        .chat-header h1 {
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        .chat-header .header-sub {
-            font-size: 11px;
-            opacity: 0.8;
-        }
-        
-        .chat-header .status {
-            margin-left: auto;
-            font-size: 11px;
-            opacity: 0.8;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            flex-shrink: 0;
-        }
-        
-        .chat-header .status-text {
-            cursor: default;
-            transition: color 0.2s ease;
-        }
-        .chat-header .status-text.clickable {
-            cursor: pointer;
-            text-decoration: underline;
-            text-decoration-style: dotted;
-            text-underline-offset: 2px;
-        }
-        .chat-header .status-text.clickable:hover {
-            color: #667eea;
-            opacity: 1;
-        }
-        
-        .chat-header .status-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        
-        .status-dot.online { background: #22c55e; }
-        .status-dot.loading { background: #f59e0b; animation: pulse 1.5s infinite; }
-        .status-dot.offline { background: #ef4444; }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-        
-        .chat-messages {
-            flex: 1 1 0;
-            overflow-y: auto;
-            padding: 16px 20px;
-            background: #fafbfc;
-            min-height: 0;
-        }
-        
-        .chat-message {
-            margin-bottom: 14px;
-            animation: messageIn 0.35s ease;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .chat-message:last-child {
-            margin-bottom: 0;
-        }
-        
-        @keyframes messageIn {
-            from { opacity: 0; transform: translateY(12px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .message-row {
-            display: flex;
-            gap: 10px;
-            max-width: 85%;
-        }
-        
-        .user-message .message-row {
-            margin-left: auto;
-            flex-direction: row-reverse;
-        }
-        
-        .message-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            flex-shrink: 0;
-            align-self: flex-end;
-        }
-        
-        .user-message .message-avatar {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
-        
-        .assistant-message .message-avatar {
-            background: #e2e8f0;
-            color: #64748b;
-        }
-        
-        .message-bubble {
-            padding: 12px 16px;
-            border-radius: 12px;
-            line-height: 1.6;
-            font-size: 14px;
-            word-break: break-word;
-            overflow-wrap: break-word;
-            max-width: 100%;
-        }
-        
-        .message-bubble img {
-            max-width: 100%;
-            height: auto;
-        }
-        
-        .user-message .message-bubble {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border-bottom-right-radius: 4px;
-        }
-        
-        .assistant-message .message-bubble {
-            background: white;
-            color: #334155;
-            border: 1px solid #e2e8f0;
-            border-bottom-left-radius: 4px;
-        }
-        
-        .message-bubble code {
-            background: rgba(102, 126, 234, 0.1);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-        
-        .assistant-message .message-bubble code {
-            background: #f1f5f9;
-        }
-        
-        /* 对话中的文件上传区 */
-        .chat-upload-area {
-            border: 2px dashed #cbd5e1;
-            border-radius: 8px;
-            padding: 14px 12px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: #f8fafc;
-            margin: 4px 0;
-        }
-        
-        .chat-upload-area:hover {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.05);
-        }
-        
-        .chat-upload-area.drag-over {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.1);
-        }
-        
-        .chat-upload-icon {
-            font-size: 28px;
-            margin-bottom: 4px;
-        }
-        
-        .chat-upload-text {
-            color: #64748b;
-            font-size: 13px;
-        }
-        
-        .chat-upload-hint {
-            color: #94a3b8;
-            font-size: 11px;
-            margin-top: 4px;
-        }
-        
-        /* 图片预览在对话中 */
-        .message-image {
-            max-width: 280px;
-            max-height: 280px;
-            border-radius: 8px;
-            margin-top: 8px;
-            display: block;
-        }
-        
-        .result-image-container {
-            margin-top: 8px;
-        }
-        
-        .result-image-container img {
-            max-width: 280px;
-            max-height: 280px;
-            border-radius: 10px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-        }
-        
-        /* 下载按钮 */
-        .download-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 18px;
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 10px;
-            font-family: inherit;
-        }
-        
-        .download-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-        
-        /* 结果表格 */
-        .result-table-wrap {
-            max-height: 300px;
-            overflow-y: auto;
-            margin-top: 10px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-        }
-        
-        .result-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-        
-        .result-table th {
-            background: #f8fafc;
-            padding: 10px 12px;
-            text-align: left;
-            font-weight: 600;
-            color: #475569;
-            border-bottom: 2px solid #e2e8f0;
-            position: sticky;
-            top: 0;
-            z-index: 1;
-        }
-        
-        .result-table td {
-            padding: 8px 12px;
-            border-bottom: 1px solid #f1f5f9;
-            color: #334155;
-        }
-        
-        .result-table tbody tr:hover {
-            background: #f0f2ff;
-        }
 
-        .result-chart-wrap {
-            margin: 12px 0;
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
-        .result-chart-header {
-            padding: 12px 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-size: 14px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .result-chart-header .chart-info {
-            font-size: 12px;
-            opacity: 0.85;
-            font-weight: 400;
-        }
-
-        .result-chart-body {
-            padding: 12px;
-        }
-
-        .result-chart-body canvas {
-            display: block;
-        }
-
-        .result-stats-row {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-
-        @media (max-width: 600px) {
-            .result-stats-row { grid-template-columns: repeat(2, 1fr); }
-        }
-
-        .result-stat-item {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 10px 12px;
-            text-align: center;
-        }
-
-        .result-stat-item .label { font-size: 11px; color: #94a3b8; margin-bottom: 4px; }
-        .result-stat-item .value { font-size: 18px; font-weight: 700; color: #1e293b; }
-        .result-stat-item .value.primary { color: #667eea; }
-        .result-stat-item .value.success { color: #10b981; }
-        .result-stat-item .value.warning { color: #f59e0b; }
-        .result-stat-item .value.danger { color: #ef4444; }
-
-        .chart-legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            padding: 8px 12px;
-            background: #fafbfc;
-            border-top: 1px solid #e2e8f0;
-        }
-
-        .chart-legend-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 11px;
-            color: #64748b;
-            padding: 3px 8px;
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-
-        .chart-legend-item:hover { border-color: #667eea; color: #667eea; }
-        .chart-legend-item.hidden { opacity: 0.4; text-decoration: line-through; }
-
-        .chart-legend-dot {
-            width: 10px;
-            height: 3px;
-            border-radius: 2px;
-            flex-shrink: 0;
-        }
-
-        .rank {
-            display: inline-block; width: 24px; height: 24px; line-height: 24px;
-            text-align: center; border-radius: 50%; font-weight: 700; font-size: 12px;
-        }
-        .rank.top3 { background: linear-gradient(135deg, #ffd700, #ffaa00); color: white; }
-        .rank.normal { background: #e9ecef; color: #666; }
-
-        .tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
-        .tag-blue { background: rgba(102,126,234,0.1); color: #667eea; }
-        .tag-yellow { background: rgba(245,158,11,0.1); color: #d97706; }
-        .tag-green { background: rgba(16,185,129,0.1); color: #059669; }
-        .tag-purple { background: rgba(139,92,246,0.1); color: #7c3aed; }
-        
-        .summary-box {
-            background: #f0f9ff;
-            border: 1px solid #bae6fd;
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 12px;
-        }
-        
-        .summary-box h4 {
-            font-size: 14px;
-            color: #0369a1;
-            margin-bottom: 6px;
-        }
-        
-        .summary-box p {
-            font-size: 13px;
-            color: #475569;
-            line-height: 1.6;
-        }
-        
-        /* 聊天输入区域 */
-        .chat-input-wrapper {
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            min-height: 0;
-        }
-        
-        .chat-input-area {
-            flex: 1;
-            padding: 10px 20px 12px;
-            border-top: 1px solid #e2e8f0;
-            background: white;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            min-height: 150px;
-        }
-        
-        .input-toolbar {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 8px;
-            flex-wrap: wrap;
-            flex-shrink: 0;
-        }
-        
-        .toolbar-btn {
-            padding: 6px 12px;
-            border: 1px solid #e2e8f0;
-            background: #f8fafc;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-            color: #475569;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-family: inherit;
-        }
-        
-        .toolbar-btn:hover {
-            background: #e2e8f0;
-            border-color: #94a3b8;
-        }
-        
-        .input-wrapper {
-            display: flex;
-            gap: 8px;
-            align-items: stretch;
-            flex: 1;
-            min-height: 0;
-        }
-        
-        .chat-input {
-            flex: 1;
-            padding: 10px 14px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 14px;
-            font-family: inherit;
-            resize: none;
-            transition: border-color 0.2s ease;
-            outline: none;
-            min-height: 42px;
-            height: 100%;
-            line-height: 1.4;
-        }
-        
-        .chat-input:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-        
-        .send-btn {
-            padding: 10px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: inherit;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-        
-        .send-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
-        }
-        
-        .send-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        /* 打字指示器 */
-        .typing-indicator {
-            display: flex;
-            gap: 4px;
-            padding: 6px 0;
-        }
-        
-        .typing-dot {
-            width: 8px;
-            height: 8px;
-            background: #94a3b8;
-            border-radius: 50%;
-            animation: typingBounce 1.4s infinite;
-        }
-        
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-        
-        @keyframes typingBounce {
-            0%, 60%, 100% { transform: translateY(0); }
-            30% { transform: translateY(-6px); }
-        }
-        
-        /* 响应式 */
-        @media (max-width: 768px) {
-            .message-row { max-width: 95%; }
-            .welcome-content { padding: 8px; flex-direction: column; gap: 8px; }
-            .chat-input-wrapper { height: auto !important; flex: none !important; }
-            .chat-input-area { padding: 12px 16px; }
-            .chat-messages { padding: 16px; }
-            .chat-panel { width: 100% !important; }
-            .panel-divider { display: none; }
-            .input-divider { display: none; }
-            .result-panel { flex: none; height: 45vh; }
-            .result-output { padding: 12px 16px; }
-        }
-        
-        @media (max-width: 1200px) {
-            .result-output { padding: 12px 16px; }
-        }
-    </style>
-</head>
-<body>
-    <!-- 抽屉式导航栏 - 固定浮层 -->
-    <nav class="sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-icon"><img src="rocket-icon.svg" alt="火箭"></div>
-            <div class="sidebar-title">推广优化师系统</div>
-        </div>
-        <div class="nav-menu" id="navMenu">
-            <!-- 导航项将由JS动态生成 -->
-        </div>
-        <div class="drag-hint">💡 可拖拽图标调整顺序</div>
-    </nav>
-    
-    <!-- 页面切换过渡遮罩 -->
-    <div class="transition-overlay" id="transitionOverlay"></div>
-    
-    <!-- 主内容区域 -->
-    <div id="mainContent">
-        <!-- 首页AI对话界面 -->
-        <div class="welcome-page" id="welcomePage">
-            <div class="welcome-content">
-                <div class="chat-panel">
-                    <div class="chat-container">
-                        <div class="chat-header">
-                            <div class="chat-header-icon">🤖</div>
-                            <div>
-                                <h1>AI 智能助手</h1>
-                                <div class="header-sub">本地AI驱动，一站式处理</div>
-                            </div>
-                            <div class="status">
-                                <span class="status-dot" id="aiStatusDot"></span>
-                                <span class="status-text" id="aiStatusText">初始化中...</span>
-                            </div>
-                        </div>
-                        
-                        <div class="chat-messages" id="chatMessages">
-                            <div class="chat-message assistant-message">
-                                <div class="message-row">
-                                    <div class="message-avatar">🤖</div>
-                                    <div class="message-bubble">
-                                        你好！我是本地AI助手，可以帮你完成以下任务：<br><br>
-                                        🎬 <b>生成动画GIF</b> — 上传多张图片合成GIF<br>
-                                        ✂️ <b>一键抠图</b> — 去除图片背景<br>
-                                        📊 <b>关键词分析</b> — 上传SEM数据报表分析<br>
-                                        🔍 <b>搜索词分析</b> — 上传搜索词数据语义匹配<br>
-                                        🧠 <b>词根拓词</b> — 输入词根智能扩展关键词<br><br>
-                                        直接告诉我你想做什么，或者点击下方工具栏按钮~
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="chat-input-wrapper" id="chatInputWrapper">
-                            <div class="chat-input-area">
-                                <div class="input-toolbar">
-                                    <button class="toolbar-btn" id="uploadBtnBg">✂️ 抠图</button>
-                                    <button class="toolbar-btn" id="uploadBtnGif">🎬 做GIF</button>
-                                    <button class="toolbar-btn" id="uploadBtnKeyword">📊 关键词分析</button>
-                                    <button class="toolbar-btn" id="uploadBtnSearch">🔍 搜索词分析</button>
-                                    <button class="toolbar-btn" id="uploadBtnTuoci">🧠 词根拓词</button>
-                                    <input type="file" id="fileInput" style="display:none" accept="image/*">
-                                    <input type="file" id="fileInputData" style="display:none" accept=".csv,.xlsx,.xls">
-                                </div>
-                                <div class="input-wrapper">
-                                    <textarea class="chat-input" id="chatInput" rows="1" placeholder="输入你想做的事情，比如「帮我抠图」或「分析关键词」..."></textarea>
-                                    <button class="send-btn" id="sendBtn">发送</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="panel-divider" id="panelDivider"></div>
-                
-                <div class="result-panel">
-                    <div class="result-header">
-                        <div class="result-header-icon">📋</div>
-                        <div>
-                            <h2>处理结果</h2>
-                            <div class="result-header-sub">输出区域</div>
-                        </div>
-                        <button class="result-clear-btn" onclick="clearResultPanel()">清空</button>
-                    </div>
-                    <div class="result-output" id="resultOutput">
-                        <div class="result-placeholder">
-                            <div class="placeholder-icon">📂</div>
-                            <div class="placeholder-text">在左侧进行对话操作后，<br>处理结果将显示在这里</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- iframe 容器 -->
-        <iframe id="contentFrame" class="content-frame" style="display: none;"></iframe>
-    </div>
-    
-    <script>
         // ============================================================
         // 1. 导航菜单配置
         // ============================================================
@@ -1072,8 +9,7 @@
             { id: 'keyword-analyzer', icon: '📊', text: '关键词转化数分析', path: 'keyword-analyzer' },
             { id: 'search-analyzer', icon: '🔍', text: '搜索词匹配度分析', path: 'search-analyzer' },
             { id: 'tuoci-system', icon: '🧠', text: '智能词根拓词', path: 'tuoci-system' },
-            { id: 'caijian-generator-bing', icon: '✄', text: '必应图片裁剪', path: 'caijian-generator-bing' },
-            { id: 'caijian-generator-360', icon: '✄', text: '360图片裁剪', path: 'caijian-generator-360' }
+            { id: 'caijian-generator-bing', icon: '✄', text: '必应图片裁剪', path: 'caijian-generator-bing' }
         ];
         
         const STORAGE_KEY = 'navOrder';
@@ -2326,7 +1262,62 @@
         }
 
         // ============================================================
-        // 8. 发送消息 & AI对话
+        // 8. 常用工具栏（按使用频率排序）
+        // ============================================================
+
+        const TOOLBAR_ITEMS = [
+            { action: 'removeBg', icon: '✂️', label: '抠图' },
+            { action: 'generateGif', icon: '🎬', label: '做GIF' },
+            { action: 'analyzeKeywords', icon: '📊', label: '关键词分析' },
+            { action: 'analyzeSearchTerms', icon: '🔍', label: '搜索词分析' },
+            { action: 'tuociSystem', icon: '🧠', label: '词根拓词' }
+        ];
+
+        const TOOLBAR_USAGE_KEY = 'toolbarUsage';
+
+        function getToolUsage() {
+            try { return JSON.parse(localStorage.getItem(TOOLBAR_USAGE_KEY)) || {}; }
+            catch { return {}; }
+        }
+
+        function trackToolUsage(action) {
+            const usage = getToolUsage();
+            usage[action] = (usage[action] || 0) + 1;
+            localStorage.setItem(TOOLBAR_USAGE_KEY, JSON.stringify(usage));
+            renderToolbar();
+        }
+
+        function renderToolbar() {
+            const container = document.getElementById('inputToolbar');
+            if (!container) return;
+            const usage = getToolUsage();
+            const sorted = [...TOOLBAR_ITEMS].sort((a, b) => {
+                const ua = usage[a.action] || 0;
+                const ub = usage[b.action] || 0;
+                if (ua !== ub) return ub - ua;
+                return 0;
+            });
+            container.innerHTML = sorted.map(item =>
+                `<button class="toolbar-btn" data-action="${item.action}">${item.icon} ${item.label}</button>`
+            ).join('');
+            container.querySelectorAll('.toolbar-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const action = btn.dataset.action;
+                    trackToolUsage(action);
+                    if (action === 'tuociSystem') {
+                        pendingIntent = 'tuociSystem';
+                        addAssistantText('好的，请在下方输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇<br><small>例如：SEO优化、网站建设、网络营销</small>');
+                        return;
+                    }
+                    pendingIntent = action;
+                    addAssistantText('好的，请上传相关文件 👇');
+                    addUploadPrompt(action, actionAccepts[action], action === 'generateGif', actionDescriptions[action]);
+                });
+            });
+        }
+
+        // ============================================================
+        // 9. 发送消息 & AI对话
         // ============================================================
         const actionLabels = {
             'removeBg': '✂️ 一键智能抠图',
@@ -2349,6 +1340,7 @@
         };
 
         function triggerToolAction(action) {
+            trackToolUsage(action);
             if (action === 'tuociSystem') {
                 addAssistantText('请在下方的输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇<br><small>例如：SEO优化、网站建设、网络营销</small>');
                 pendingIntent = 'tuociSystem';
@@ -2405,7 +1397,7 @@
         }
         
         // ============================================================
-        // 9. 结果面板控制
+        // 10. 结果面板控制
         // ============================================================
         function setResultContent(html) {
             const output = document.getElementById('resultOutput');
@@ -2423,7 +1415,7 @@
         }
         
         // ============================================================
-        // 10. 面板分隔条拖拽
+        // 11. 面板分隔条拖拽
         // ============================================================
         const DIVIDER_STORAGE_KEY = 'panelDividerRatio';
         let dividerDragging = false;
@@ -2483,7 +1475,7 @@
         }
         
         // ============================================================
-        // 8. 辅助函数
+        // 12. 辅助函数
         // ============================================================
         function downloadResult(dataUrl, fileName) {
             const a = document.createElement('a');
@@ -2506,7 +1498,7 @@
         }
         
         // ============================================================
-        // 9. 事件绑定
+        // 12. 事件绑定
         // ============================================================
         document.getElementById('sendBtn').addEventListener('click', sendMessage);
         
@@ -2534,36 +1526,6 @@
             e.target.value = '';
         });
         
-        // 工具栏按钮
-        document.getElementById('uploadBtnBg').addEventListener('click', () => {
-            pendingIntent = 'removeBg';
-            addAssistantText('好的，请上传需要抠图的图片 👇');
-            addUploadPrompt('removeBg', 'image/*', false, '点击此处上传需要去除背景的图片');
-        });
-        
-        document.getElementById('uploadBtnGif').addEventListener('click', () => {
-            pendingIntent = 'generateGif';
-            addAssistantText('好的，请上传多张图片合成GIF动图 👇');
-            addUploadPrompt('generateGif', 'image/*', true, '点击此处上传多张图片（至少2张）');
-        });
-        
-        document.getElementById('uploadBtnKeyword').addEventListener('click', () => {
-            pendingIntent = 'analyzeKeywords';
-            addAssistantText('好的，请上传SEM关键词数据报表 👇');
-            addUploadPrompt('analyzeKeywords', '.csv,.xlsx,.xls', false, '点击此处上传CSV数据文件（包含关键词、展现、点击等列）');
-        });
-        
-        document.getElementById('uploadBtnSearch').addEventListener('click', () => {
-            pendingIntent = 'analyzeSearchTerms';
-            addAssistantText('好的，请上传搜索词数据 👇');
-            addUploadPrompt('analyzeSearchTerms', '.csv,.xlsx,.xls', false, '点击此处上传CSV文件（包含搜索词、关键词等列）');
-        });
-        
-        document.getElementById('uploadBtnTuoci').addEventListener('click', () => {
-            pendingIntent = 'tuociSystem';
-            addAssistantText('好的，请在下方输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇<br><small>例如：SEO优化、网站建设、网络营销</small>');
-        });
-        
         // 拖拽上传支持
         document.addEventListener('dragover', e => {
             const target = e.target.closest('.chat-upload-area');
@@ -2585,20 +1547,10 @@
         });
         
         // ============================================================
-        // 12. 初始化
+        // 13. 初始化
         // ============================================================
         renderNavMenu();
         initAI();
+        renderToolbar();
         initPanelDivider();
-    </script>
-    <script>
-var _hmt = _hmt || [];
-(function() {
-  var hm = document.createElement("script");
-  hm.src = "https://hm.baidu.com/hm.js?68d5a1800d96639b725969742d372797";
-  var s = document.getElementsByTagName("script")[0]; 
-  s.parentNode.insertBefore(hm, s);
-})();
-</script>
-</body>
-</html>
+    

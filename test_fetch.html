@@ -118,15 +118,15 @@
         }
         
         .nav-menu {
-            padding: 10px 10px;
+            padding: 20px 10px;
         }
         
         .nav-item {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 10px 12px;
-            margin-bottom: 4px;
+            padding: 14px 12px;
+            margin-bottom: 8px;
             border-radius: 10px;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -1018,15 +1018,9 @@
                         
                         <div class="chat-input-wrapper" id="chatInputWrapper">
                             <div class="chat-input-area">
-                                <div class="input-toolbar">
-                                    <button class="toolbar-btn" id="uploadBtnBg">✂️ 抠图</button>
-                                    <button class="toolbar-btn" id="uploadBtnGif">🎬 做GIF</button>
-                                    <button class="toolbar-btn" id="uploadBtnKeyword">📊 关键词分析</button>
-                                    <button class="toolbar-btn" id="uploadBtnSearch">🔍 搜索词分析</button>
-                                    <button class="toolbar-btn" id="uploadBtnTuoci">🧠 词根拓词</button>
-                                    <input type="file" id="fileInput" style="display:none" accept="image/*">
-                                    <input type="file" id="fileInputData" style="display:none" accept=".csv,.xlsx,.xls">
-                                </div>
+                                <div class="input-toolbar" id="inputToolbar"></div>
+                                <input type="file" id="fileInput" style="display:none" accept="image/*">
+                                <input type="file" id="fileInputData" style="display:none" accept=".csv,.xlsx,.xls">
                                 <div class="input-wrapper">
                                     <textarea class="chat-input" id="chatInput" rows="1" placeholder="输入你想做的事情，比如「帮我抠图」或「分析关键词」..."></textarea>
                                     <button class="send-btn" id="sendBtn">发送</button>
@@ -1072,8 +1066,7 @@
             { id: 'keyword-analyzer', icon: '📊', text: '关键词转化数分析', path: 'keyword-analyzer' },
             { id: 'search-analyzer', icon: '🔍', text: '搜索词匹配度分析', path: 'search-analyzer' },
             { id: 'tuoci-system', icon: '🧠', text: '智能词根拓词', path: 'tuoci-system' },
-            { id: 'caijian-generator-bing', icon: '✄', text: '必应图片裁剪', path: 'caijian-generator-bing' },
-            { id: 'caijian-generator-360', icon: '✄', text: '360图片裁剪', path: 'caijian-generator-360' }
+            { id: 'caijian-generator-bing', icon: '✄', text: '必应图片裁剪', path: 'caijian-generator-bing' }
         ];
         
         const STORAGE_KEY = 'navOrder';
@@ -1138,6 +1131,7 @@
                     contentFrame.style.display = 'none';
                     welcomePage.style.opacity = '0';
                     welcomePage.style.display = 'flex';
+                    renderToolbar();
                     setTimeout(() => {
                         welcomePage.style.transition = 'opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
                         welcomePage.style.opacity = '1';
@@ -2326,7 +2320,68 @@
         }
 
         // ============================================================
-        // 8. 发送消息 & AI对话
+        // 8. 常用工具栏（按使用频率排序）
+        // ============================================================
+
+        const TOOLBAR_ITEMS = [
+            { action: 'removeBg', icon: '✂️', label: '抠图' },
+            { action: 'generateGif', icon: '🎬', label: '做GIF' },
+            { action: 'analyzeKeywords', icon: '📊', label: '关键词分析' },
+            { action: 'analyzeSearchTerms', icon: '🔍', label: '搜索词分析' },
+            { action: 'tuociSystem', icon: '🧠', label: '词根拓词' }
+        ];
+
+        const TOOLBAR_USAGE_KEY = 'toolbarUsage';
+
+        function getToolUsage() {
+            try { return JSON.parse(localStorage.getItem(TOOLBAR_USAGE_KEY)) || {}; }
+            catch { return {}; }
+        }
+
+        function trackToolUsage(action) {
+            const usage = getToolUsage();
+            usage[action] = (usage[action] || 0) + 1;
+            localStorage.setItem(TOOLBAR_USAGE_KEY, JSON.stringify(usage));
+            renderToolbar();
+        }
+
+        function handleToolbarClick(action) {
+            trackToolUsage(action);
+            if (action === 'tuociSystem') {
+                pendingIntent = 'tuociSystem';
+                addAssistantText('好的，请在下方输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇<br><small>例如：SEO优化、网站建设、网络营销</small>');
+                return;
+            }
+            pendingIntent = action;
+            addAssistantText('好的，请上传相关文件 👇');
+            addUploadPrompt(action, actionAccepts[action], action === 'generateGif', actionDescriptions[action]);
+        }
+
+        function initToolbarEvents() {
+            const container = document.getElementById('inputToolbar');
+            if (!container || container.dataset.eventsInited) return;
+            container.dataset.eventsInited = '1';
+            container.addEventListener('click', function(e) {
+                var btn = e.target.closest('.toolbar-btn');
+                if (btn) handleToolbarClick(btn.dataset.action);
+            });
+        }
+
+        function renderToolbar() {
+            const container = document.getElementById('inputToolbar');
+            if (!container) return;
+            initToolbarEvents();
+            const usage = getToolUsage();
+            const sorted = [...TOOLBAR_ITEMS].sort(function(a, b) {
+                return ((usage[b.action] || 0) - (usage[a.action] || 0));
+            });
+            container.innerHTML = sorted.map(function(item) {
+                return '<button class="toolbar-btn" data-action="' + item.action + '">' + item.icon + ' ' + item.label + '</button>';
+            }).join('');
+        }
+
+        // ============================================================
+        // 9. 发送消息 & AI对话
         // ============================================================
         const actionLabels = {
             'removeBg': '✂️ 一键智能抠图',
@@ -2349,6 +2404,7 @@
         };
 
         function triggerToolAction(action) {
+            trackToolUsage(action);
             if (action === 'tuociSystem') {
                 addAssistantText('请在下方的输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇<br><small>例如：SEO优化、网站建设、网络营销</small>');
                 pendingIntent = 'tuociSystem';
@@ -2405,7 +2461,7 @@
         }
         
         // ============================================================
-        // 9. 结果面板控制
+        // 10. 结果面板控制
         // ============================================================
         function setResultContent(html) {
             const output = document.getElementById('resultOutput');
@@ -2423,7 +2479,7 @@
         }
         
         // ============================================================
-        // 10. 面板分隔条拖拽
+        // 11. 面板分隔条拖拽
         // ============================================================
         const DIVIDER_STORAGE_KEY = 'panelDividerRatio';
         let dividerDragging = false;
@@ -2483,7 +2539,7 @@
         }
         
         // ============================================================
-        // 8. 辅助函数
+        // 12. 辅助函数
         // ============================================================
         function downloadResult(dataUrl, fileName) {
             const a = document.createElement('a');
@@ -2506,7 +2562,7 @@
         }
         
         // ============================================================
-        // 9. 事件绑定
+        // 12. 事件绑定
         // ============================================================
         document.getElementById('sendBtn').addEventListener('click', sendMessage);
         
@@ -2534,36 +2590,6 @@
             e.target.value = '';
         });
         
-        // 工具栏按钮
-        document.getElementById('uploadBtnBg').addEventListener('click', () => {
-            pendingIntent = 'removeBg';
-            addAssistantText('好的，请上传需要抠图的图片 👇');
-            addUploadPrompt('removeBg', 'image/*', false, '点击此处上传需要去除背景的图片');
-        });
-        
-        document.getElementById('uploadBtnGif').addEventListener('click', () => {
-            pendingIntent = 'generateGif';
-            addAssistantText('好的，请上传多张图片合成GIF动图 👇');
-            addUploadPrompt('generateGif', 'image/*', true, '点击此处上传多张图片（至少2张）');
-        });
-        
-        document.getElementById('uploadBtnKeyword').addEventListener('click', () => {
-            pendingIntent = 'analyzeKeywords';
-            addAssistantText('好的，请上传SEM关键词数据报表 👇');
-            addUploadPrompt('analyzeKeywords', '.csv,.xlsx,.xls', false, '点击此处上传CSV数据文件（包含关键词、展现、点击等列）');
-        });
-        
-        document.getElementById('uploadBtnSearch').addEventListener('click', () => {
-            pendingIntent = 'analyzeSearchTerms';
-            addAssistantText('好的，请上传搜索词数据 👇');
-            addUploadPrompt('analyzeSearchTerms', '.csv,.xlsx,.xls', false, '点击此处上传CSV文件（包含搜索词、关键词等列）');
-        });
-        
-        document.getElementById('uploadBtnTuoci').addEventListener('click', () => {
-            pendingIntent = 'tuociSystem';
-            addAssistantText('好的，请在下方输入框中输入需要拓词的基础关键词词根，<b>每行一个</b>👇<br><small>例如：SEO优化、网站建设、网络营销</small>');
-        });
-        
         // 拖拽上传支持
         document.addEventListener('dragover', e => {
             const target = e.target.closest('.chat-upload-area');
@@ -2585,10 +2611,11 @@
         });
         
         // ============================================================
-        // 12. 初始化
+        // 13. 初始化
         // ============================================================
         renderNavMenu();
         initAI();
+        renderToolbar();
         initPanelDivider();
     </script>
     <script>
