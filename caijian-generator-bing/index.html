@@ -78,7 +78,8 @@ label { display: block; margin-bottom: 6px; font-weight: 600; color: #495057; fo
 .filter-item.active .filter-label { color: #667eea; }
 .filter-item.all.active .filter-label { color: white; }
 .output-preview-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-height: 300px; overflow-y: auto; }
-.output-item { position: relative; text-align: center; padding: 5px; background: #f8f9fa; border-radius: 6px; }
+.output-item { position: relative; text-align: center; padding: 5px; background: #f8f9fa; border-radius: 6px; border: 2px solid transparent; transition: all 0.2s; cursor: pointer; }
+.output-item.active { border-color: #667eea; background: #eef0ff; box-shadow: 0 0 0 2px rgba(102,126,234,0.2); }
 .output-item canvas { max-width: 100%; height: 50px; border: 1px solid #dee2e6; border-radius: 4px; object-fit: contain; }
 .output-item .size-label { font-size: 10px; color: #666; margin-top: 3px; }
 .output-item .remove-btn { padding: 3px 8px; font-size: 11px; color: white; background: #ef4444; border: none; border-radius: 4px; cursor: pointer; margin-top: 3px; transition: background 0.2s; }
@@ -115,7 +116,7 @@ label { display: block; margin-bottom: 6px; font-weight: 600; color: #495057; fo
 .preview-modal-footer { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; }
 .preview-modal-hint { font-size: 11px; color: #999; margin-right: 10px; }
 .top-controls { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 8px; }
-.ratio-section { display: flex; align-items: center; gap: 8px; }
+.ratio-section { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ratio-section label { margin: 0; font-size: 13px; white-space: nowrap; }
 .ratio-section .ratio-options { margin: 0; }
 .saved-section { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -159,6 +160,83 @@ label { display: block; margin-bottom: 6px; font-weight: 600; color: #495057; fo
     transform: translateX(-50%);
     border-bottom-color: rgba(0, 0, 0, 0.85);
 }
+.btn-auto-generate {
+    padding: 8px 14px;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: transform 0.2s, box-shadow 0.2s;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+.btn-auto-generate:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(245,158,11,0.3);
+}
+.btn-auto-generate:disabled {
+    background: #adb5bd;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+.btn-auto-generate.loading {
+    background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+    opacity: 0.8;
+    pointer-events: none;
+}
+.preview-type-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 6px;
+    padding: 4px;
+    background: #f1f3f4;
+    border-radius: 8px;
+}
+.type-tab {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 11px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 6px;
+    color: #6c757d;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+.type-tab:hover {
+    color: #495057;
+}
+.type-tab.active {
+    background: white;
+    color: #333;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.output-item .auto-badge {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    margin-left: 4px;
+    vertical-align: middle;
+    font-weight: 600;
+}
+.output-item .manual-badge {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: #6c757d;
+    color: white;
+    margin-left: 4px;
+    vertical-align: middle;
+    font-weight: 600;
+}
 </style>
 </head>
 <body>
@@ -196,6 +274,7 @@ label { display: block; margin-bottom: 6px; font-weight: 600; color: #495057; fo
                             <div class="ratio-btn" data-ratio="1.78">1.78:1</div>
                             <div class="ratio-btn" data-ratio="1.33">1.33:1</div>
                         </div>
+                        <button class="btn-auto-generate" id="autoGenerateBtn" disabled>✨ 一键自动出图</button>
                     </div>
                     <div class="saved-section" id="savedSection" style="display:none;">
                         <label>已保存：</label>
@@ -230,9 +309,14 @@ label { display: block; margin-bottom: 6px; font-weight: 600; color: #495057; fo
                             <canvas id="canvas"></canvas>
                         </div>
                     </div>
-                    <div class="output-preview" id="outputPreview" style="display:none;">
+                    <div class="output-preview" id="outputPreview">
                         <h4>已保存裁剪区域</h4>
                         <div class="preview-filter" id="previewFilter"></div>
+                        <div class="preview-type-tabs" id="previewTypeTabs">
+                            <span class="type-tab active" data-type="all">全部</span>
+                            <span class="type-tab" data-type="manual">🖐️ 手动</span>
+                            <span class="type-tab" data-type="auto">⚡ 自动</span>
+                        </div>
                         <div class="output-preview-grid" id="outputPreviewGrid"></div>
                     </div>
                 </div>
@@ -309,6 +393,8 @@ const state = {
     savedAreas: {},
     // 预览筛选：-1 表示全部，其他值表示图片索引
     previewFilter: -1,
+    // 类型筛选：'all' 全部, 'manual' 手动, 'auto' 自动
+    previewTypeFilter: 'all',
     // 当前正在编辑的区域 key（点击其他区域后设置）
     editingKey: null
 };
@@ -430,6 +516,7 @@ function updateImageList() {
     
     // 更新按钮状态
     document.getElementById('saveAreaBtn').disabled = state.images.length === 0;
+    document.getElementById('autoGenerateBtn').disabled = state.images.length === 0;
 }
 
 function removeImage(index) {
@@ -441,9 +528,11 @@ function removeImage(index) {
         canvas.width = 400;
         canvas.height = 300;
         document.getElementById('saveAreaBtn').disabled = true;
+        document.getElementById('autoGenerateBtn').disabled = true;
         document.getElementById('batchDownloadBtn').disabled = true;
         document.getElementById('outputPreview').style.display = 'none';
         document.getElementById('savedSection').style.display = 'none';
+        updateSavedAreasUI();
         draw();
     } else {
         if (index <= state.currentIndex) {
@@ -604,13 +693,19 @@ function updateSavedAreasUI() {
     const savedSection = document.getElementById('savedSection');
     const savedChips = document.getElementById('savedChips');
     const previewFilter = document.getElementById('previewFilter');
+    const typeTabs = document.getElementById('previewTypeTabs');
     
     const keys = Object.keys(state.savedAreas);
     
     if (keys.length === 0) {
         savedSection.style.display = 'none';
         batchBtn.disabled = true;
-        outputPreview.style.display = 'none';
+        // 保持面板可见但清空内容
+        outputPreview.style.display = 'block';
+        typeTabs.style.display = 'flex';
+        previewFilter.innerHTML = '';
+        updatePreviewGrid();
+        updateFileSizeDisplay();
         return;
     }
     
@@ -681,6 +776,14 @@ function updateSavedAreasUI() {
         previewFilter.appendChild(item);
     });
     
+    // 类型筛选标签始终显示
+    typeTabs.style.display = 'flex';
+
+    // 重置类型标签状态
+    document.querySelectorAll('.type-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.type === state.previewTypeFilter);
+    });
+
     // 更新预览网格
     updatePreviewGrid();
     // 更新文件大小显示
@@ -714,6 +817,13 @@ function updatePreviewGrid() {
     if (state.previewFilter !== -1) {
         keys = keys.filter(key => key.startsWith(`${state.previewFilter}_`));
     }
+    // 根据类型筛选（手动/自动）
+    if (state.previewTypeFilter !== 'all') {
+        keys = keys.filter(key => {
+            const area = state.savedAreas[key];
+            return area.generatedBy === state.previewTypeFilter;
+        });
+    }
     
     keys.forEach(key => {
         const area = state.savedAreas[key];
@@ -721,7 +831,8 @@ function updatePreviewGrid() {
         if (!state.images[imgIdx]) return;
         
         const outputItem = document.createElement('div');
-        outputItem.className = 'output-item';
+        outputItem.className = 'output-item' + (key === state.editingKey ? ' active' : '');
+        outputItem.dataset.key = key;
         
         const canvas = document.createElement('canvas');
         canvas.width = 80;
@@ -755,10 +866,11 @@ function updatePreviewGrid() {
         const sizeLabel = document.createElement('div');
         sizeLabel.className = 'size-label';
         const sizeText = area.isRatio ? `${area.w}:1` : `${area.w}×${area.h}`;
+        const isAuto = area.generatedBy === 'auto';
         if (state.images.length > 1) {
-            sizeLabel.textContent = `图${imgIdx + 1} ${sizeText}`;
+            sizeLabel.innerHTML = `图${imgIdx + 1} ${sizeText} <span class="${isAuto ? 'auto-badge' : 'manual-badge'}">${isAuto ? '⚡自动' : '手动'}</span>`;
         } else {
-            sizeLabel.textContent = sizeText;
+            sizeLabel.innerHTML = `${sizeText} <span class="${isAuto ? 'auto-badge' : 'manual-badge'}">${isAuto ? '⚡自动' : '手动'}</span>`;
         }
         
         const removeBtn = document.createElement('div');
@@ -1026,6 +1138,12 @@ function updateNavButtons() {
     if (state.previewFilter !== -1) {
         keys = keys.filter(key => key.startsWith(`${state.previewFilter}_`));
     }
+    if (state.previewTypeFilter !== 'all') {
+        keys = keys.filter(key => {
+            const area = state.savedAreas[key];
+            return area && area.generatedBy === state.previewTypeFilter;
+        });
+    }
     
     const idx = keys.indexOf(previewState.currentKey);
     
@@ -1044,6 +1162,12 @@ function navigatePreview(direction) {
     let keys = getSortedAreaKeys();
     if (state.previewFilter !== -1) {
         keys = keys.filter(key => key.startsWith(`${state.previewFilter}_`));
+    }
+    if (state.previewTypeFilter !== 'all') {
+        keys = keys.filter(key => {
+            const area = state.savedAreas[key];
+            return area && area.generatedBy === state.previewTypeFilter;
+        });
     }
     const idx = keys.indexOf(previewState.currentKey);
     if (idx === -1) return;
@@ -1470,8 +1594,15 @@ document.getElementById('saveAreaBtn').addEventListener('click', () => {
         cropW: state.cropW,
         cropH: state.cropH,
         isRatio: isRatioMode,
-        savedAt: originalSavedAt
+        savedAt: originalSavedAt,
+        generatedBy: 'manual'
     };
+
+    // 手动保存后切回"全部"标签，确保最新保存的结果立即可见
+    state.previewTypeFilter = 'all';
+    document.querySelectorAll('.type-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.type === 'all');
+    });
 
     updateSavedAreasUI();
     
@@ -1563,6 +1694,12 @@ document.getElementById('batchDownloadBtn').addEventListener('click', async () =
     if (state.previewFilter !== -1) {
         keys = keys.filter(key => key.startsWith(`${state.previewFilter}_`));
     }
+    if (state.previewTypeFilter !== 'all') {
+        keys = keys.filter(key => {
+            const area = state.savedAreas[key];
+            return area && area.generatedBy === state.previewTypeFilter;
+        });
+    }
     
     if (keys.length === 0) return;
     
@@ -1643,11 +1780,13 @@ document.getElementById('resetBtn').addEventListener('click', () => {
     state.viewZoom = 1;
     state.savedAreas = {};
     state.previewFilter = -1;
+    state.previewTypeFilter = 'all';
     
     updateImageList();
     canvas.width = 400;
     canvas.height = 300;
     document.getElementById('saveAreaBtn').disabled = true;
+    document.getElementById('autoGenerateBtn').disabled = true;
     document.getElementById('batchDownloadBtn').disabled = true;
     document.getElementById('outputPreview').style.display = 'none';
     document.getElementById('savedSection').style.display = 'none';
@@ -1755,7 +1894,246 @@ async function updateFileSizeDisplay() {
     }
 }
 
+// ============================
+// 主体检测 & 一键自动出图功能
+// ============================
+
+// 检测图片主体中心点（基于边缘检测 + 显著性分析）
+function detectSubjectCenter(imgElement) {
+    const w = imgElement.width;
+    const h = imgElement.height;
+    const maxDim = 200;
+    const scale = Math.min(maxDim / w, maxDim / h, 1);
+    const sw = Math.round(w * scale);
+    const sh = Math.round(h * scale);
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = sw;
+    tempCanvas.height = sh;
+    const tCtx = tempCanvas.getContext('2d');
+    tCtx.drawImage(imgElement, 0, 0, sw, sh);
+    const imageData = tCtx.getImageData(0, 0, sw, sh);
+    const data = imageData.data;
+
+    // 计算每个像素的亮度
+    const gray = new Float32Array(sw * sh);
+    for (let i = 0; i < sw * sh; i++) {
+        const idx = i * 4;
+        gray[i] = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
+    }
+
+    // 使用 Sobel 算子计算边缘强度
+    const edges = new Float32Array(sw * sh);
+    for (let y = 1; y < sh - 1; y++) {
+        for (let x = 1; x < sw - 1; x++) {
+            const tl = gray[(y - 1) * sw + (x - 1)];
+            const t  = gray[(y - 1) * sw + x];
+            const tr = gray[(y - 1) * sw + (x + 1)];
+            const l  = gray[y * sw + (x - 1)];
+            const r  = gray[y * sw + (x + 1)];
+            const bl = gray[(y + 1) * sw + (x - 1)];
+            const b  = gray[(y + 1) * sw + x];
+            const br = gray[(y + 1) * sw + (x + 1)];
+            const gx = -tl - 2 * l - bl + tr + 2 * r + br;
+            const gy = -tl - 2 * t - tr + bl + 2 * b + br;
+            edges[y * sw + x] = Math.sqrt(gx * gx + gy * gy);
+        }
+    }
+
+    // 高斯模糊平滑显著性图（使用盒状模糊近似）
+    const blurred = new Float32Array(sw * sh);
+    const kr = Math.max(3, Math.round(Math.min(sw, sh) * 0.06));
+    const invKernel = 1 / ((2 * kr + 1) * (2 * kr + 1));
+    for (let y = 0; y < sh; y++) {
+        for (let x = 0; x < sw; x++) {
+            let sum = 0;
+            for (let dy = -kr; dy <= kr; dy++) {
+                for (let dx = -kr; dx <= kr; dx++) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (nx >= 0 && nx < sw && ny >= 0 && ny < sh) {
+                        sum += edges[ny * sw + nx];
+                    }
+                }
+            }
+            blurred[y * sw + x] = sum * invKernel;
+        }
+    }
+
+    // 计算颜色奇异度（与周边区域的色差）
+    const colorSaliency = new Float32Array(sw * sh);
+    const cr = Math.max(2, Math.round(Math.min(sw, sh) * 0.04));
+    const invCR = 1 / ((2 * cr + 1) * (2 * cr + 1));
+    for (let y = cr; y < sh - cr; y++) {
+        for (let x = cr; x < sw - cr; x++) {
+            const centerIdx = (y * sw + x) * 4;
+            const crVal = data[centerIdx];
+            const cgVal = data[centerIdx + 1];
+            const cbVal = data[centerIdx + 2];
+            let diffSum = 0;
+            let count = 0;
+            for (let dy = -cr; dy <= cr; dy++) {
+                for (let dx = -cr; dx <= cr; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    const nIdx = ((y + dy) * sw + (x + dx)) * 4;
+                    const dr = crVal - data[nIdx];
+                    const dg = cgVal - data[nIdx + 1];
+                    const db = cbVal - data[nIdx + 2];
+                    diffSum += Math.sqrt(dr * dr + dg * dg + db * db);
+                    count++;
+                }
+            }
+            colorSaliency[y * sw + x] = diffSum / count;
+        }
+    }
+
+    // 合并边缘显著性 + 颜色显著性，计算综合得分
+    const combined = new Float32Array(sw * sh);
+    let maxVal = 0;
+    for (let i = 0; i < sw * sh; i++) {
+        combined[i] = blurred[i] * 0.6 + colorSaliency[i] * 0.4;
+        if (combined[i] > maxVal) maxVal = combined[i];
+    }
+
+    // 归一化后取 top 25% 的像素做加权质心
+    const threshold = maxVal * 0.25;
+    let totalWeight = 0;
+    let cx = 0, cy = 0;
+    for (let y = 0; y < sh; y++) {
+        for (let x = 0; x < sw; x++) {
+            const val = combined[y * sw + x];
+            if (val >= threshold) {
+                cx += x * val;
+                cy += y * val;
+                totalWeight += val;
+            }
+        }
+    }
+
+    if (totalWeight === 0) {
+        return { x: w / 2, y: h / 2 };
+    }
+
+    return {
+        x: (cx / totalWeight) / scale,
+        y: (cy / totalWeight) / scale
+    };
+}
+
+// 一键自动出图：围绕主体生成全部 7 个尺寸的裁剪区域
+function autoGenerateAllSizes() {
+    if (state.images.length === 0) return;
+
+    const current = state.images[state.currentIndex];
+    const status = document.getElementById('status');
+    const btn = document.getElementById('autoGenerateBtn');
+
+    btn.classList.add('loading');
+    btn.textContent = '⏳ 正在检测主体...';
+
+    // 使用 setTimeout 让 UI 先更新
+    setTimeout(() => {
+        try {
+            const subject = detectSubjectCenter(current.img);
+
+            btn.textContent = '⏳ 正在生成裁剪...';
+
+            const sizes = [
+                { w: 703, h: 368 },
+                { w: 800, h: 601 },
+                { w: 800, h: 800 },
+                { w: 1200, h: 628 },
+                { w: 1200, h: 1200 },
+                { w: 1200, h: 300 },
+                { w: 600, h: 1200 }
+            ];
+
+            let count = 0;
+            sizes.forEach((size, idx) => {
+                const ratio = size.w / size.h;
+                let cropW, cropH, cropX, cropY;
+
+                if (current.width / current.height > ratio) {
+                    cropH = current.height;
+                    cropW = cropH * ratio;
+                } else {
+                    cropW = current.width;
+                    cropH = cropW / ratio;
+                }
+
+                cropX = subject.x - cropW / 2;
+                cropY = subject.y - cropH / 2;
+
+                cropX = Math.max(0, Math.min(current.width - cropW, cropX));
+                cropY = Math.max(0, Math.min(current.height - cropH, cropY));
+
+                cropW = Math.round(cropW);
+                cropH = Math.round(cropH);
+                cropX = Math.round(cropX);
+                cropY = Math.round(cropY);
+
+                const key = `${state.currentIndex}_${size.w}_${size.h}`;
+
+                state.savedAreas[key] = {
+                    w: size.w,
+                    h: size.h,
+                    x: cropX,
+                    y: cropY,
+                    cropW: cropW,
+                    cropH: cropH,
+                    isRatio: false,
+                    savedAt: Date.now() + idx,
+                    generatedBy: 'auto'
+                };
+                count++;
+            });
+
+            // 切换到"自动"标签
+            state.previewTypeFilter = 'auto';
+            document.querySelectorAll('.type-tab').forEach(t => {
+                t.classList.toggle('active', t.dataset.type === 'auto');
+            });
+
+            updateSavedAreasUI();
+
+            status.textContent = `✅ 一键自动出图完成！已生成 ${count} 张裁剪图片`;
+            status.className = 'status success';
+            setTimeout(() => {
+                status.textContent = '';
+                status.className = 'status';
+            }, 3000);
+        } catch (err) {
+            status.textContent = '❌ 自动出图失败：' + err.message;
+            status.className = 'status error';
+            console.error(err);
+        } finally {
+            btn.classList.remove('loading');
+            btn.textContent = '✨ 一键自动出图';
+        }
+    }, 50);
+}
+
+// ============================
+// 类型筛选标签点击
+// ============================
+document.getElementById('previewTypeTabs').addEventListener('click', (e) => {
+    const tab = e.target.closest('.type-tab');
+    if (!tab) return;
+
+    state.previewTypeFilter = tab.dataset.type;
+    document.querySelectorAll('.type-tab').forEach(t => {
+        t.classList.toggle('active', t === tab);
+    });
+    updateSavedAreasUI();
+});
+
+// ============================
+// 一键自动出图按钮点击
+// ============================
+document.getElementById('autoGenerateBtn').addEventListener('click', autoGenerateAllSizes);
+
 // 初始绘制
+updateSavedAreasUI();
 draw();
 </script>
 </body>
