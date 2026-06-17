@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../styles/common.css">
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
@@ -215,9 +216,9 @@
 
     <div class="card">
         <div class="upload-area" id="uploadArea" onclick="document.getElementById('csvFile').click()">
-            <p>点击此处上传 CSV 文件 或 直接拖入文件</p>
-            <p class="tips">支持 Excel/推广后台导出的 GBK/UTF-8 编码 CSV 文件，打开即用无需加载</p>
-            <input type="file" id="csvFile" accept=".csv" style="display: none;">
+            <p>点击此处上传 CSV/XLSX/XLS 文件 或 直接拖入文件</p>
+            <p class="tips">支持 Excel/推广后台导出的 CSV、XLSX、XLS 文件，打开即用无需加载</p>
+            <input type="file" id="csvFile" accept=".csv,.xlsx,.xls" style="display: none;">
         </div>
         <div id="config-area" class="config-area hidden">
             <div class="controls">
@@ -1300,12 +1301,12 @@
 
         function autoMatchColumns(fields) {
             const matchRules = {
-                plan: ['计划', '推广计划', 'plan', 'campaign'],
-                group: ['推广组', '单元', '组', 'unit', 'group'],
-                cost: ['消费', '花费', '金额', 'cost', 'expense', '总费用'],
-                convert: ['转化', '转化数', '转化量', 'convert', 'conversion'],
-                keyword: ['关键词', 'key', 'keyword'],
-                search: ['搜索词', '搜索', 'search', 'query']
+                plan: ['计划', '推广计划', 'campaign name', 'campaign'],
+                group: ['推广组', '单元', '组', 'ad group', 'unit', 'group'],
+                cost: ['消费', '花费', '金额', 'spend', 'cost', 'expense', '总费用'],
+                convert: ['转化', '转化数', '转化量', 'conversions', 'convert', 'conversion'],
+                keyword: ['关键词', 'keyword'],
+                search: ['search term', '搜索词', '搜索', 'search', 'query']
             };
             const lowerFields = fields.map(f => f.toLowerCase().trim());
             
@@ -1321,7 +1322,7 @@
             const convertCol = fields.find((f, idx) => matchRules.convert.some(rule => lowerFields[idx].includes(rule.toLowerCase())));
             if (convertCol) { document.getElementById('sel-convert').value = convertCol; selectedConvertCol = convertCol; document.getElementById('convert-header').classList.remove('hidden'); }
             
-            const keywordCol = fields.find((f, idx) => matchRules.keyword.some(rule => lowerFields[idx].includes(rule.toLowerCase())));
+            const keywordCol = fields.find((f, idx) => matchRules.keyword.some(rule => lowerFields[idx] === rule.toLowerCase()));
             if (keywordCol) document.getElementById('sel-keyword').value = keywordCol;
             
             const searchCol = fields.find((f, idx) => matchRules.search.some(rule => lowerFields[idx].includes(rule.toLowerCase())));
@@ -1432,12 +1433,20 @@
 
         function parseFile(file) {
             if (!file) return;
-            if (!file.name.endsWith('.csv')) { alert('只支持 CSV 格式文件，请上传正确的文件'); return; }
+            const ext = file.name.toLowerCase().split('.').pop();
+            if (!['csv', 'xlsx', 'xls'].includes(ext)) { alert('只支持 CSV/XLSX/XLS 格式文件，请上传正确的文件'); return; }
             
             // 提取账户名称
             CURRENT_ACCOUNT_NAME = extractAccountName(file.name);
             IS_FRESH_ANALYZE = false;
             
+            // xlsx解析
+            if (ext === 'xlsx' || ext === 'xls') {
+                parseXlsxFile(file);
+                return;
+            }
+            
+            // csv解析
             const reader = new FileReader();
             reader.onload = function(e) {
                 let csvText = e.target.result;
@@ -1486,6 +1495,59 @@
                     },
                     error: function(err) { alert('文件解析失败：' + err.message); }
                 });
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function parseXlsxFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+                    
+                    if (!jsonData || jsonData.length === 0) {
+                        alert('xlsx文件解析失败或数据为空');
+                        return;
+                    }
+                    
+                    rawData = jsonData;
+                    const fields = Object.keys(jsonData[0]);
+                    initSelectors(fields);
+                    document.getElementById('config-area').classList.remove('hidden');
+                    document.getElementById('extracted-words-area').classList.add('hidden');
+                    sortOrder = null;
+                    document.getElementById('sort-icon').innerText = '';
+                    
+                    // 重置自动提取标志
+                    HAS_AUTO_EXTRACTED = false;
+                    BRAND_WORDS.clear();
+                    PRODUCT_WORDS.clear();
+                    AUTO_COMPETITOR_WORDS.clear();
+                    AUTO_EXTRACTED_BRAND_WORDS.clear();
+                    AUTO_EXTRACTED_PRODUCT_WORDS.clear();
+                    AUTO_EXTRACTED_COMPETITOR_WORDS.clear();
+                    USER_ADDED_BRAND_WORDS.clear();
+                    USER_ADDED_PRODUCT_WORDS.clear();
+                    USER_ADDED_COMPETITOR_WORDS.clear();
+                    
+                    // 尝试加载该账户的记忆
+                    if (CURRENT_ACCOUNT_NAME) {
+                        const memory = loadMemory(CURRENT_ACCOUNT_NAME);
+                        if (memory) {
+                            restoreFromMemory(memory);
+                            showSuccessToast('文件上传成功！已加载「' + CURRENT_ACCOUNT_NAME + '」的历史识别结果');
+                            return;
+                        }
+                    }
+                    
+                    showSuccessToast('文件上传成功！已自动匹配相关列');
+                } catch (err) {
+                    alert('xlsx文件解析失败：' + err.message);
+                }
             };
             reader.readAsArrayBuffer(file);
         }
