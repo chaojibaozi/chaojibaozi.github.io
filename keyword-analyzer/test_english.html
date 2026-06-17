@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>英文表头测试</title>
+    <style>body{font-family:monospace;white-space:pre-wrap;padding:20px;background:#1e1e1e;color:#dcdcdc}</style>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div id="out"></div>
+<script>
+// 英文表头测试数据
+const csvData = `Account name	Campaign name	Ad group	Keyword ID	Keyword	Bid match type	Ad distribution	Current maximum CPC	Impressions	Clicks	CTR	Avg. CPC	Spend	Top impression rate	Absolute top impression rate	Conversions	CPA	Conversion rate
+玉联/杭州同华/每日互动/商务服务-其他/getui.com	个推	次核心词	[82945799304067]	pushplus	Phrase	Search	7.62	309	91	29.45%	3.5	318.26	98.69%	98.69%	20	15.91	21.98%
+玉联/杭州同华/每日互动/商务服务-其他/getui.com	品牌词	常规词	[82121165260284]	个推	Exact	Search	2.25	115	28	24.35%	0.83	23.3	95.65%	95.65%	1	23.3	3.57%
+玉联/杭州同华/每日互动/商务服务-其他/getui.com	个推	核心词	[83014521198066]	消息推送	Phrase	Search	11.07	342	13	3.80%	5.89	76.53	81.55%	77.38%	0		0.00%
+玉联/杭州同华/每日互动/商务服务-其他/getui.com	个推	长尾词	[83083237886306]	push-plus	Phrase	Search	3.66	55	10	18.18%	2.09	20.87	90.57%	88.68%	1	20.87	10.00%`;
+
+function normalizeKey(k) {
+    if (k === undefined || k === null) return '';
+    return String(k).replace(/\ufeff/g, '').replace(/\s+/g, '').replace(/[\u3000]/g, '').replace(/[：:（）()【】\[\]"'"'"'""'"]/g, '').toLowerCase();
+}
+
+function buildKeyIndex(row) {
+    const keys = Object.keys(row);
+    const index = new Map();
+    for (let k of keys) {
+        const norm = normalizeKey(k);
+        if (norm && !index.has(norm)) index.set(norm, k);
+    }
+    return index;
+}
+
+function getValue(row, keys, keyIndex) {
+    const idx = keyIndex || buildKeyIndex(row);
+    for (let key of keys) {
+        const norm = normalizeKey(key);
+        if (idx.has(norm)) {
+            const v = row[idx.get(norm)];
+            if (v !== undefined && v !== null && v !== '') return v;
+        }
+    }
+    for (let key of keys) {
+        const norm = normalizeKey(key);
+        for (let [n, orig] of idx.entries()) {
+            if (n.includes(norm) || norm.includes(n)) {
+                const v = row[orig];
+                if (v !== undefined && v !== null && v !== '') return v;
+            }
+        }
+    }
+    return null;
+}
+
+function parseNumber(val) {
+    if (val === undefined || val === null || val === '') return NaN;
+    if (typeof val === 'number') return val;
+    let s = String(val).trim();
+    s = s.replace(/[,\s¥$￥€£]/g, '').replace(/%$/, '');
+    const n = parseFloat(s);
+    return isNaN(n) ? NaN : n;
+}
+
+// 解析
+const firstLine = csvData.split(/\r?\n/)[0];
+let sep = firstLine.indexOf('\t') >= 0 ? '\t' : ',';
+const wb = XLSX.read(csvData, { type: 'string', raw: true, FS: sep });
+const sheet = wb.Sheets[wb.SheetNames[0]];
+const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '', FS: sep });
+
+let out = '=== 英文表头解析测试 ===\n\n';
+out += '原始列名: [' + Object.keys(jsonData[0]).join(', ') + ']\n\n';
+
+const keyIndex = buildKeyIndex(jsonData[0]);
+out += '标准化列名: [' + Array.from(keyIndex.keys()).join(', ') + ']\n\n';
+
+// 测试字段提取
+out += '=== 字段提取测试 ===\n';
+out += '关键词列测试:\n';
+out += '  getValue(Keyword): ' + getValue(jsonData[0], ['Keyword', '关键词', '搜索词', 'SearchTerm'], keyIndex) + '\n';
+out += '  getValue(Keyword ID): ' + getValue(jsonData[0], ['Keyword ID'], keyIndex) + '\n\n';
+
+out += '费用列测试:\n';
+out += '  getValue(Spend): ' + getValue(jsonData[0], ['Spend', 'Cost', '总费用', '消费'], keyIndex) + '\n';
+out += '  parseNumber(Spend): ' + parseNumber(getValue(jsonData[0], ['Spend', 'Cost'], keyIndex)) + '\n\n';
+
+out += '转化列测试:\n';
+out += '  getValue(Conversions): ' + getValue(jsonData[0], ['Conversions', '转化数', '转化'], keyIndex) + '\n';
+out += '  parseNumber(Conversions): ' + parseNumber(getValue(jsonData[0], ['Conversions', '转化数'], keyIndex)) + '\n\n';
+
+out += '点击列测试:\n';
+out += '  getValue(Clicks): ' + getValue(jsonData[0], ['Clicks', '点击', '点击次数'], keyIndex) + '\n';
+out += '  parseNumber(Clicks): ' + parseNumber(getValue(jsonData[0], ['Clicks', '点击'], keyIndex)) + '\n\n';
+
+out += '展示列测试:\n';
+out += '  getValue(Impressions): ' + getValue(jsonData[0], ['Impressions', '展示次数', '展现'], keyIndex) + '\n';
+out += '  parseNumber(Impressions): ' + parseNumber(getValue(jsonData[0], ['Impressions', '展示次数'], keyIndex)) + '\n\n';
+
+out += 'CPC列测试:\n';
+out += '  getValue(Avg. CPC): ' + getValue(jsonData[0], ['Avg. CPC', 'CPC', '平均每次点击费用'], keyIndex) + '\n';
+out += '  parseNumber(Avg. CPC): ' + parseNumber(getValue(jsonData[0], ['Avg. CPC', 'CPC'], keyIndex)) + '\n\n';
+
+out += 'CTR列测试:\n';
+out += '  getValue(CTR): ' + getValue(jsonData[0], ['CTR', '点击率'], keyIndex) + '\n';
+out += '  parseNumber(CTR): ' + parseNumber(getValue(jsonData[0], ['CTR', '点击率'], keyIndex)) + '\n\n';
+
+out += 'Campaign列测试:\n';
+out += '  getValue(Campaign name): ' + getValue(jsonData[0], ['Campaign name', 'Campaign', '推广计划'], keyIndex) + '\n';
+out += '  getValue(Ad group): ' + getValue(jsonData[0], ['Ad group', '推广组'], keyIndex) + '\n';
+out += '  getValue(Account name): ' + getValue(jsonData[0], ['Account name', '账户名'], keyIndex) + '\n\n';
+
+// 逐行解析
+out += '=== 逐行解析结果 ===\n';
+let totalCost = 0, totalConv = 0, totalClicks = 0, totalShow = 0;
+const byKeyword = {};
+
+jsonData.forEach((row, i) => {
+    const kw = getValue(row, ['Keyword', '关键词', '搜索词', 'SearchTerm', 'Keyword ID'], keyIndex);
+    const cost = parseNumber(getValue(row, ['Spend', 'Cost', '总费用'], keyIndex)) || 0;
+    const conv = parseNumber(getValue(row, ['Conversions', '转化数', '转化'], keyIndex)) || 0;
+    const clicks = parseNumber(getValue(row, ['Clicks', '点击'], keyIndex)) || 0;
+    const show = parseNumber(getValue(row, ['Impressions', '展示次数'], keyIndex)) || 0;
+    
+    totalCost += cost; totalConv += conv; totalClicks += clicks; totalShow += show;
+    
+    if (!byKeyword[kw]) byKeyword[kw] = { cost: 0, conv: 0, clicks: 0, show: 0 };
+    byKeyword[kw].cost += cost; byKeyword[kw].conv += conv; byKeyword[kw].clicks += clicks; byKeyword[kw].show += show;
+    
+    out += '第' + (i+1) + '行: 关键词=' + kw + ', 展示=' + show + ', 点击=' + clicks + ', 费用=' + cost + ', 转化=' + conv + '\n';
+});
+
+out += '\n=== 汇总结果 ===\n';
+out += '总展示: ' + totalShow + '\n';
+out += '总点击: ' + totalClicks + '\n';
+out += '总费用: ¥' + totalCost.toFixed(2) + '\n';
+out += '总转化: ' + totalConv + '\n';
+out += '平均CPC: ¥' + (totalClicks > 0 ? (totalCost / totalClicks).toFixed(2) : '0.00') + '\n';
+out += '关键词数: ' + Object.keys(byKeyword).length + '\n\n';
+
+out += '=== 按关键词聚合 ===\n';
+const sorted = Object.keys(byKeyword).map(k => ({ keyword: k, ...byKeyword[k] })).sort((a, b) => b.conv - a.conv);
+sorted.forEach((k, i) => {
+    const cpc = k.clicks > 0 ? (k.cost / k.clicks).toFixed(2) : '0.00';
+    const cpa = k.conv > 0 ? (k.cost / k.conv).toFixed(2) : 'N/A';
+    out += (i+1) + '. ' + k.keyword + ': 展示=' + k.show + ', 点击=' + k.clicks + ', 费用=¥' + k.cost.toFixed(2) + ', 转化=' + k.conv + ', CPC=¥' + cpc + ', CPA=¥' + cpa + '\n';
+});
+
+document.getElementById('out').textContent = out;
+console.log(out);
+</script>
+</body>
+</html>
