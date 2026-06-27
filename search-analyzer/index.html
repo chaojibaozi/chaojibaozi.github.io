@@ -148,7 +148,7 @@
             min-width: 12px !important;
             min-height: 12px !important;
             border-radius: 50% !important;
-            background: #f44336 !important;
+            background: #4caf50 !important;
             color: white !important;
             font-size: 10px !important;
             font-weight: bold !important;
@@ -162,10 +162,11 @@
             box-sizing: border-box !important;
         }
         .word-tag-wrapper:hover .delete-btn { display: block !important; }
+        .word-tag .delete-btn:hover { background: #f44336; }
     </style>
 </head>
 <body>
-    <h1><span>🎯 推广运营专用-全行业语义匹配工具</span><span class="copyright-text">Super Baozi.</span></h1>
+    <h1><span>🎯 推广运营专用-全行业语义匹配工具</span><span class="copyright-text">——© Super Baozi. All Rights Reserved.</span></h1>
 
     <div class="card">
         <h3 style="margin-bottom: 12px;">工具说明（全行业零配置通用）</h3>
@@ -216,8 +217,8 @@
 
     <div class="card">
         <div class="upload-area" id="uploadArea" onclick="document.getElementById('csvFile').click()">
-            <p>点击此处上传 CSV 或 Excel 文件 或 直接拖入文件</p>
-            <p class="tips">支持 CSV、Excel(.xlsx/.xls) 文件，打开即用无需加载</p>
+            <p>点击此处上传文件 或 直接拖入文件</p>
+            <p class="tips">支持 Excel (.xlsx/.xls) 和 CSV 格式，打开即用无需加载</p>
             <input type="file" id="csvFile" accept=".csv,.xlsx,.xls" style="display: none;">
         </div>
         <div id="config-area" class="config-area hidden">
@@ -1299,48 +1300,41 @@
             return false;
         }
 
-        function hasHeaderIndicators(text) {
-            const lower = text.toLowerCase().trim();
-            const indicators = ['search term', '搜索词', 'keyword', '关键词', 'campaign', '推广计划',
-                'impression', '展现', 'click', '点击', 'spend', '消费',
-                'cost', 'ad group', '推广组', 'ctr', 'avg.', 'cpc',
-                'account name', '账户', 'ad id', '广告系列'];
-            let count = 0;
-            for (const ind of indicators) {
-                if (lower.includes(ind)) count++;
-            }
-            return count >= 2;
-        }
-
         function autoMatchColumns(fields) {
-            const matchRules = {
-                plan: ['计划', '推广计划', 'plan', 'campaign', 'campaign name', '广告系列', 'campaign名称', '广告系列名称'],
-                group: ['推广组', '单元', '组', 'unit', 'group', 'ad group', '广告组', 'adgroup', '广告组名称'],
-                cost: ['消费', '花费', '金额', 'cost', 'expense', '总费用', 'spend', '花费金额', '支出'],
-                convert: ['转化', '转化数', '转化量', 'convert', 'conversion', 'conversions', '转化次数'],
-                keyword: ['关键词', 'key', 'keyword', 'search keyword', '投放关键词', '关键词字'],
-                search: ['搜索词', '搜索', 'search', 'query', 'search term', 'search terms', 'customer search term', '客户搜索词', '搜索字词']
-            };
             const lowerFields = fields.map(f => f.toLowerCase().trim());
             
-            const planCol = fields.find((f, idx) => matchRules.plan.some(rule => lowerFields[idx].includes(rule.toLowerCase())));
+            // 推广计划：精确匹配优先
+            const planPatterns = ['campaign name', '推广计划', '计划'];
+            const planCol = fields.find((f, idx) => planPatterns.some(p => lowerFields[idx] === p || lowerFields[idx].includes(p)));
             if (planCol) { document.getElementById('sel-plan').value = planCol; selectedPlanCol = planCol; document.getElementById('plan-header').classList.remove('hidden'); }
             
-            const groupCol = fields.find((f, idx) => matchRules.group.some(rule => lowerFields[idx].includes(rule.toLowerCase())));
+            // 推广组：精确匹配优先
+            const groupPatterns = ['ad group', '推广组', '单元'];
+            const groupCol = fields.find((f, idx) => groupPatterns.some(p => lowerFields[idx] === p || lowerFields[idx].includes(p)));
             if (groupCol) { document.getElementById('sel-group').value = groupCol; selectedGroupCol = groupCol; document.getElementById('group-header').classList.remove('hidden'); }
             
-            const costCol = fields.find((f, idx) => matchRules.cost.some(rule => lowerFields[idx].includes(rule.toLowerCase())));
+            // 消费：精确匹配优先
+            const costPatterns = ['spend', '消费', '花费', '金额'];
+            const costCol = fields.find((f, idx) => costPatterns.some(p => lowerFields[idx] === p || lowerFields[idx].includes(p)));
             if (costCol) { document.getElementById('sel-cost').value = costCol; selectedCostCol = costCol; document.getElementById('cost-header').classList.remove('hidden'); }
             
-            const convertCol = fields.find((f, idx) => matchRules.convert.some(rule => lowerFields[idx].includes(rule.toLowerCase())));
+            // 转化：精确匹配优先
+            const convertPatterns = ['conversions', '转化', 'conversion'];
+            const convertCol = fields.find((f, idx) => convertPatterns.some(p => lowerFields[idx] === p || lowerFields[idx].includes(p)));
             if (convertCol) { document.getElementById('sel-convert').value = convertCol; selectedConvertCol = convertCol; document.getElementById('convert-header').classList.remove('hidden'); }
             
-            const keywordCol = fields.find((f, idx) => lowerFields[idx] === 'keyword' || lowerFields[idx] === '关键词');
-            const keywordColFallback = !keywordCol ? fields.find((f, idx) => matchRules.keyword.some(rule => lowerFields[idx].includes(rule.toLowerCase()))) : null;
-            if (keywordCol) { document.getElementById('sel-keyword').value = keywordCol; }
-            else if (keywordColFallback) { document.getElementById('sel-keyword').value = keywordColFallback; }
+            // 关键词：精确匹配，排除Keyword ID
+            const keywordCol = fields.find((f, idx) => {
+                const lower = lowerFields[idx];
+                // 精确匹配 "keyword" 或 "关键词"
+                return lower === 'keyword' || lower === '关键词' || 
+                       lower === 'keys' || lower === 'keys text';
+            });
+            if (keywordCol) document.getElementById('sel-keyword').value = keywordCol;
             
-            const searchCol = fields.find((f, idx) => matchRules.search.some(rule => lowerFields[idx].includes(rule.toLowerCase())));
+            // 搜索词：精确匹配优先
+            const searchPatterns = ['search term', '搜索词'];
+            const searchCol = fields.find((f, idx) => searchPatterns.some(p => lowerFields[idx] === p || lowerFields[idx].includes(p)));
             if (searchCol) document.getElementById('sel-search').value = searchCol;
         }
 
@@ -1451,160 +1445,131 @@
             
             const fileName = file.name.toLowerCase();
             const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
-            const isCSV = fileName.endsWith('.csv');
+            const isCsv = fileName.endsWith('.csv');
             
-            if (!isExcel && !isCSV) {
-                alert('只支持 CSV 或 Excel 格式文件(.csv/.xlsx/.xls)，请上传正确的文件');
-                return;
+            if (!isExcel && !isCsv) { 
+                alert('只支持 Excel (.xlsx/.xls) 和 CSV 格式文件，请上传正确的文件'); 
+                return; 
             }
             
-            // 提取账户名称
             CURRENT_ACCOUNT_NAME = extractAccountName(file.name);
             IS_FRESH_ANALYZE = false;
             
-            if (isExcel) {
-                parseExcelFile(file);
-            } else {
-                parseCSVFile(file);
-            }
-        }
-        
-        function findExcelHeaderRow(worksheetData) {
-            for (let i = 0; i < Math.min(worksheetData.length, 30); i++) {
-                const row = worksheetData[i];
-                if (!row || row.every(c => c === '')) continue;
-                const rowText = row.filter(c => c).join('\t').toLowerCase().trim();
-                if (hasHeaderIndicators(rowText)) {
-                    return i;
-                }
-            }
-            return 0;
-        }
-
-        function parseExcelFile(file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true, cellNF: true });
-                    
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    
-                    const sheetRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-                    if (!sheetRows || sheetRows.length === 0) {
-                        alert('Excel 文件为空或无法解析');
-                        return;
-                    }
-                    
-                    const headerRowIdx = findExcelHeaderRow(sheetRows);
-                    const headers = sheetRows[headerRowIdx];
-                    
-                    const jsonData = [];
-                    for (let i = headerRowIdx + 1; i < sheetRows.length; i++) {
-                        const row = sheetRows[i];
-                        if (!row || row.every(c => c === '')) continue;
-                        const obj = {};
-                        headers.forEach((h, idx) => {
-                            obj[h] = row[idx] !== undefined && row[idx] !== null ? String(row[idx]) : '';
-                        });
-                        jsonData.push(obj);
-                    }
-                    
-                    if (!jsonData || jsonData.length === 0) {
-                        alert('Excel 文件为空或无法解析');
-                        return;
-                    }
-                    
-                    rawData = jsonData;
-                    const fields = Object.keys(jsonData[0]);
-                    initSelectors(fields);
-                    document.getElementById('config-area').classList.remove('hidden');
-                    document.getElementById('extracted-words-area').classList.add('hidden');
-                    sortOrder = null;
-                    document.getElementById('sort-icon').innerText = '';
-                    
-                    resetAutoExtractedState();
-                    
-                    if (CURRENT_ACCOUNT_NAME) {
-                        const memory = loadMemory(CURRENT_ACCOUNT_NAME);
-                        if (memory) {
-                            restoreFromMemory(memory);
-                            showSuccessToast('文件上传成功！已加载「' + CURRENT_ACCOUNT_NAME + '」的历史识别结果');
-                            return;
-                        }
-                    }
-                    
-                    showSuccessToast('Excel 文件上传成功！已自动匹配相关列');
-                } catch (err) {
-                    alert('Excel 文件解析失败：' + err.message);
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-        
-        function findCSVHeaderLine(text) {
-            const lines = text.split('\n');
-            for (let i = 0; i < Math.min(lines.length, 30); i++) {
-                const line = lines[i].trim();
-                if (!line) continue;
-                if (hasHeaderIndicators(line)) {
-                    return i;
-                }
-            }
-            return 0;
-        }
-
-        function parseCSVFile(file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                let csvText = e.target.result;
-                try {
-                    const bytes = new Uint8Array(csvText);
-                    const encoding = detectEncoding(bytes);
-                    if (encoding !== 'utf-8') {
-                        const decoder = new TextDecoder(encoding, { fatal: false });
-                        csvText = decoder.decode(bytes);
-                    }
-                } catch (e) {}
-                
-                const headerLineIdx = findCSVHeaderLine(csvText);
-                if (headerLineIdx > 0) {
-                    const lines = csvText.split('\n');
-                    csvText = lines.slice(headerLineIdx).join('\n');
-                }
-                
-                Papa.parse(csvText, {
-                    header: true, skipEmptyLines: true,
-                    complete: function(results) {
-                        rawData = results.data;
-                        initSelectors(results.meta.fields);
-                        document.getElementById('config-area').classList.remove('hidden');
-                        document.getElementById('extracted-words-area').classList.add('hidden');
-                        sortOrder = null;
-                        document.getElementById('sort-icon').innerText = '';
+            if (isCsv) {
+                // 先读取文件内容，检测并处理带元数据的格式
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const content = e.target.result;
+                        const lines = content.split(/\r?\n/);
                         
-                        resetAutoExtractedState();
-                        
-                        // 尝试加载该账户的记忆
-                        if (CURRENT_ACCOUNT_NAME) {
-                            const memory = loadMemory(CURRENT_ACCOUNT_NAME);
-                            if (memory) {
-                                restoreFromMemory(memory);
-                                showSuccessToast('文件上传成功！已加载「' + CURRENT_ACCOUNT_NAME + '」的历史识别结果');
-                                return;
+                        // 查找包含"Account name"的表头行（跳过前面的元数据）
+                        let headerLineIndex = -1;
+                        for (let i = 0; i < lines.length; i++) {
+                            if (lines[i].includes('Account name') || lines[i].toLowerCase().includes('campaign name')) {
+                                headerLineIndex = i;
+                                break;
                             }
                         }
                         
-                        showSuccessToast('文件上传成功！已自动匹配相关列');
-                    },
-                    error: function(err) { alert('文件解析失败：' + err.message); }
-                });
-            };
-            reader.readAsArrayBuffer(file);
+                        if (headerLineIndex === -1) {
+                            // 没有找到特殊表头，使用标准CSV解析
+                            parseCsvWithPapa(file);
+                            return;
+                        }
+                        
+                        // 检测分隔符（Tab或逗号）
+                        const delimiter = lines[headerLineIndex].includes('\t') ? '\t' : ',';
+                        
+                        // 提取表头
+                        const headers = lines[headerLineIndex].split(delimiter).map(h => h.trim());
+                        
+                        // 提取数据行
+                        const data = [];
+                        for (let i = headerLineIndex + 1; i < lines.length; i++) {
+                            if (!lines[i].trim()) continue;
+                            const values = lines[i].split(delimiter);
+                            const row = {};
+                            headers.forEach((h, idx) => {
+                                row[h] = values[idx] !== undefined ? values[idx].trim() : '';
+                            });
+                            data.push(row);
+                        }
+                        
+                        processParsedData(data, headers);
+                    } catch (err) {
+                        alert('文件解析失败：' + err.message);
+                    }
+                };
+                reader.onerror = function() {
+                    alert('文件读取失败');
+                };
+                reader.readAsText(file, 'UTF-8');
+            } else {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                        
+                        // 查找包含"Account name"的行作为表头
+                        let headerRowIndex = -1;
+                        for (let i = 0; i < jsonData.length; i++) {
+                            const row = jsonData[i];
+                            const rowStr = row.map(c => String(c || '')).join(',');
+                            if (rowStr.includes('Account name') || rowStr.toLowerCase().includes('campaign name')) {
+                                headerRowIndex = i;
+                                break;
+                            }
+                        }
+                        
+                        if (headerRowIndex === -1) {
+                            // 使用第一行作为表头
+                            headerRowIndex = 0;
+                        }
+                        
+                        const fields = jsonData[headerRowIndex].map(f => String(f || '').trim());
+                        const rows = [];
+                        for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
+                            if (!jsonData[i] || jsonData[i].every(v => !v)) continue;
+                            const row = {};
+                            jsonData[i].forEach((value, idx) => {
+                                row[fields[idx]] = value !== undefined ? String(value).trim() : '';
+                            });
+                            rows.push(row);
+                        }
+                        processParsedData(rows, fields);
+                    } catch (err) {
+                        alert('Excel 文件解析失败：' + err.message);
+                    }
+                };
+                reader.onerror = function() {
+                    alert('文件读取失败');
+                };
+                reader.readAsArrayBuffer(file);
+            }
         }
         
-        function resetAutoExtractedState() {
+        function parseCsvWithPapa(file) {
+            Papa.parse(file, {
+                header: true, skipEmptyLines: true, encoding: 'GBK',
+                complete: function(results) {
+                    processParsedData(results.data, results.meta.fields);
+                },
+                error: function(err) { alert('文件解析失败：' + err.message); }
+            });
+        }
+        
+        function processParsedData(data, fields) {
+            rawData = data;
+            initSelectors(fields);
+            document.getElementById('config-area').classList.remove('hidden');
+            document.getElementById('extracted-words-area').classList.add('hidden');
+            sortOrder = null;
+            document.getElementById('sort-icon').innerText = '';
+            
             HAS_AUTO_EXTRACTED = false;
             BRAND_WORDS.clear();
             PRODUCT_WORDS.clear();
@@ -1615,22 +1580,17 @@
             USER_ADDED_BRAND_WORDS.clear();
             USER_ADDED_PRODUCT_WORDS.clear();
             USER_ADDED_COMPETITOR_WORDS.clear();
-        }
-        
-        function detectEncoding(bytes) {
-            if (bytes.length < 2) return 'utf-8';
-            if (bytes[0] === 0xFF && bytes[1] === 0xFE) return 'utf-16le';
-            if (bytes[0] === 0xFE && bytes[1] === 0xFF) return 'utf-16be';
-            if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) return 'utf-8';
-            let gbkScore = 0;
-            for (let i = 0; i < Math.min(bytes.length, 1000); i++) {
-                if (bytes[i] >= 0x81 && bytes[i] <= 0xFE) {
-                    gbkScore++;
-                    i++;
+            
+            if (CURRENT_ACCOUNT_NAME) {
+                const memory = loadMemory(CURRENT_ACCOUNT_NAME);
+                if (memory) {
+                    restoreFromMemory(memory);
+                    showSuccessToast('文件上传成功！已加载「' + CURRENT_ACCOUNT_NAME + '」的历史识别结果');
+                    return;
                 }
             }
-            if (gbkScore > 10) return 'gbk';
-            return 'utf-8';
+            
+            showSuccessToast('文件上传成功！已自动匹配相关列');
         }
 
         function renderResultTable() {
@@ -1727,10 +1687,6 @@
             if (!keywordCol || !searchCol) { showErrorToast('请选择关键词列和搜索词列！'); return; }
             
             let processData = rawData;
-            
-            // 重置排序状态
-            sortOrder = null;
-            document.getElementById('sort-icon').innerText = '';
             
             // 构建共现索引（数据驱动语义学习）
             buildCooccurrenceIndex(processData, keywordCol, searchCol);
