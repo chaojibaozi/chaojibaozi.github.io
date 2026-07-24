@@ -1,0 +1,264 @@
+<!-- ============ 侧边栏 ============ -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="#fff"><rect x="4" y="11" width="3.4" height="9" rx="1.2"/><rect x="10.3" y="4.5" width="3.4" height="15.5" rx="1.2"/><rect x="16.6" y="8" width="3.4" height="12" rx="1.2"/></svg></div>
+    <div><div class="b-name">360 效果评估</div><div class="b-sub">搜索推广 · 智能诊断</div></div>
+  </div>
+  <div class="side-scroll">
+    <div class="nav-label">分析模块</div>
+    <nav id="nav">
+      <div class="tab active" data-p="p-overview" data-title="账户总览" data-sub="分日趋势 · 零转化日预警 · 计划与触发模式" onclick="switchTab(this)"><span class="ic">📊</span><span class="txt">① 账户总览</span></div>
+      <div class="tab" data-p="p-quad" data-title="关键词四象限" data-sub="消费×转化分级 · 重点/问题/潜力/观察词" onclick="switchTab(this)"><span class="ic">🧭</span><span class="txt">② 关键词四象限</span></div>
+      <div class="tab" data-p="p-conv" data-title="转化词追踪" data-sub="分日转化矩阵 · 稳定/衰减/新增/流失判定" onclick="switchTab(this)"><span class="ic">🔥</span><span class="txt">③ 转化词追踪</span></div>
+      <div class="tab" data-p="p-query" data-title="搜索词匹配度" data-sub="匹配度评分 · 自动否词/加词清单" onclick="switchTab(this)"><span class="ic">🔍</span><span class="txt">④ 搜索词匹配度</span></div>
+      <div class="tab" data-p="p-creative" data-title="创意诊断" data-sub="同组CTR对比 · 低效创意 · 凤舞效率" onclick="switchTab(this)"><span class="ic">✏️</span><span class="txt">⑤ 创意诊断</span></div>
+      <div class="tab" data-p="p-geo" data-title="地域效率" data-sub="地域四分法 · 扩量/保持/降价/收缩" onclick="switchTab(this)"><span class="ic">🗺️</span><span class="txt">⑥ 地域效率</span></div>
+      <div class="tab" data-p="p-cpa" data-title="CPA 基准归因" data-sub="以低转化成本日为基准 · 跨维度定位成本异动根因" onclick="switchTab(this)"><span class="ic">🎯</span><span class="txt">⑦ CPA 基准归因</span></div>
+      <div class="tab" data-p="p-shift" data-title="转化关联诊断" data-sub="高转化词CVR波动 ↔ 搜索词结构变化关联分析" onclick="switchTab(this)"><span class="ic">🔗</span><span class="txt">⑧ 转化关联诊断</span></div>
+      <div class="tab" data-p="p-actions" data-title="操作清单" data-sub="P0/P1/P2 优先级可执行清单" onclick="switchTab(this)"><span class="ic">✅</span><span class="txt">⑨ 操作清单</span></div>
+    </nav>
+  </div>
+  <div class="side-foot">
+    <button class="theme-toggle" onclick="toggleTheme()"><span class="ic">🌗</span><span id="themeLabel">切换深色</span></button>
+    <div class="copy">纯本地离线运行<br>数据不出本机</div>
+  </div>
+</aside>
+
+<!-- ============ 主区 ============ -->
+<div class="main">
+  <header class="topbar">
+    <div>
+      <div class="page-title" id="pageTitle">数据导入</div>
+      <div class="page-sub" id="pageSub">拖入点睛平台导出的 CSV 报告即可开始分析</div>
+    </div>
+    <div class="topbar-r">
+      <span id="periodLabel" class="badge b-blue" style="display:none"></span>
+      <button class="btn sm" onclick="openHistory()">📁 历史</button>
+      <button class="btn sm" onclick="openSettings()">⚙️ 设置</button>
+      <button class="btn ai sm" id="btnGlobalAI" onclick="runGlobalAI()" disabled>🤖 AI诊断</button>
+      <button class="btn primary sm" onclick="exportReport()" id="btnExport" disabled>📄 导出</button>
+      <button class="btn sm" onclick="toggleTheme()" title="切换浅色 / 深色">🌗</button>
+    </div>
+  </header>
+
+  <main class="content">
+    <div id="importZone">
+      <div class="card">
+        <h2><span class="ic">📥</span> 导入数据报告 <span class="tag">支持 360 点睛平台导出的 CSV 报告</span></h2>
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+          <div class="big">拖入或点击选择 CSV 文件（可多选）</div>
+          <div class="sub">自动识别：搜索词报告（分日） / 地域分析报告 / 基础创意报告 / 高级创意报告</div>
+          <div class="sub" style="margin-top:8px">同一报告重复导入自动去重 · 数据仅在您浏览器本地处理，不上传任何服务器</div>
+        </div>
+        <input type="file" id="fileInput" multiple accept=".csv" style="display:none" onchange="handleFiles(this.files)">
+        <div class="filelist" id="filelist"></div>
+        <div style="margin-top:16px;display:flex;gap:10px">
+          <button class="btn primary" id="btnAnalyze" onclick="runAnalysis()" disabled>🚀 开始分析</button>
+          <button class="btn" onclick="clearFiles()">清空文件</button>
+        </div>
+      </div>
+      <div class="card" id="methodCard">
+        <h2><span class="ic">📚</span> 系统内置方法论（固定工作流）</h2>
+        <div class="grid g3">
+          <div>
+            <h3>流量获取层</h3>
+            <div class="section-hint">① 关键词四象限（消费×转化）分级管理：重点词稳排名、潜力词扩量、问题词降本、观察词培育。② 搜索词-关键词匹配度评分，识别流量跑偏；高转化搜索词提为精确匹配关键词，无关搜索词进否词清单。③ 触发模式质量评估（精确/短语/oCPC扩触发分组对比）。</div>
+          </div>
+          <div>
+            <h3>转化追踪层</h3>
+            <div class="section-hint">④ 转化词分日矩阵：追踪核心转化词的连续性（稳定/波动/衰减/新增/流失），二八法则定位贡献80%转化的核心词并预警其消费与排名变化。⑤ 零转化日诊断：消费正常但转化归零时，自动回查当日流量结构变化（新增搜索词、CTR异动、高消费无转化词）。</div>
+          </div>
+          <div>
+            <h3>承载与效率层</h3>
+            <div class="section-hint">⑥ 创意CTR分层：同推广组内创意对比，识别拉低CTR的低效创意；高级样式（凤舞）与基础创意效率对比。⑦ 日度CPA基准归因：以低转化成本日为基准，跨关键词/搜索词/创意/高级样式定位成本异动日与根因维度。⑧ 转化关联诊断：逐词追踪高转化词CVR趋势与其搜索词结构（新词涌入/低质量占比）变化的时序关联，定位转化率波动是否由搜索词变化驱动。⑨ 地域四分法：高消费低CTR地域降价或收缩，高CTR低消费地域扩量。⑩ 全部诊断汇总为按 P0/P1/P2 优先级排序的可执行操作清单。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="panels" style="display:none">
+      <div class="panel active" id="p-overview">
+        <div id="ov-alerts"></div>
+        <div class="grid g6" id="ov-kpis"></div>
+        <div class="card"><h2><span class="ic">📈</span> 分日趋势 <span class="tag">消费 / 点击 / 转化 / CPA</span><span class="spacer"></span><button class="btn ai sm" onclick="runModuleAI('overview')">🤖 AI解读本模块</button></h2>
+          <div class="chart-wrap"><canvas id="chartDaily" width="1200" height="320"></canvas></div>
+          <div class="ai-box" id="ai-overview"><h4>🤖 DeepSeek 模块解读</h4><div class="ai-content"></div></div>
+        </div>
+        <div class="grid g2">
+          <div class="card"><h2><span class="ic">📦</span> 各推广计划表现</h2><div id="ov-plans"></div></div>
+          <div class="card"><h2><span class="ic">🎯</span> 触发模式流量质量</h2><div id="ov-modes"></div></div>
+        </div>
+        <div class="card" id="ov-compare-card" style="display:none"><h2><span class="ic">🔁</span> 与上一周期对比</h2><div id="ov-compare"></div></div>
+        <div class="card" id="ov-forecast-card" style="display:none"><h2><span class="ic">📊</span> 下周期预测 <span class="tag">近期趋势外推 · Poisson 置信区间</span><span class="spacer"></span><button class="btn ai sm" onclick="runModuleAI('overview')">🤖 AI解读本模块</button></h2><div id="ov-forecast"></div></div>
+        <div class="ai-box" id="ai-global" style="margin-top:0"><h4>🤖 DeepSeek AI 综合诊断报告</h4><div class="ai-content"></div></div>
+      </div>
+
+      <div class="panel" id="p-quad">
+        <div class="card"><h2><span class="ic">🧭</span> 关键词四象限分析 <span class="tag" id="quad-thresh"></span><span class="spacer"></span><button class="btn ai sm" onclick="runModuleAI('quad')">🤖 AI解读本模块</button></h2>
+          <div class="section-hint">以「消费」和「转化」两维划分。消费分界默认取转化成本基准（可在参数设置修改判定系数）；每个象限给出标准优化动作。</div>
+          <div class="quad-grid" id="quadGrid"></div>
+          <div class="ai-box" id="ai-quad"><h4>🤖 DeepSeek 模块解读</h4><div class="ai-content"></div></div>
+        </div>
+        <div class="card"><h2><span class="ic">📋</span> 关键词明细 <span class="tag">按消费降序，含分日转化分布</span></h2>
+          <div class="toolbar">
+            <input type="text" id="kwSearch" placeholder="搜索关键词/计划..." oninput="renderKwTable()">
+            <select id="kwQuadFilter" onchange="renderKwTable()">
+              <option value="">全部象限</option><option value="A">A 重点词</option><option value="B">B 问题词</option><option value="C">C 潜力词</option><option value="D">D 观察词</option>
+            </select>
+          </div>
+          <div class="scroll-table" id="kwTable"></div>
+        </div>
+      </div>
+
+      <div class="panel" id="p-conv">
+        <div id="conv-alerts"></div>
+        <div class="card"><h2><span class="ic">🔥</span> 转化词分日矩阵 <span class="tag">行=转化关键词，列=日期，色块=当日转化数</span><span class="spacer"></span><button class="btn ai sm" onclick="runModuleAI('conv')">🤖 AI解读本模块</button></h2>
+          <div class="section-hint" id="conv-hint"></div>
+          <div class="scroll-table" id="convMatrix"></div>
+          <div class="ai-box" id="ai-conv"><h4>🤖 DeepSeek 模块解读</h4><div class="ai-content"></div></div>
+        </div>
+        <div class="grid g2">
+          <div class="card"><h2><span class="ic">📌</span> 核心转化词状态判定</h2><div id="convStatus"></div></div>
+          <div class="card"><h2><span class="ic">🔎</span> 转化搜索词（用户实际搜索）</h2><div id="convQueries"></div></div>
+        </div>
+        <div class="card" id="convCompareCard" style="display:none"><h2><span class="ic">🔁</span> 转化词跨周期变化（vs 上一周期）</h2><div id="convCompare"></div></div>
+      </div>
+
+      <div class="panel" id="p-query">
+        <div class="card"><h2><span class="ic">🔍</span> 搜索词-关键词匹配度分析 <span class="tag" id="queryTag"></span><span class="spacer"></span><button class="btn ai sm" onclick="runModuleAI('query')">🤖 AI解读本模块</button></h2>
+          <div class="grid g4" id="queryKpis"></div>
+          <div class="ai-box" id="ai-query"><h4>🤖 DeepSeek 模块解读</h4><div class="ai-content"></div></div>
+        </div>
+        <div class="grid g2">
+          <div class="card"><h2><span class="ic">⛔</span> 建议否词清单 <span class="tag">低匹配度+有消费无转化</span></h2>
+            <div class="toolbar"><button class="btn sm" onclick="copyNegList()">📋 复制否词</button></div>
+            <div class="scroll-table" id="negTable"></div>
+          </div>
+          <div class="card"><h2><span class="ic">➕</span> 建议加词清单 <span class="tag">高转化/高CTR搜索词提精确</span></h2>
+            <div class="toolbar"><button class="btn sm" onclick="copyAddList()">📋 复制加词</button></div>
+            <div class="scroll-table" id="addTable"></div>
+          </div>
+        </div>
+        <div class="card"><h2><span class="ic">📑</span> 搜索词全量明细</h2>
+          <div class="toolbar">
+            <input type="text" id="qSearch" placeholder="搜索搜索词/关键词..." oninput="renderQueryTable()">
+            <select id="qModeFilter" onchange="renderQueryTable()"><option value="">全部触发模式</option></select>
+            <select id="qMatchFilter" onchange="renderQueryTable()">
+              <option value="">全部匹配度</option><option value="高">高匹配</option><option value="中">中匹配</option><option value="低">低匹配</option>
+            </select>
+          </div>
+          <div class="scroll-table" id="queryTable"></div>
+        </div>
+      </div>
+
+      <div class="panel" id="p-creative">
+        <div class="card"><h2><span class="ic">✏️</span> 基础创意 CTR 诊断 <span class="tag">同组对比找出拖后腿创意</span><span class="spacer"></span><button class="btn ai sm" onclick="runModuleAI('creative')">🤖 AI解读本模块</button></h2>
+          <div class="grid g4" id="creKpis"></div>
+          <div class="ai-box" id="ai-creative"><h4>🤖 DeepSeek 模块解读</h4><div class="ai-content"></div></div>
+        </div>
+        <div class="card"><h2><span class="ic">📊</span> 创意表现明细（按推广组聚合对比）</h2><div class="scroll-table" id="creTable"></div></div>
+        <div class="grid g2">
+          <div class="card"><h2><span class="ic">📉</span> 需优化创意（CTR显著低于同组均值）</h2><div id="creWeak"></div></div>
+          <div class="card"><h2><span class="ic">🏆</span> 优秀创意（可借鉴文案方向）</h2><div id="creTop"></div></div>
+        </div>
+        <div class="card"><h2><span class="ic">🎨</span> 高级样式（凤舞）vs 基础创意效率对比</h2><div id="advVsBasic"></div></div>
+      </div>
+
+      <div class="panel" id="p-geo">
+        <div class="card"><h2><span class="ic">🗺️</span> 地域投放效率 <span class="tag">注：地域报告为周期汇总、无转化列，按流量效率四分法诊断</span><span class="spacer"></span><button class="btn ai sm" onclick="runModuleAI('geo')">🤖 AI解读本模块</button></h2>
+          <div class="chart-wrap"><canvas id="chartGeo" width="1200" height="340"></canvas></div>
+          <div class="ai-box" id="ai-geo"><h4>🤖 DeepSeek 模块解读</h4><div class="ai-content"></div></div>
+        </div>
+        <div class="card"><h2><span class="ic">📋</span> 地域明细与诊断</h2><div class="scroll-table" id="geoTable"></div></div>
+      </div>
+
+      <div class="panel" id="p-cpa">
+        <div id="cpa-alerts"></div>
+        <div class="grid g4" id="cpa-kpis"></div>
+        <div class="card"><h2><span class="ic">📈</span> 日度 CPA 与基准对比 <span class="tag">柱=当日CPA，虚线=基准CPA，红=高异动日</span><span class="spacer"></span><button class="btn ai sm" onclick="runModuleAI('cpa')">🤖 AI解读本模块</button></h2>
+          <div class="chart-wrap"><canvas id="chartCpa" width="1200" height="320"></canvas></div>
+          <div class="ai-box" id="ai-cpa"><h4>🤖 DeepSeek 模块解读</h4><div class="ai-content"></div></div>
+        </div>
+        <div id="cpa-attr"></div>
+        <div class="card"><h2><span class="ic">🔬</span> 关键词 × 日 CPA 异常矩阵 <span class="tag">绿=≤基准，黄=基准~1.5倍，红=>1.5倍，按总消费TOP25</span></h2>
+          <div class="section-hint">以各关键词自身基准CPA（有转化日度CPA中位数）为参照，识别哪些词在哪些日突然变贵</div>
+          <div class="scroll-table" id="cpa-kwMatrix"></div>
+        </div>
+        <div class="card"><h2><span class="ic">🧩</span> 搜索词新增 / 骤变检测 <span class="tag">高异动日才出现的无转化词 → 否词围栏</span></h2>
+          <div id="cpa-newTerms"></div>
+        </div>
+        <div class="grid g2">
+          <div class="card"><h2><span class="ic">✏️</span> 创意 CTR 日度波动 <span class="tag">代理归因※</span></h2>
+            <div class="section-hint">创意报告无转化列，故以CTR/CPC日度波动代理评估；CTR下滑→点击变贵→助推CPA上升</div>
+            <div class="scroll-table" id="cpa-creShift"></div>
+          </div>
+          <div class="card"><h2><span class="ic">🎨</span> 高级样式 CTR 日度波动 <span class="tag">代理归因※</span></h2>
+            <div class="section-hint">高级创意报告无转化列、仅到推广组粒度，以CTR日度波动代理评估</div>
+            <div class="scroll-table" id="cpa-advShift"></div>
+          </div>
+        </div>
+        <div class="alert info" style="margin-top:6px">※ 代理归因说明：360 导出的基础创意/高级创意报告不含转化数，无法计算真实 CPA，因此本模块对其采用「CTR/CPC 日度波动」作为点击成本变化的代理指标；地域报告仅为周期汇总、无分日，不参与日度归因。真实 CPA 归因以搜索词报告（含转化）为准。</div>
+      </div>
+
+      <div class="panel" id="p-shift">
+        <div class="grid g4" id="shift-kpis"></div>
+        <div id="shift-cards"></div>
+      </div>
+
+      <div class="panel" id="p-actions">
+        <div class="card"><h2><span class="ic">✅</span> 本周期优化操作清单 <span class="tag">按 P0紧急 / P1重要 / P2常规 排序，可直接执行</span></h2>
+          <div class="toolbar"><button class="btn sm" onclick="copyActions()">📋 复制全部清单</button></div>
+          <div id="actionList"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</div>
+
+<!-- ============ 设置弹窗 ============ -->
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <h2><span>⚙️</span> 参数设置</h2>
+    <h3 style="margin-bottom:12px;font-size:13px;color:var(--muted)">诊断阈值（规则引擎依据）</h3>
+    <div class="form-row"><label>目标转化成本 CPA（元）</label><input type="number" id="set_targetCPA" step="1"></div>
+    <div class="hint">留空则自动按本期数据测算（总消费÷总转化）。判定"高消费无转化"等规则的核心基准。</div>
+    <div class="form-row"><label>高消费判定系数</label><input type="number" id="set_costFactor" step="0.1"></div>
+    <div class="hint">关键词消费 ≥ 目标CPA × 该系数 视为高消费。默认 1.0。</div>
+    <div class="form-row"><label>CTR 偏低判定（相对同组均值%）</label><input type="number" id="set_ctrLowPct" step="5"></div>
+    <div class="hint">创意CTR低于同组均值的该百分比视为低效创意。默认 50（即低于均值一半）。</div>
+    <div class="form-row"><label>否词最低消费门槛（元）</label><input type="number" id="set_negMinCost" step="0.5"></div>
+    <div class="hint">低匹配搜索词消费超过该值才进入否词建议。默认 1。</div>
+    <div class="form-row"><label>零转化日消费预警（元）</label><input type="number" id="set_zeroConvCost" step="10"></div>
+    <div class="hint">某日消费超过该值但转化为0时触发P0预警。默认 300。</div>
+    <div class="form-row"><label>CPA 波动判定阈值（%）</label><input type="number" id="set_cpaHighThresh" step="5"></div>
+    <div class="hint">用于「CPA基准归因」：某日 CPA 高于基准 CPA ×(1+该值) 即标记为高异动日。默认 50（即高于基准 50%）。</div>
+    <div class="form-row"><label>转化价值客单价（元）</label><input type="number" id="set_convValue" step="10"></div>
+    <div class="hint">用于计算 ROAS 与价值加权 CPA。若 CSV 含"转化金额/转化价值"列则自动采用列值（更准）；否则用此客单价×转化数估算。留空则不计算价值维度。</div>
+    <h3 style="margin:18px 0 12px;font-size:13px;color:var(--muted)">DeepSeek API（可选，仅存本机浏览器）</h3>
+    <div class="form-row"><label>API Key</label><input type="password" id="set_dsKey" placeholder="sk-..."></div>
+    <div class="form-row"><label>模型</label><select id="set_dsModel"><option value="deepseek-chat">deepseek-chat（V3，快）</option><option value="deepseek-reasoner">deepseek-reasoner（R1，深度推理）</option></select></div>
+    <div class="form-row"><label>接口地址</label><input type="text" id="set_dsUrl" placeholder="https://api.deepseek.com/chat/completions"></div>
+    <div class="hint">Key 仅保存在您本机浏览器 localStorage，绝不上传。不填写则系统以纯离线规则引擎运行。</div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+      <button class="btn" onclick="closeModal('settingsModal')">取消</button>
+      <button class="btn primary" onclick="saveSettings()">保存并重新分析</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 历史弹窗 ============ -->
+<div class="modal-bg" id="historyModal">
+  <div class="modal">
+    <h2><span>📁</span> 历史分析周期</h2>
+    <div class="section-hint">每次分析自动保存至浏览器本地。导入新周期数据后，系统自动与最近一个历史周期做环比。</div>
+    <div id="historyList"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+      <button class="btn" onclick="clearHistory()" style="color:var(--danger)">清空全部历史</button>
+      <button class="btn primary" onclick="closeModal('historyModal')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<footer class="foot">360 搜索推广效果评估分析系统 · 纯本地离线运行 · 数据不出本机 · 支持 DeepSeek AI 辅助分析</footer>
