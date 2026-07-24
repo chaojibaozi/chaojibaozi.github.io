@@ -37,6 +37,12 @@
             z-index: 9999;
             box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
             border-radius: 0 12px 12px 0;
+            display: flex;
+            flex-direction: column;
+            transform: translate3d(0, 0, 0);
+            will-change: width;
+            backface-visibility: hidden;
+            perspective: 1000px;
         }
         
         .sidebar:hover {
@@ -119,20 +125,25 @@
         
         .nav-menu {
             padding: 10px 10px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
         
         .nav-item {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 10px 12px;
-            margin-bottom: 4px;
+            padding: 8px 12px;
             border-radius: 10px;
             cursor: pointer;
             transition: all 0.3s ease;
             color: #334155;
             text-decoration: none;
             user-select: none;
+            flex: 1;
+            min-height: 44px;
         }
         
         .nav-item:hover {
