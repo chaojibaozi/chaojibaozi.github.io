@@ -1,0 +1,186 @@
+{
+  "pass": 35,
+  "fail": 0,
+  "total": 35,
+  "detectIndustryMs": 22,
+  "runClassificationMs": 3826,
+  "discoverCacheFirstMs": 126,
+  "discoverCacheSecondMs": 0,
+  "cases": [
+    {
+      "name": "parseCSV 基础两列",
+      "pass": true,
+      "detail": "[[\"a\",\"b\"],[\"c\",\"d\"]]"
+    },
+    {
+      "name": "parseCSV 引号内逗号",
+      "pass": true,
+      "detail": "[[\"a,b\",\"c,d\"]]"
+    },
+    {
+      "name": "parseCSV 引号内换行",
+      "pass": true,
+      "detail": "[[\"line1\\nline2\",\"x\"]]"
+    },
+    {
+      "name": "parseCSV CRLF 正常",
+      "pass": true,
+      "detail": "[[\"a\",\"b\"],[\"c\",\"d\"]]"
+    },
+    {
+      "name": "parseCSV 孤立\\r 修正为换行(M-NEW-3已修复)",
+      "pass": true,
+      "detail": "实际=[[\"a\",\"b\"],[\"c\",\"d\"]] | 期望=[[\"a\",\"b\"],[\"c\",\"d\"]]"
+    },
+    {
+      "name": "detectIndustry 5000次耗时(正则已缓存)",
+      "pass": true,
+      "detail": "22ms（已预编译37条行业正则，C-NEW-1已修复；旧值~590ms）"
+    },
+    {
+      "name": "classify 苹果手机=核心词(品牌90<产品96, 当前系统行为)",
+      "pass": true,
+      "detail": "cat=core | dimLabel=品牌+产品"
+    },
+    {
+      "name": "classify 苹果手机 意图应为导航型(M-NEW-4已修复)",
+      "pass": true,
+      "detail": "intent=navigational | dimLabel=品牌+产品 | 应为navigational"
+    },
+    {
+      "name": "classify 北京二手房优惠=价格词/交易型",
+      "pass": true,
+      "detail": "cat=price intent=transactional"
+    },
+    {
+      "name": "classify 疑问词=疑问词/信息型",
+      "pass": true,
+      "detail": "cat=question"
+    },
+    {
+      "name": "runClassification 1800词耗时(同步主线程)",
+      "pass": true,
+      "detail": "3826ms (C-NEW-2: discoverDomainVocab每次重算+detectIndustry重建正则)"
+    },
+    {
+      "name": "discoverDomainVocab 已加缓存(二次调用近0ms)",
+      "pass": true,
+      "detail": "首次=126ms 二次=0ms (C-NEW-2已修复)"
+    },
+    {
+      "name": "visibleResults 搜索过滤",
+      "pass": true,
+      "detail": "匹配 60 条"
+    },
+    {
+      "name": "visibleResults 类目过滤",
+      "pass": true,
+      "detail": "品牌词 180 条"
+    },
+    {
+      "name": "readDictFromUI 清空confTh兜底为70(M-NEW-2已修复)",
+      "pass": true,
+      "detail": "confTh=70"
+    },
+    {
+      "name": "readDictFromUI confTh=150 已clamp到100(M-NEW-2已修复)",
+      "pass": true,
+      "detail": "confTh=100"
+    },
+    {
+      "name": "readDictFromUI confTh=60 正常",
+      "pass": true,
+      "detail": "confTh=60"
+    },
+    {
+      "name": "exportXLSX 表头含「置信度」列",
+      "pass": true,
+      "detail": "列1,一级分类,信号维度,搜索意图,购买阶段,质量评分,账户结构建议,置信度,命中规则,来源"
+    },
+    {
+      "name": "exportXLSX 行数=结果数",
+      "pass": true,
+      "detail": "导出 1680 / 结果 1680"
+    },
+    {
+      "name": "取消全选后导出为空(提示勾选, M-NEW-7)",
+      "pass": true,
+      "detail": "toast=当前没有可导出的关键词：默认导出全部可见行，若已取消全选请先勾选要导出的行"
+    },
+    {
+      "name": "aiClassify 改写cat后派生列已按AI类别重算(M-NEW-1已修复)",
+      "pass": true,
+      "detail": "后:cat=price/intent=transactional/stage=decision/acct=计划:通用-品牌词 | 单元:品牌词 | 短语匹配 | 出价:中"
+    },
+    {
+      "name": "按钮[清空] 清空输入框",
+      "pass": true,
+      "detail": "kwInput.value=\"\""
+    },
+    {
+      "name": "按钮[分类] 触发分类并产出结果",
+      "pass": true,
+      "detail": "结果数=1"
+    },
+    {
+      "name": "按钮[重新分类] 重新分类",
+      "pass": true,
+      "detail": "结果数=1"
+    },
+    {
+      "name": "按钮[设置] 打开抽屉",
+      "pass": true,
+      "detail": "drawer open"
+    },
+    {
+      "name": "按钮[关闭抽屉] 关闭",
+      "pass": true,
+      "detail": "drawer closed"
+    },
+    {
+      "name": "输入框[搜索] 设置state.search并渲染",
+      "pass": true,
+      "detail": "search=小米"
+    },
+    {
+      "name": "下拉[分类筛选] 设置filterCat",
+      "pass": true,
+      "detail": "filterCat=brand"
+    },
+    {
+      "name": "下拉[列选择] 切换列并重分类",
+      "pass": true,
+      "detail": "keywordCol=0"
+    },
+    {
+      "name": "勾选[仅显示命中类目] 触发renderLegend",
+      "pass": true,
+      "detail": "no-crash"
+    },
+    {
+      "name": "滑块[置信度] oninput 带clamp",
+      "pass": true,
+      "detail": "confTh=80"
+    },
+    {
+      "name": "链接[载入示例数据] 导入并分类",
+      "pass": true,
+      "detail": "结果数=28"
+    },
+    {
+      "name": "按钮[导出Excel] 触发导出",
+      "pass": true,
+      "detail": "导出 2 行"
+    },
+    {
+      "name": "按钮[重置词典] 重置并重分类",
+      "pass": true,
+      "detail": "brand词 3049 个"
+    },
+    {
+      "name": "溢出: 超长关键词renderTable不崩溃(M-NEW-6)",
+      "pass": true,
+      "detail": "measureTextWidth(300字)=2100px，关键词列无max-width约束"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+Slice slice_2.json: 32 industries, 1600000 keywords
+  trigger_as_company=2993 geo=0 attr=0 company_missed=75698 factory_missed=591

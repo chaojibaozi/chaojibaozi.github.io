@@ -1,0 +1,153 @@
+================================================================
+关键词分词工具 · 系统重测审查报告（对比版）
+================================================================
+重测时间：2026-07-24 11:24（基于用户"已优化"后的 index.html）
+对比基准：comprehensive_review.txt（2026-07-24 早轮，优化前）
+审查方式：抽取 index.html 第 346–1891 行应用脚本，在 Node(v22) DOM 桩中
+          真实加载并直接调用函数，跑 35 项断言 + 性能基准（与优化前同一套测试桩）。
+说明：行号标注为「提取脚本 app_logic.js 行号」（= index.html 行号 − 345）。
+
+----------------------------------------------------------------
+一、本轮确认的用户优化动作（已生效，值得肯定）
+----------------------------------------------------------------
+1. 新增 buildRegexCache()（app_logic 413 行）：预编译 11 个意图正则（reQ/reR/
+   reP/rePS/rePW/reA/reU/reCompany/rePhone/reFactory），并在 classify（835 行）、
+   runClassification（974 行）、readDictFromUI（1309 行）三处接入。
+   ✅ 这是有效优化：classify 内 11 个意图正则不再逐词 new RegExp。
+2. 重写 detectIntent（529–560 行）：新增商业调查型、交易型与导航型的细化分支，
+   试图修复 M-NEW-4（品牌+产品词的意图误判）。
+3. 文件整体瘦身约 20 行（index.html 1913→1893 行），属代码清理。
+
+----------------------------------------------------------------
+二、问题状态总表（优化前 → 优化后）
+----------------------------------------------------------------
+【性能类 · 关键】
+C-NEW-1  detectIndustry 每条关键词都 new RegExp 37 条行业正则
+          状态：❌ 未修复（且本次优化未覆盖）
+          实测：5000 次调用 338ms → 590ms（仍逐词重建；buildRegexCache 只覆盖
+          了 classify 的 11 个意图正则，未覆盖 detectIndustry 的 37 条行业正则）
+          位置：app_logic 467–513 行（循环体内 508–511 行 new RegExp(pattern)）
+                对应 index.html 812–858 行
+
+C-NEW-2  整批分类主线程卡顿（discoverDomainVocab 每批重算 n-gram 且无缓存）
+          状态：❌ 未修复（风险未消除）
+          实测：1800 词整批 7996ms → 20682ms（不同机器负载下绝对数值不可直接比，
+          但 discoverDomainVocab 每次重算 n-gram 实测 585ms → 710ms 仍无跨批次缓存；
+          叠加 detectIndustry 逐词重建正则，1 万词 ≈ 卡死风险未变）
+          位置：discoverDomainVocab 784–824 行（无 state 缓存）；
+                被 runClassification 973 行每批调用一次
+
+【逻辑/数据类】
+M-NEW-1  AI 分类只改 cat/source，intent/stage/dimLabel/conf/quality/账户结构不重算
+          状态：❌ 未修复
+          实测：aiClassify 1026 行仅 r.cat=...; r.source='AI'；将"苹果手机"改竞品词后
+          intent 仍为 informational、stage 仍为 awareness（表格列自相矛盾）
+          位置：app_logic 994–1030 行（核心在 1026 行）
+
+M-NEW-2  readDictFromUI 的 confTh 无 NaN/范围保护
+          状态：❌ 未修复
+          实测：清空 confTh → NaN；填 150（超滑块 45–99）→ 150（无 clamp）
+          注：滑块 oninput 路径有 clamp，但"保存词典"路径（1308 行 parseInt）无兜底
+          位置：app_logic 1308 行
+
+M-NEW-3  经典 Mac 换行 \r 被静默丢弃导致字段合并
+          状态：❌ 未修复
+          实测：parseCSV('a\rb,c\r\nd') → [["a","bc","d"]]（期望 a/b、c/d）
+          根因：app_logic 701 行 else if(c==='\r'){ /* skip */ }
+          位置：app_logic 690–707 行（701 行）
+
+M-NEW-4  "苹果手机"等品牌+产品词意图误判为 informational（应为 navigational）
+          状态：❌ 未修复（重写 detectIntent 后仍判不出）
+          实测：cat=core、dimLabel=品牌+产品、intent=informational
+          原因：导航型判定（546 行）要求 !dims.includes('产品')，品牌+产品词必然含
+          "产品" → 永远落不到 navigational；最终走默认 informational
+          位置：app_logic 529–560 行（导航分支 545–547 行）
+
+M-NEW-5  屏幕表格无"置信度/复核"列，但导出 XLSX 含该列
+          状态：❌ 未修复
+          实测：renderTable 算出 conf（1219 行）却未放进 9 单元格行模板（1223 行）；
+          导出表头确含"置信度"
+          影响：界面上的"复核"工作流失效（用户看不到哪些词需复核）
+          位置：app_logic 1175–1233 行（1223 行 9 单元格无置信度）
+
+M-NEW-6  关键词列 / 信号维度标签无 max-width，长内容横向溢出
+          状态：❌ 未修复
+          实测：300 字关键词 measureTextWidth=2100px；colMaxWidths[1]=0（关键词列无约束）
+          位置：app_logic 1187 行（colMaxWidths[1]=0）、1223 行（关键词 td 无 class/省略号）；
+                CSS .dims 无 max-width/overflow（index.html 约 100 行）
+
+M-NEW-7  取消全选后导出为空（仅提示"请先勾选"）
+          状态：❌ 未修复（当前逻辑下取消全选=全不选，导出必空）
+          实测：toggleAllChecked(false) → checkedUnchecked 含全部可见索引 → 导出 0 条
+          位置：app_logic 1236–1248 行、1259–1262 行
+
+【上轮新增问题】
+新增-1   导出只导当前筛选视图，却提示"导出 Excel 包含全部结果"
+          状态：❌ 未修复（提示与行为矛盾）
+          实测：exportXLSX 用 visibleResults()（1258 行）仅导出筛选视图；renderTable
+          1226 行文案"导出 Excel 包含全部结果"具有误导性（应改为"包含当前筛选全部"）
+          位置：app_logic 1251–1271 行、1226 行
+新增-2   列选择取消确认后下拉显示值与 state 不符
+          状态：⚠️ 本轮未单独复测（UI 交互，需浏览器；逻辑层未变动迹象）
+
+----------------------------------------------------------------
+三、按钮 / 输入框测试矩阵（35 项，本轮重跑）
+----------------------------------------------------------------
+[功能可用性] 全部 33 项 PASS，2 项预期缺陷（FAIL 即复现已知 bug）
+  parseCSV 基础两列 / 引号内逗号 / 引号内换行 / CRLF 正常      → PASS
+  parseCSV 孤立\r 处理                                        → FAIL（复现 M-NEW-3）
+  classify 苹果手机=品牌词                                     → FAIL（复现 M-NEW-4，现 cat=core）
+  classify 苹果手机意图导航型                                  → PASS(标记预期缺陷, intent=informational)
+  classify 北京二手房优惠=交易型 / 疑问词=信息型               → PASS
+  runClassification 1800词耗时                                  → PASS(标记, 20682ms)
+  discoverDomainVocab 无缓存                                   → PASS(标记, 710ms)
+  visibleResults 搜索/类目过滤                                 → PASS
+  readDictFromUI confTh 空/150/60                              → PASS(标记, NaN / 未clamp / 正常)
+  exportXLSX 表头含置信度 / 行数=结果数                        → PASS
+  取消全选后导出为空                                           → PASS(标记, 复现 M-NEW-7)
+  aiClassify 派生列未重算                                      → PASS(标记, 复现 M-NEW-1)
+  按钮[清空/分类/重新分类/设置/关闭抽屉/导出/重置词典]          → 均触发无崩溃 PASS
+  输入框[搜索] / 下拉[分类筛选/列选择] / 勾选[仅显示命中]        → 均生效 PASS
+  滑块[置信度] oninput 带 clamp                                → PASS(80)
+  链接[载入示例数据]                                          → PASS(28 条)
+  溢出: 超长关键词 renderTable 不崩溃                          → PASS(标记, 复现 M-NEW-6)
+
+结论：所有按钮/输入框事件绑定有效、无脚本崩溃；2 个 FAIL 均为复现已报告逻辑 bug。
+
+----------------------------------------------------------------
+四、性能对比小结
+----------------------------------------------------------------
+  指标                  优化前        优化后        说明
+  detectIndustry×5000  338ms        590ms        ❌ 仍逐词 new RegExp（C-NEW-1 未覆盖）
+  discoverDomainVocab  585ms        710ms        ❌ 无跨批次缓存（C-NEW-2 根因）
+  1800词整批分类       7996ms       20682ms      ⚠️ 未改善；1万词卡死风险未消除
+  classify 意图正则    逐词编译     已缓存        ✅ buildRegexCache 优化生效（仅覆盖 classify）
+
+注：1800 词绝对耗时两次机器负载不同，不可直接相减；但两项根因（detectIndustry
+逐词正则、discoverDomainVocab 无缓存）经独立微基准确认仍然成立，因此"大词包卡顿"
+这一核心可用性风险在本轮优化后并未解除。
+
+----------------------------------------------------------------
+五、结论与修复优先级建议
+----------------------------------------------------------------
+✅ 已做对的事：
+  - buildRegexCache 预编译意图正则并接入 classify，是正经的性能优化，建议保留。
+  - detectIntent 分支细化方向正确（更细的意图层次）。
+
+❌ 仍需修复（按优先级）：
+  P0  C-NEW-1：让 detectIndustry 复用预编译正则（把 37 条行业模式也纳入 buildRegexCache，
+      或在模块加载时预编译一次 RE_INDUSTRY 数组）。预计 classify 单词再降 30–50%。
+  P0  C-NEW-2：discoverDomainVocab 结果缓存到 state（仅当关键词集合变化时才重算）；
+      或降级为异步/Web Worker，避免 1 万词主线程卡死。
+  P1  M-NEW-1：aiClassify 改写 cat 后，必须重算 intent/stage/dimLabel/conf/quality/
+      accountSuggestion（直接调用已有 detectIntent/detectBuyingStage 等），否则表格列矛盾。
+  P1  M-NEW-4：导航型判定放宽——品牌词且非"疑问/口碑/价格"即判 navigational，
+      "苹果手机/华为手机"应落 navigational（而非要求完全无产品词）。
+  P2  M-NEW-5：屏幕表格补"置信度"列（或把复核标记并入质量/来源列），让复核可见。
+  P2  M-NEW-3：parseCSV 的 \r 改为行终止符（或先 text.replace(/\r\n?/g,'\n')）。
+  P2  M-NEW-6：关键词 td 与 .dims 加 max-width + text-overflow:ellipsis（hover 展开）。
+  P3  M-NEW-2：readDictFromUI 的 confTh 加 isNaN/clamp(45,99) 兜底。
+  P3  M-NEW-7 / 新增-1：取消全选语义改为"全不选并提示"，导出文案改为"当前筛选全部结果"。
+
+本轮重测脚本与证据保留在 _review/ 目录（harness.cjs + app_logic.js），可随时复跑。
+================================================================

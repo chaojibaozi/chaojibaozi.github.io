@@ -1,0 +1,656 @@
+{
+  "total": 2116,
+  "badHit": 55,
+  "badRate": "2.6",
+  "netTotal": 391,
+  "netWrong": 48,
+  "netWrongRate": "12.3",
+  "catDist": {
+    "company": 254,
+    "core": 475,
+    "promo": 7,
+    "audience": 8,
+    "longtail": 13,
+    "model": 1,
+    "brand": 25,
+    "generic": 17,
+    "price": 569,
+    "geo": 9,
+    "question": 371,
+    "factory": 173,
+    "reputation": 186,
+    "attribute": 5,
+    "phone": 3
+  },
+  "netWrongList": [
+    {
+      "kw": "游戏平台",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "游戏论坛",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "游戏社区",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "游戏媒体",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "直播平台",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "社交平台",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "社交软件",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "兴趣社区",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "汽车论坛",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "篮球论坛",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "数码论坛",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "装修论坛",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "摄影论坛",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "钓鱼论坛",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "育儿社区",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "美妆社区",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "资讯平台",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "资讯网站",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "自媒体",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "自媒体运营",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "新媒体运营",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "网店",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "网店转让",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "网店代运营",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "淘宝店",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "天猫店",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "跨境电商",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "婚恋网站",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "语音房",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "论坛推广",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "社区运营",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "媒体投放",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "媒体发布",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "旅游网站",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "招聘网站",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "招聘平台",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "教育平台",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "在线教育平台",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "外卖平台",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "医疗资讯网站",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "健康资讯平台",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "社区电商",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "驾校",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "全屋定制",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "度假村",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "400电话",
+      "got": "电话词",
+      "rule": "电话词:含电话/联系方式类词"
+    },
+    {
+      "kw": "猎头",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    },
+    {
+      "kw": "劳务派遣",
+      "got": "公司词",
+      "rule": "公司词:含公司/企业类词"
+    }
+  ],
+  "netCompanyErrors": [
+    {
+      "kw": "游戏平台",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "游戏论坛",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "游戏社区",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "游戏媒体",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "直播平台",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "社交平台",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "社交软件",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "兴趣社区",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "汽车论坛",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "篮球论坛",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "数码论坛",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "装修论坛",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "摄影论坛",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "钓鱼论坛",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "育儿社区",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "美妆社区",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "资讯平台",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "资讯网站",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "自媒体",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "自媒体运营",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "新媒体运营",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "网店",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "网店转让",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "网店代运营",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "淘宝店",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "天猫店",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "跨境电商",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "婚恋网站",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "语音房",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "论坛推广",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "社区运营",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "媒体投放",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "媒体发布",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/其它非公司"
+    },
+    {
+      "kw": "旅游网站",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/brand"
+    },
+    {
+      "kw": "招聘网站",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/brand"
+    },
+    {
+      "kw": "招聘平台",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/brand"
+    },
+    {
+      "kw": "教育平台",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/brand"
+    },
+    {
+      "kw": "在线教育平台",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/brand"
+    },
+    {
+      "kw": "外卖平台",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/brand"
+    },
+    {
+      "kw": "医疗资讯网站",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/brand"
+    },
+    {
+      "kw": "健康资讯平台",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/brand"
+    },
+    {
+      "kw": "社区电商",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail/brand"
+    },
+    {
+      "kw": "驾校",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail"
+    },
+    {
+      "kw": "全屋定制",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail"
+    },
+    {
+      "kw": "度假村",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail"
+    },
+    {
+      "kw": "400电话",
+      "got": "电话词",
+      "gotId": "phone",
+      "rule": "电话词:含电话/联系方式类词",
+      "expect": "core/longtail"
+    },
+    {
+      "kw": "猎头",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail"
+    },
+    {
+      "kw": "劳务派遣",
+      "got": "公司词",
+      "gotId": "company",
+      "rule": "公司词:含公司/企业类词",
+      "expect": "core/longtail"
+    }
+  ],
+  "otherBadErrors": [
+    {
+      "kw": "朝阳产业",
+      "got": "地域词",
+      "gotId": "geo",
+      "rule": "地域词:含「朝阳」",
+      "expect": "非geo(brand/core/longtail)"
+    },
+    {
+      "kw": "河东狮吼",
+      "got": "地域词",
+      "gotId": "geo",
+      "rule": "地域词:含「河东」",
+      "expect": "非geo(brand/core/longtail)"
+    },
+    {
+      "kw": "南开大学",
+      "got": "地域词",
+      "gotId": "geo",
+      "rule": "地域词:含「南开」",
+      "expect": "非geo(brand/core/longtail)"
+    },
+    {
+      "kw": "花都汽车城",
+      "got": "地域词",
+      "gotId": "geo",
+      "rule": "地域词:含「花都」",
+      "expect": "非geo(brand/core/longtail)"
+    },
+    {
+      "kw": "变频空调",
+      "got": "属性词",
+      "gotId": "attribute",
+      "rule": "属性词:功能/规格/特征类词",
+      "expect": "core/longtail"
+    },
+    {
+      "kw": "防水涂料",
+      "got": "属性词",
+      "gotId": "attribute",
+      "rule": "属性词:功能/规格/特征类词",
+      "expect": "core/longtail"
+    },
+    {
+      "kw": "实木家具",
+      "got": "属性词",
+      "gotId": "attribute",
+      "rule": "属性词:功能/规格/特征类词",
+      "expect": "core/longtail"
+    }
+  ]
+}

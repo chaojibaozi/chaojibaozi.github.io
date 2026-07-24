@@ -112,7 +112,6 @@
   .drawer.open{transform:translateX(0);}
   .drawer header{display:flex; align-items:center; padding:14px 18px; border-bottom:1px solid var(--border);}
   .drawer header h3{margin:0; font-size:15px; flex:1;}
-  .drawer-actions{display:flex; gap:8px; align-items:center;}
   .drawer .body{padding:18px; overflow:auto; flex:1;}
   .field{margin-bottom:16px;}
   .field label{display:block; font-size:12px; color:var(--muted); margin-bottom:5px; font-weight:500;}
@@ -150,7 +149,6 @@
   #resultBody td:first-child{text-align:center;vertical-align:middle;padding:4px 2px;}
   #resultBody td:first-child input{width:14px;height:14px;cursor:pointer;accent-color:var(--brand);}
   /* 列宽调整 */
-  #resultTable{table-layout:fixed;}
   #resultTable thead th{position:sticky;top:0;z-index:10;min-width:64px;border-right:1px solid #e2e6ec;}
   #resultTable thead th:last-child{border-right:none;}
   #resultTable tbody td{border-right:1px solid #f0f2f5;}
@@ -226,7 +224,6 @@
           <select id="catFilter" title="按分类筛选">
             <option value="">全部分类</option>
           </select>
-          <button class="btn" id="btnResetFilter">重置筛选</button>
           <button class="btn" id="btnExport">导出 Excel</button>
         </div>
         <div id="tableWrap" style="max-height:520px; overflow:auto;">
@@ -243,7 +240,7 @@
 
   <div class="drawer-mask" id="drawerMask"></div>
   <div class="drawer" id="drawer">
-    <header><h3>设置</h3><div class="drawer-actions"><button class="btn" id="btnSaveSettings">保存</button><button class="btn" id="btnResetSettings">重置</button><button class="btn" id="drawerClose">关闭</button></div></header>
+    <header><h3>设置</h3><button class="btn" id="drawerClose">关闭</button></header>
     <div class="body">
       <div class="field">
         <label>置信度阈值（低于则标记「需复核」）</label>
@@ -362,13 +359,6 @@ const CATEGORIES = [
   {id:'company',   name:'公司词', color:'#4A6FA5'},
   {id:'phone',     name:'电话词', color:'#2E8B8B'},
   {id:'factory',   name:'厂家词', color:'#8B6914'},
-  {id:'software',  name:'软件词', color:'#2D6A9F'},
-  {id:'app',       name:'APP词',  color:'#3A7CA5'},
-  {id:'download',  name:'下载词', color:'#1D7A4D'},
-  {id:'website',   name:'网站词', color:'#6A4C93'},
-  {id:'official_site', name:'官网词', color:'#0B6E6E'},
-  {id:'official',  name:'官方词', color:'#8A5A00'},
-  {id:'url',       name:'网址词', color:'#9C5B5B'},
   {id:'price',     name:'价格词', color:'#B4571D'},
   {id:'question',  name:'疑问词', color:'#854F0B'},
   {id:'reputation',name:'口碑词', color:'#A32D2D'},
@@ -384,8 +374,8 @@ const CAT_COLOR = {}; CATEGORIES.forEach(c=>CAT_COLOR[c.id]=c.color);
    检测关键词中同时触发的多个信号维度，生成组合标签（如"品牌+产品+价格"）。
    维度优先级：品牌->型号->产品->属性->地域->人群->竞品->价格->促销->咨询->口碑->长尾
    通用词不参与维度组合（专属低分）。                               */
-const DIM_NAMES = {brand:'品牌',competitor:'竞品',model:'型号',core:'产品',attribute:'属性',geo:'地域',audience:'人群',company:'公司',phone:'电话',factory:'厂家',price:'价格',promo:'促销',question:'咨询',reputation:'口碑',longtail:'长尾',software:'软件',app:'APP',download:'下载',website:'网站',official_site:'官网',official:'官方',url:'网址'};
-const DIM_ORDER = ['brand','competitor','model','core','attribute','geo','audience','company','phone','factory','price','promo','question','reputation','longtail','software','app','download','website','official_site','official','url'];
+const DIM_NAMES = {brand:'品牌',competitor:'竞品',model:'型号',core:'产品',attribute:'属性',geo:'地域',audience:'人群',company:'公司',phone:'电话',factory:'厂家',price:'价格',promo:'促销',question:'咨询',reputation:'口碑',longtail:'长尾'};
+const DIM_ORDER = ['brand','competitor','model','core','attribute','geo','audience','company','phone','factory','price','promo','question','reputation','longtail'];
 const DIM_THRESH = 30;
 
 /* ============ SEM 扩展分析常量 ============ */
@@ -780,9 +770,6 @@ function buildRegex(arr){
 }
 
 // 分词词典：聚合全部 BASE 类目 + 扩展词典，供 segment() 使用
-// P2-fix：补充网络/平台/社区类词，使 segment() 能正确切分 平台/商城/系统/软件/游戏 等，
-// 降低采样漏切率（报告中 19.9%）。这些词不入 product 词典，仅用于分词，不影响分类判定。
-const NETWORK_WORDS = ['论坛','社区','平台','自媒体','直播','网店','资讯','电商','网站','APP','软件','系统','游戏','媒体','社交','网络','店铺','商城','短视频','公众号','社群','网','官网','手机端','PC端','小程序','门户','频道','中心','基地','研究院','事务所'];
 function buildSegDict() {
   const B = BASE, D = state.dict;
   const s = new Set();
@@ -792,7 +779,6 @@ function buildSegDict() {
   for (const k of ['question','reputation','promo','price','attribute','audience','company','phone','factory']) {
     (D.ext && D.ext[k] || []).forEach(t => s.add(t));
   }
-  for (const t of NETWORK_WORDS) s.add(t);
   return s;
 }
 
@@ -940,16 +926,6 @@ function detectIntent(result) {
   if (dims.includes('咨询') || cat === 'question')
     return 'informational';
   
-  // 导航型：官网/官方/网址 明确指向官方来源（找官方入口）
-  if (dims.includes('官网') || dims.includes('官方') || dims.includes('网址'))
-    return 'navigational';
-  // 导航型：品牌 + 下载/软件/APP/网站（寻找官方应用/站点）
-  if (dims.includes('品牌') && (dims.includes('下载') || dims.includes('软件') || dims.includes('APP') || dims.includes('网站')))
-    return 'navigational';
-  // 商业调查型：下载/软件/APP/网站（研究/获取途径，无明确疑问）
-  if (dims.includes('下载') || dims.includes('软件') || dims.includes('APP') || dims.includes('网站'))
-    return 'commercial';
-  
   // 导航型：品牌词（可带产品/型号，但无属性词 → 仍为信息型，如"苹果手机红色"）
   // 注：价格/咨询/口碑已在前序分支提前返回，故此处只需排除"属性"维度
   if (dims.includes('品牌') && !dims.includes('属性'))
@@ -989,10 +965,6 @@ function detectBuyingStage(result) {
   // 公司/电话/厂家词 → 考虑期
   if (cat === 'company' || cat === 'phone' || cat === 'factory') return 'consideration';
 
-  // 渠道/获取类词（软件/APP/下载/网站/官网/官方/网址）→ 考虑期（研究获取途径）
-  if (cat === 'software' || cat === 'app' || cat === 'download' ||
-      cat === 'website' || cat === 'official_site' || cat === 'official' || cat === 'url') return 'consideration';
-
   // 决策期：品牌+疑问/口碑, 或商业调查型
   if (intent === 'commercial') return 'decision';
   if (dims.includes('品牌') && dims.includes('口碑')) return 'decision';
@@ -1026,10 +998,6 @@ function computeQualityScore(result) {
     [dims.includes('竞品'), 1],
     [cat === 'brand' && dims.includes('产品') && !dims.includes('价格'), 1],
     [cat === 'brand', 0.5],
-    [dims.includes('品牌') && dims.includes('官网'), 2],
-    [dims.includes('品牌') && dims.includes('下载'), 1.5],
-    [dims.includes('品牌') && (dims.includes('软件') || dims.includes('APP')), 1],
-    [dims.includes('官网') || dims.includes('官方') || dims.includes('网址'), 0.5],
     [intent === 'purchase', 2],
     [intent === 'decision', 1],
     [intent === 'awareness', -1.5],
@@ -1070,9 +1038,6 @@ function suggestAccountStructure(kw, result) {
       plan = brandPlans.length > 0 ? brandPlans[0] : plans[0];
     } else if (cat === 'competitor') {
       plan = plans[0] + '(竞品)';
-    } else if (dims.includes('官网') || dims.includes('官方') || dims.includes('网址') || dims.includes('网站')) {
-      const brandPlans = plans.filter(p => p.includes('品牌'));
-      plan = brandPlans.length > 0 ? brandPlans[0] : plans[0];
     } else if (cat === 'question' || cat === 'reputation') {
       plan = plans.length > 2 ? plans[2] : plans[0];
     } else if (cat === 'generic' || cat === 'longtail') {
@@ -1261,13 +1226,6 @@ const MODEL_RE = /([A-Za-z]{1,}\s?-?\s?\d{1,}|[一-龥A-Za-z]+\s?(pro|max|plus|u
 // P0 修复：公司词仅当关键词含“法人后缀/实体标记”时才成立，避免 BASE.company 词典中混入的
 // 平台/论坛/社区/媒体/软件/系统/游戏/电商/资讯 等网络词被误判为公司词（详见分词逻辑跨行业压测报告）。
 const COMPANY_MARKER_RE = /(公司|集团|企业|有限公司|股份公司|医院|诊所|银行|保险|证券|合作社|事务所|研究院|超市|酒店|宾馆)/;
-// P0-fix：法人后缀结尾强命中（解决 company_missed 579,841）。BASE.company 词典未覆盖「集团/股份/
-// 控股」等后缀，仅靠 reCompany(词典)+COMPANY_MARKER_RE 会漏判；改为"以法人后缀结尾即强判公司词"，
-// 得分 112 高于 core(105/96)/brand(90)/audience(104)/model(110)，杜绝漏判为长尾/品牌/型号词。
-const CORP_SUFFIX_RE = /(集团|企业集团|股份有限公司|有限责任公司|有限公司|股份公司|股份|企业|控股|公司)$/;
-// P1-fix：厂家后缀结尾强命中（解决 factory_missed 21,629），得分 111 高于型号词(110)，
-// 保证"品牌+产品+厂家后缀"共现时后缀优先于型号启发式。
-const FACTORY_SUFFIX_RE = /(厂家|厂商|工厂|制造厂|生产厂家|生产商)$/;
 function classify(kw){
   const D=state.dict;
   const C=state._reCache||(buildRegexCache(),state._reCache);
@@ -1290,9 +1248,7 @@ function classify(kw){
   // 产品/公司/品牌/属性/人群等时当选；同时遇到机构/法人标记(大学/学院/医院/公司…)直接跳过地域
   // 判定，避免「南开大学」「海淀医院」被误判为地域词。
   const GEO_SKIP_RE=/(大学|学院|中学|小学|学校|研究院|事务所|医院|诊所|集团|公司|银行|保险|证券|超市|酒店|宾馆|合作社)/;
-  // P2-fix：成语/修饰+地名假阳性白名单（语言固有歧义，报告中固定探针残留 4 例），跳过地域判定。
-  const GEO_FP_RE=/(朝阳产业|河东狮吼|浦东开发|鼓楼大街)/;
-  if(!GEO_SKIP_RE.test(k) && !GEO_FP_RE.test(k)){
+  if(!GEO_SKIP_RE.test(k)){
     for(const g of geoSet){ if(k.includes(g)){
       // 短地名边界检查：≤3字的地名若出现在关键词中间(前后都是中文字符)，则跳过
       // 避免「朝阳产业」等成语/修饰+名词组合被误判为地域词
@@ -1303,21 +1259,9 @@ function classify(kw){
   if(reU.test(k)) add('audience','人群词:人群/场景类词',104);
   if(rePW.test(k)) add('price','价格词:价格/性价比类词(弱)',96);
   if(reA.test(k)) add('attribute','属性词:功能/规格/特征类词',92);
-  if((reCompany.test(k) && COMPANY_MARKER_RE.test(k)) || CORP_SUFFIX_RE.test(k)) add('company','公司词:含法人后缀(公司/集团/股份/控股)',112);
+  if(reCompany.test(k) && COMPANY_MARKER_RE.test(k)) add('company','公司词:含公司/企业类词(法人后缀)',110);
   if(rePhone.test(k)) add('phone','电话词:含电话/联系方式类词',100);
-  if(reFactory.test(k) || FACTORY_SUFFIX_RE.test(k)) add('factory','厂家词:含厂家/厂商类词(法人后缀)',111);
-
-  /* —— 渠道/获取类信号维度（软件/APP/下载/网站/官网/官方/网址）——
-     这些词指向"获取途径/官方来源"，作为独立信号维度参与 dimLabel 组合，
-     并可与品牌/产品并列竞争 cat。得分低于价格/口碑/促销/公司/厂家/电话等强意图类，
-     高于品牌(90)/属性(92)，使"品牌+官网"等组合正确归官网/品牌维度而非被品牌压没。 */
-  if(/软件/.test(k)) add('software','渠道词:含「软件」',95);
-  if(/app/i.test(k)) add('app','渠道词:含「APP」',95);
-  if(/下载/.test(k)) add('download','渠道词:含「下载」',98);
-  if(/网站/.test(k)) add('website','渠道词:含「网站」',90);
-  if(/官网|官方网站/.test(k)) add('official_site','渠道词:含「官网」',97);
-  if(/官方/.test(k)) add('official','渠道词:含「官方」',94);
-  if(/网址/.test(k)) add('url','渠道词:含「网址」',90);
+  if(reFactory.test(k)) add('factory','厂家词:含厂家/厂商类词',109);
 
   /* —— 品牌/竞品（导航类）—— */
   let brandHit=false;
@@ -1449,7 +1393,6 @@ function runClassification(){
     if (!r.industryTags) r.industryTags = detectIndustryTags(r.kw, r.industry||'default');
   });
   state.results=results;
-  state._colMaxWidths=null;  // 列宽缓存失效，下次 renderTable 从全量重新计算
   state.checkedUnchecked=null;
   renderAll();
 }
@@ -1657,23 +1600,11 @@ function renderTable(){
   });
   const rows=visibleResults();
   body.innerHTML='';
-  // 列宽：优先使用全量数据缓存的 max-width（避免筛选后因可见行内容变短导致列宽跳动）
-  let colMaxWidths=state._colMaxWidths;
-  if(!colMaxWidths){
-    colMaxWidths=[36,0,0,0,0,0,0,0,0,60];
-    for(const r of state.results){
-      const tag=CAT_NAME[r.cat]; const qual=r.quality?r.quality+'/10':'';
-      const confText=r.conf+'%'+(r.conf<state.confTh?' 复核':'');
-      const intentName=r.intent?INTENT_NAMES[r.intent]||'':'';
-      const stageName=r.stage?STAGE_NAMES[r.stage]||'':'';
-      const dimInfo=r.dimLabel||''; const rule=r.rule.join('；'); const src=r.source||'离线';
-      const texts=['',r.kw,tag,qual,confText,intentName,stageName,dimInfo,rule,src];
-      for(let i=1;i<texts.length;i++){ const w=measureTextWidth(texts[i])+30; if(w>colMaxWidths[i]) colMaxWidths[i]=w; }
-    }
-    state._colMaxWidths=colMaxWidths;
-  }
+  const colHeaders=['','关键词','一级分类','质量','置信度','搜索意图','购买阶段','信号维度','命中规则','来源'];
+  const colMaxWidths=[36,0,0,0,0,0,0,0,0,60];
   if(!rows.length){
     body.innerHTML='<tr><td colspan="10" class="hint" style="padding:60px 30px;text-align:center;color:var(--hint);">暂无匹配结果，请调整筛选条件</td></tr>';
+    colHeaders.forEach((h,i)=>{ if(i>0){ const w=measureTextWidth(h)+30; if(w>colMaxWidths[i]) colMaxWidths[i]=w; } });
     applyColWidths(colMaxWidths);
     return;
   }
@@ -1694,6 +1625,10 @@ function renderTable(){
     const src=r.source||'离线';
     const confText=r.conf+'%'+(review?' 复核':'');
     const colTexts=['',r.kw,tag,qual,confText,intentName,stageName,dimInfo,rule,src];
+    for(let i=1;i<colTexts.length;i++){
+      const w=measureTextWidth(colTexts[i])+30;
+      if(w>colMaxWidths[i]) colMaxWidths[i]=w;
+    }
     const qualHtml = r.quality ? `<span class="dims" style="font-weight:600;color:${r.quality>=8?'#059669':r.quality>=5?'#B4571D':'#DC2626'}">${qual}</span>` : '';
     const intentTag = intentName ? `<span class="dims" style="border-color:#93C5FD;color:#1E40AF;">${intentName}</span>` : '';
     const stageTag = stageName ? `<span class="dims" style="border-color:#FDE68A;color:#92400E;">${stageName}</span>` : '';
@@ -1709,14 +1644,9 @@ function renderTable(){
   if(rows.length>limit){ const tr=document.createElement('tr'); tr.innerHTML=`<td colspan="10" class="hint" style="padding:10px;">仅显示前 ${limit} 条（共 ${rows.length} 条匹配）；导出 Excel 仅包含当前筛选/勾选范围内的结果。</td>`; frag.appendChild(tr); }
   body.appendChild(frag);
   applyColWidths(colMaxWidths);
-  // 入场动画仅作用于视口内可见的前若干行，其余立即显示，避免行数多时动画排队数十秒
   requestAnimationFrame(()=>{
     const staggerRows=body.querySelectorAll('.row-stagger');
-    const STAGGER_CAP=24, STAGGER_STEP=12;
-    staggerRows.forEach((r,i)=>{
-      if(i<STAGGER_CAP) setTimeout(()=>r.classList.add('show'), i*STAGGER_STEP);
-      else r.classList.add('show');
-    });
+    staggerRows.forEach((r,i)=>{ setTimeout(()=>r.classList.add('show'), i*40); });
   });
 }
 
@@ -1869,20 +1799,11 @@ function bind(){
       if(state.mode==='ai' && !state.ai.key){ toast('已切到 AI 增强：请在设置填写 API Key 后点重新分类'); }
     };
   });
-  $('search').oninput=e=>{ state.search=e.target.value; clearTimeout(state._searchTimer); state._searchTimer=setTimeout(()=>renderTable(), 120); };
+  $('search').oninput=e=>{ state.search=e.target.value; renderTable(); };
   $('colSelect').onchange=e=>{ if(state.results.length && !confirm('切换关键词列将重新分类，当前结果将丢失，是否继续？')) return; state.keywordCol=parseInt(e.target.value,10); runClassification(); };
   $('catFilter').onchange=e=>{ state.filterCat=e.target.value; state.filters.cat=''; renderLegend(); renderTable(); syncCatFilter(); };
   $('onlyHit').onchange=()=>renderLegend();
   $('btnExport').onclick=exportXLSX;
-  // 重置筛选：清空所有筛选条件（分类/意图/阶段/维度/来源/搜索），结果恢复显示全部
-  $('btnResetFilter').onclick=()=>{
-    state.filters={cat:'', intent:'', stage:'', dim:'', source:''};
-    state.filterCat='';
-    state.search='';
-    const sEl=$('search'); if(sEl) sEl.value='';
-    const cEl=$('catFilter'); if(cEl) cEl.value='';
-    renderLegend(); renderTable(); syncCatFilter();
-  };
 
   // 表头筛选
   const FILTER_MAP={
@@ -1916,22 +1837,22 @@ function bind(){
       const old=this.querySelector('.filter-dropdown');
       if(old){ closeDropdown(); return; }
       closeDropdown();
-      // collect unique values from FULL results (so options remain available even when other filters are active)
-      const counts=new Map();
-      state.results.forEach(r=>{ const v=FILTER_MAP[key](r); if(v) counts.set(v, (counts.get(v)||0)+1); });
-      if(!counts.size) return;
-      const sorted=[...counts.entries()].sort((a,b)=>a[0].localeCompare(b[0], 'zh'));
+      // collect unique values
+      const vals=new Set();
+      state.results.forEach(r=>{ const v=FILTER_MAP[key](r); if(v) vals.add(v); });
+      if(!vals.size) return;
+      const sorted=[...vals].sort();
       const div=document.createElement('div');
       div.className='filter-dropdown show';
       const rect=this.getBoundingClientRect();
       div.style.left=rect.left+'px';
       div.style.top=rect.bottom+'px';
       let hasItems=false;
-      sorted.forEach(([v,n])=>{
+      sorted.forEach(v=>{
         const item=document.createElement('div');
         const actualVal=FILTER_VALUE_MAP[key](v);
         item.className='fd-item'+(state.filters[key]===actualVal?' on':'');
-        item.innerHTML=v+' <span style="color:var(--muted);font-size:11px;font-weight:400">('+n+')</span>';
+        item.textContent=v;
         item.onclick=(ev)=>{ ev.stopPropagation(); state.filters[key]=state.filters[key]===actualVal?'':actualVal; if(key==='cat') state.filterCat=''; renderLegend(); renderTable(); closeDropdown(); };
         div.appendChild(item); hasItems=true;
       });
@@ -1966,8 +1887,6 @@ function bind(){
   $('btnSettings').onclick=()=>{ fillDictTextareas(); $('drawer').classList.add('open'); $('drawerMask').style.display='block'; };
   $('drawerClose').onclick=closeDrawer;
   $('drawerMask').onclick=closeDrawer;
-  $('btnSaveSettings').onclick=saveSettings;
-  $('btnResetSettings').onclick=resetSettings;
   $('resetDict').onclick=()=>{ state.dict={brand:[...BASE.brand],competitor:[...BASE.competitor],product:[...BASE.product],geo:[...BASE.geo],ext:{question:[],reputation:[],promo:[],price:[],attribute:[],audience:[],company:[],phone:[],factory:[]}}; fillDictTextareas(); toast('已重置为内置词典'); if(state.results.length) runClassification(); };
   $('confTh').oninput=e=>{ const v=Math.max(0,Math.min(100,parseInt(e.target.value,10))); state.confTh=v; $('confThVal').textContent=v; clearTimeout(state._confTimer); state._confTimer=setTimeout(()=>renderTable(),50); };
 
@@ -2031,71 +1950,6 @@ function initDictDirtyTracking(){
 }
 function closeDrawer(){ $('drawer').classList.remove('open'); $('drawerMask').style.display='none'; if(_dictDirty){ readDictFromUI(); renderTable(); _dictDirty=false; } }
 
-/* ============ 设置持久化（保存 / 重置 / 载入）============ */
-const SETTINGS_KEY = 'kst_settings_v1';
-
-// 页面加载时恢复已保存的设置
-function loadSettings(){
-  try{
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if(!raw) return;
-    const p = JSON.parse(raw);
-    if(typeof p.confTh === 'number') state.confTh = p.confTh;
-    if(p.ai && typeof p.ai === 'object'){
-      state.ai.base  = typeof p.ai.base  === 'string' ? p.ai.base  : state.ai.base;
-      state.ai.key   = typeof p.ai.key   === 'string' ? p.ai.key   : '';
-      state.ai.model = typeof p.ai.model === 'string' ? p.ai.model : state.ai.model;
-    }
-    if(p.dict && typeof p.dict === 'object'){
-      if(Array.isArray(p.dict.brand))      state.dict.brand      = p.dict.brand;
-      if(Array.isArray(p.dict.competitor)) state.dict.competitor = p.dict.competitor;
-      if(Array.isArray(p.dict.product))    state.dict.product    = p.dict.product;
-      if(Array.isArray(p.dict.geo))        state.dict.geo        = p.dict.geo;
-      if(p.dict.ext && typeof p.dict.ext === 'object'){
-        Object.keys(state.dict.ext).forEach(k=>{ if(Array.isArray(p.dict.ext[k])) state.dict.ext[k] = p.dict.ext[k]; });
-      }
-    }
-    buildRegexCache();
-  }catch(e){ /* 忽略损坏的存储 */ }
-}
-
-// 保存按钮：自动保存当前设置到 localStorage
-function saveSettings(){
-  readDictFromUI(); // 同步 UI → state（置信度阈值 / AI 配置 / 词典）
-  try{
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      confTh: state.confTh,
-      ai: { base: state.ai.base, key: state.ai.key, model: state.ai.model },
-      dict: state.dict
-    }));
-  }catch(e){}
-  _dictDirty = false;
-  toast('已保存当前设置');
-}
-
-// 重置按钮：先确认，确认后恢复为默认设置
-function resetSettings(){
-  if(!confirm('确定要重置为默认设置吗？此操作将清除当前自定义配置。')) return;
-  state.dict = {
-    brand:[...BASE.brand], competitor:[...BASE.competitor], product:[...BASE.product], geo:[...BASE.geo],
-    ext:{question:[], reputation:[], promo:[], price:[], attribute:[], audience:[], company:[], phone:[], factory:[]}
-  };
-  state.confTh = 60;
-  state.ai = { base:'https://api.deepseek.com/v1', key:'', model:'deepseek-chat' };
-  buildRegexCache();
-  fillDictTextareas();
-  try{
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-      confTh: state.confTh,
-      ai: { base: state.ai.base, key: state.ai.key, model: state.ai.model },
-      dict: state.dict
-    }));
-  }catch(e){}
-  _dictDirty = false;
-  if(state.results.length) runClassification();
-  toast('已重置为默认设置');
-}
-
 /* ============ 初始化 ============ */
 // 填充 catFilter 下拉框的分类选项
 (function(){
@@ -2106,7 +1960,6 @@ function resetSettings(){
     sel.appendChild(opt);
   });
 })();
-loadSettings();
 bind();
 fillDictTextareas();
 initDictDirtyTracking();

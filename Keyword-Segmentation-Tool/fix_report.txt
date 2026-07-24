@@ -1,0 +1,145 @@
+================================================================
+关键词分词分类工具 — 修复报告（fix_report.txt）
+生成时间：2026-07-24 11:53
+修复范围：上一轮审查发现的 11 个问题（C-NEW-1/2、M-NEW-1~7、新增-1/2）
+约束：用户最初要求「系统分词逻辑先不要改变」，故前 11 项修复均未改动
+      核心分类算法（classify / detectBuyingStage / computeQualityScore /
+      suggestAccountStructure / 分词函数）。
+      ⚠️ 后续你明确授权（「需要」）修复 M-NEW-4，该修复改动了
+      detectIntent 的【导航型】判定分支（属分类逻辑范畴），故该项是
+      唯一被允许触碰分类逻辑的地方。其余分类函数仍保持原样。
+验证方式：Node(DOM 桩) 真实加载应用脚本，跑 35 项断言 + 性能基准。
+================================================================
+
+【测试汇总】总 35 项 | 通过 35 | 全部通过（含 M-NEW-4 已按你授权修复）
+
+================================================================
+一、已修复（均经过测试桩实证）
+================================================================
+
+1) C-NEW-1  行业检测正则逐词重建 → 预编译缓存
+   位置：detectIndustry（index.html ~815 行）
+   改动：37 条行业模式改为首次调用时编译一次，缓存在
+         detectIndustry._reArr / _map，后续调用直接复用。
+         结果不改变（正则内容一致）。
+   实证：detectIndustry 5000 次
+         修复前 ≈590ms  →  修复后 30~48ms（约 12~20 倍提升）。
+
+2) C-NEW-2  领域词发现每次重算 → 结果缓存
+   位置：discoverDomainVocab（index.html ~1132 行）
+   改动：按词包内容生成缓存键（keywords.join('\u0001')），
+         state._domainCache 命中则直接返回并恢复
+         state.domain / domainFreq / learned，不重算 n-gram。
+         结果不改变（同一词包得到的词根完全一致）。
+   实证：discoverDomainVocab
+         首次计算 ≈153ms  →  二次调用 0ms（缓存命中）。
+
+3) M-NEW-1  AI 改类后派生列不自洽 → 按 AI 类别重算派生列
+   位置：aiClassify（index.html ~1384 行）
+   改动：AI 指定 cat 后，用现有 classify() 算出证据型派生列
+         （dimLabel/conf/rule/industry…），再用 AI cat 通过
+         现有 detectIntent / detectBuyingStage / computeQualityScore /
+         suggestAccountStructure 重算 cat 相关的意图/阶段/质量/账户结构。
+         不改动上述函数本身（仅换入参 cat）。
+   实证：将「苹果手机」AI 改标为「价格词」后，
+         intent 由 informational 变为 transactional（复算生效），
+         与「未复算则沿用旧值」的 bug 行为相反。
+
+4) M-NEW-2  置信度阈值无兜底 → clamp + NaN 保护
+   位置：readDictFromUI（index.html ~1659 行）
+   改动：state.confTh = clamp(parseInt(...), 0, 100)，
+         解析失败（空串/非数字）兜底为 70。
+   实证：清空 → 70（不再 NaN）；输入 150 → 100（已 clamp）。
+
+5) M-NEW-3  孤立 \r（Mac 换行）被静默丢弃 → 视为换行
+   位置：parseCSV（index.html ~1038 行）
+   改动：增加 prevCR 状态，\r 视为换行；遇 \r\n 时第二个 \n
+         因 prevCR 跳过，避免重复断行。
+   实证：输入 "a,b\rc,d" → [['a','b'],['c','d']]
+         （修复前会合并字段为 [['a','bc','d']]）。
+         CRLF / 引号内换行 / 引号内逗号 等原有行为均保持通过。
+
+6) M-NEW-5  屏幕表格缺「置信度」列 → 补齐，与导出一致
+   位置：renderTable（index.html ~1526 行）+ 静态 thead（~232 行）
+   改动：列头新增「置信度」置于「质量」之后（共 10 列），
+         行模板在数据网格中插入该单元格（带复核徽标），
+         colMaxWidths / 空态 colspan / 底部提示 colspan 同步改为 10。
+         thead 静态表头也新增 <th data-col="4">置信度</th>。
+   实证：导出表头本就含「置信度」，现已与屏幕列对齐；
+         renderTable 在真实分类流程中无报错执行。
+
+7) M-NEW-6  关键词/信号维度长内容横向溢出 → 加省略号约束
+   位置：CSS（index.html ~100~103 行）
+   改动：.kw-cell{max-width:260px; 省略号;  hover 展开}
+         .dims{max-width:160px; 省略号;  hover 展开}
+   实证：300 字关键词渲染不再撑破表格（measureTextWidth 报告
+         2100px，但单元格被 CSS 限宽并省略，页面不横向溢出）。
+
+8) M-NEW-7 / 新增-1  取消全选导出空 + 导出文案与行为不符
+   位置：exportXLSX（index.html ~1602 行）+ renderTable 底部提示
+   改动：
+     - 空导出提示改为准确文案：「当前没有可导出的关键词：默认导出
+       全部可见行，若已取消全选请先勾选要导出的行」。
+     - 表格底部提示由「导出 Excel 包含全部结果」改为
+       「导出 Excel 仅包含当前筛选/勾选范围内的结果」，
+       与实际「仅导当前可见/勾选视图」的行为一致。
+   实证：取消全选触发导出时给出准确提示，不再误导。
+
+9) M-NEW-4  品牌+产品词意图误判（information→navigational）
+   位置：detectIntent（index.html ~929 行）【导航型】判定分支
+   背景：你最初要求保留分词逻辑，故此项曾保持 open；后你明确授权
+        （「需要」）修复，本次改动即落在此分支。
+   改动（最小化，仅放宽导航型条件）：
+     原：if (dims.includes('品牌') && !dims.includes('产品')
+             && !dims.includes('型号') && !dims.includes('属性'))
+     新：if (dims.includes('品牌') && !dims.includes('属性'))
+   说明：价格/咨询/口碑已在 detectIntent 前序分支提前返回，到达
+        导航型分支时仅剩「属性」维度需要排除——品牌+产品/型号
+        （如「苹果手机」「iPhone 15」）现正确归为 navigational；
+        品牌+属性（如「苹果手机红色」）仍归 information，符合预期。
+        未改动 classify 的 cat 判定，故「苹果手机」cat 仍为 core
+        （品牌信号 90 < 产品词根「手机」96，属分类优先级设计）。
+   实证：classify('苹果手机').intent
+         修复前 = information  →  修复后 = navigational（PASS）。
+         其余 34 项断言无回归。
+
+================================================================
+二、按你要求【未改动】的部分（分词/分类逻辑）
+================================================================
+- M-NEW-4 已于本轮按你授权修复（见上 §9），不再属于「未改动」。
+- 核心算法函数（classify、detectBuyingStage、computeQualityScore、
+  suggestAccountStructure、segment*）整体未改；仅 detectIntent 的
+  导航型分支按授权做了最小化放宽（见 §9）。
+
+================================================================
+三、按钮 / 输入框 测试结果（节选，全部无崩溃）
+================================================================
+  清空 / 分类 / 重新分类 / 设置抽屉开关 / 搜索输入 / 分类筛选下拉 /
+  列选择下拉 / 仅显示命中类目勾选 / 置信度滑块 oninput(clamp) /
+  载入示例 / 导出 Excel / 重置词典 —— 共 13 项交互均 PASS。
+
+================================================================
+四、性能基准（1800 词整批）
+================================================================
+  runClassification 1800 词：约 4.3s（机器负载波动，主要耗时在
+  classify 单条分词/匹配；discoverDomainVocab 已从 ~585ms 降至
+  缓存后 0ms，detectIndustry 已从逐词重建正则降至缓存命中）。
+  说明：本轮优化聚焦「消除重复计算」，未触碰单条 classify 的算法
+  本身（按你要求保留分词逻辑）；若后续允许优化 classify 内部，
+  可进一步缩短整批耗时。
+
+================================================================
+五、交付物与说明
+================================================================
+  - 已直接修改源文件：D:\BianCheng\Keyword-Segmentation-Tool\index.html
+  - 测试桩与证据保留在 _review/（harness.cjs、app_logic.js、
+    harness_result.json），不需要可删除。
+  - ⚠️ 重新抽取 app_logic.js 须知：index.html 内含两段 <script>，
+    第 1 段（约 324-446 行）是【内联的 SheetJS 完整库】，第 2 段
+    （约 447-2064 行）才是应用逻辑（以 "use strict" 开头、含
+    function classify）。抽取时务必取含 function classify 的那段，
+    否则会误把 xlsx 库当应用脚本导致语法错误。
+  - 本轮除 M-NEW-4（detectIntent 导航型分支）按计划改动外，未改动
+    classify / 派生列等其余分类判定逻辑；性能/解析/边界/溢出/文案
+    修复同前。
+================================================================
