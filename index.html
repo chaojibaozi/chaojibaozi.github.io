@@ -32,7 +32,7 @@
             background: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(6px);
             -webkit-backdrop-filter: blur(6px);
-            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
             z-index: 9999;
             box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
@@ -42,7 +42,7 @@
             transform: translate3d(0, 0, 0);
             will-change: width;
             backface-visibility: hidden;
-            perspective: 1000px;
+            contain: layout style;
         }
         
         .sidebar:hover {
@@ -116,7 +116,8 @@
             font-weight: 600;
             white-space: nowrap;
             opacity: 0;
-            transition: opacity 0.3s ease 0.1s;
+            transition: opacity 0.25s ease 0.1s;
+            transform: translateZ(0);
         }
         
         .sidebar:hover .sidebar-title {
@@ -124,26 +125,30 @@
         }
         
         .nav-menu {
-            padding: 10px 10px;
+            padding: 8px 10px;
             flex: 1;
             display: flex;
             flex-direction: column;
             gap: 4px;
+            overflow: hidden;
+            min-height: 0;
         }
         
         .nav-item {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 8px 12px;
+            padding: 6px 12px;
             border-radius: 10px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: background-color 0.3s ease, color 0.3s ease;
             color: #334155;
             text-decoration: none;
             user-select: none;
-            flex: 1;
-            min-height: 44px;
+            flex: 1 1 0;
+            min-height: 0;
+            overflow: hidden;
+            transform: translateZ(0);
         }
         
         .nav-item:hover {
@@ -184,9 +189,10 @@
         .nav-item-text {
             white-space: nowrap;
             opacity: 0;
-            transition: opacity 0.3s ease 0.1s;
+            transition: opacity 0.25s ease 0.1s;
             font-size: 15px;
             font-weight: 500;
+            transform: translateZ(0);
         }
         
         .sidebar:hover .nav-item-text {
@@ -198,7 +204,8 @@
             color: rgba(0, 0, 0, 0.35);
             font-size: 11px;
             opacity: 0;
-            transition: opacity 0.3s ease 0.1s;
+            transition: opacity 0.25s ease 0.1s;
+            transform: translateZ(0);
         }
         
         .sidebar:hover .drag-hint {
