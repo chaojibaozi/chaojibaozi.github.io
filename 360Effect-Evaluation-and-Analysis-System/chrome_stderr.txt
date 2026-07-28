@@ -1,0 +1,2 @@
+[29096:26620:0728/111710.566:ERROR:chrome\browser\extensions\external_registry_loader_win.cc:161] File E:\quark-cloud-drive夸克网盘\resources\assets\extensions\win32\main.crx for key Software\Google\Chrome\Extensions\golbdgciocipijcnkhfjbljaepchclbc does not exist or is not readable.
+[29096:26620:0728/111710.566:ERROR:chrome\browser\extensions\external_registry_loader_win.cc:161] File C:\Users\39747\AppData\Local\ChromeExtensionCache\xl_ext_chrome.crx for key Software\Google\Chrome\Extensions\ncennffkjdiamlpmcbajkmaiiiddgioo does not exist or is not readable.

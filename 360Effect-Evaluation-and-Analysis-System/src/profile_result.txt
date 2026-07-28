@@ -1,0 +1,32 @@
+== [tier2] 载入 3 个文件 ==
+✔ rank   | dev= pc      | 655782 行 | 10444ms | 2023-08-01至2024-01-31搜索关键词pc端搜
+✔ basic  | dev= pc      | 520795 行 | 10097ms | 2023-08-01至2024-01-31搜索创意pc端搜索
+✔ search | dev= both    | 803319 行 | 11190ms | 2023-08-01至2024-01-31搜索搜索词分创意类
+
+== 运行 runAnalysis ==
+runAnalysis 完成，耗时 53622ms，无异常
+
+== PERF (函数累计耗时) ==
+     53.6s  runAnalysis
+      5.5s  analyzeCpaAttribution
+      3.9s  mergeFiles
+      3.5s  analyzeConvKeywordDaily
+      2.7s  analyzeRank
+      0.8s  analyzeCreative
+      0.1s  analyzeMatchMode
+      0.1s  buildActions
+      0.0s  analyzeCovariation
+      0.0s  detectCoverage
+      0.0s  analyzeOcpc
+      0.0s  analyzeGeo
+      0.0s  findPrev
+      0.0s  analyzeStats
+      0.0s  analyzeConvSearchShift
+      0.0s  analyzeInvalid
+      0.0s  analyzeHour
+  bestAccountMatch 调用次数: 0
+
+===== 全局 =====
+周期: 2023-08-01至2024-01-31 | 日期数: 184
+总消费: 410898.73 | 总转化(深层): 0 | 关键词数: 5681 | 搜索词query数: 278025 | negList: 12868
+R2023_PASS

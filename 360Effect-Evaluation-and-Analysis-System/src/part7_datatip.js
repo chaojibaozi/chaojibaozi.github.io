@@ -1,0 +1,524 @@
+/* ============================================================
+   数据感知浮层提示系统（Data-Aware Tooltips）
+   
+   为整个系统的所有关键数据元素提供上下文感知的浮层解读。
+   用户鼠标悬停在任何数据元素上时，不仅看到原始数值，
+   还能得到"这个值是好是坏？为什么？该怎么办？"的解读。
+   
+   用法：在渲染 HTML 时为元素添加 data-tip-* 属性：
+     data-tip-type   指标类型（ctr/cpa/conv/cost/...）
+     data-tip-value  当前数据值
+     data-tip-bench  基准/目标值（可选，用于对比解读）
+     data-tip-label  自定义标签（可选，覆盖默认标签）
+     data-tip-context 附加上下文（如"账户均值"、"同组对比"）
+   
+   事件委托：在 document 上监听 mouseover/mouseout
+   边界检测：自动调整位置避免溢出视口
+   ============================================================ */
+
+/* ---- 指标解读规则库 ---- */
+var DATA_TIP = {
+  /* ---- 点击率 CTR ---- */
+  ctr: {
+    label: '\u70b9\u51fb\u7387\uff08CTR\uff09',
+    format: function(v){ return (v*100).toFixed(2)+'%'; },
+    eval: function(v, bench){
+      /* bench = 账户均值或同组均值 */
+      if(v == null || v === 0) return {level:'\u65e0\u6570\u636e', cls:'b-gray', txt:'\u6682\u65e0\u70b9\u51fb\u6570\u636e'};
+      var pct = v*100;
+      if(pct >= 8) return {level:'\u4f18\u79c0', cls:'b-green', txt:'CTR '+pct.toFixed(1)+'%\uff0c\u7528\u6237\u5f88\u613f\u610f\u70b9\u8fdb\u6765\u770b\uff0c\u5e7f\u544a\u5f88\u5438\u5f15\u4eba'};
+      if(pct >= 3) return {level:'\u6b63\u5e38', cls:'b-blue', txt:'CTR '+pct.toFixed(1)+'%\uff0c\u5c5e\u4e8e\u884c\u4e1a\u6b63\u5e38\u8303\u56f4'};
+      if(pct >= 1) return {level:'\u504f\u4f4e', cls:'b-amber', txt:'CTR '+pct.toFixed(1)+'%\uff0c\u504f\u4f4e\u2014\u2014\u7528\u6237\u770b\u5230\u4f46\u4e0d\u592a\u60f3\u70b9\uff0c\u53ef\u80fd\u6807\u9898\u4e0d\u591f\u5438\u5f15\u4eba\u6216\u6392\u540d\u592a\u9760\u540e'};
+      return {level:'\u5f88\u4f4e', cls:'b-red', txt:'CTR '+pct.toFixed(2)+'%\uff0c\u6781\u4f4e\u2014\u2014\u5927\u91cf\u5c55\u793a\u4f46\u51e0\u4e4e\u6ca1\u4eba\u70b9\uff0c\u521b\u610f\u6216\u5173\u952e\u8bcd\u4e25\u91cd\u4e0d\u5339\u914d'};
+    },
+    what: '\u7528\u6237\u770b\u5230\u4f60\u7684\u5e7f\u544a\u540e\uff0c\u6709\u591a\u5927\u6bd4\u4f8b\u4f1a\u70b9\u8fdb\u6765\u3002\u8d8a\u9ad8=\u6807\u9898/\u56fe\u7247\u8d8a\u5438\u5f15\u4eba\u3002\u4f4e\u4e8e1%\u610f\u5473\u7740\u6bcf100\u6b21\u5c55\u793a\u90fd\u6ca1\u4eba\u70b9\uff0c\u9700\u8981\u6362\u7d20\u6750\u3002',
+    advices: {
+      '\u4f18\u79c0': ['\u4fdd\u6301\u5f53\u524d\u521b\u610f\u7684\u98ce\u683c\u548c\u8bdd\u672f\uff0c\u4e0d\u8981\u8f7b\u6613\u6539\u52a8','\u53c2\u7167\u8fd9\u4e2a\u521b\u610f\u7684\u5199\u6cd5\uff0c\u591a\u590d\u5236\u51e0\u4e2a\u7c7b\u4f3c\u7684\u53d8\u4f53\u7248\u672c'],
+      '\u6b63\u5e38': ['\u7ee7\u7eed\u89c2\u5bdf\uff0c\u5982\u679c\u8f6c\u5316\u4e5f\u597d\u5c31\u4fdd\u6301\u73b0\u72b6','\u5c1d\u8bd5\u5fae\u8c03\u6807\u9898\uff08\u6539\u4e00\u4e2a\u5173\u952e\u8bcd\uff09\u505aA/B\u6d4b\u8bd5\u770b\u80fd\u4e0d\u80fd\u518d\u63d0\u5347'],
+      '\u504f\u4f4e': ['\u68c0\u67e5\u6807\u9898\u662f\u5426\u592a\u7a7a\u6d1e\uff08\u201c\u4e13\u4e1a\u670d\u52a1\u201d\u8fd9\u79cd\u5c31\u662f\u5e9f\u8bdd\uff09\uff0c\u6539\u6210\u5177\u4f53\u5356\u70b9\uff08\u201c\u514d\u8d39\u4e0a\u95e824\u5c0f\u65f6\u5230\u201d\uff09','\u770b\u770b\u540c\u7ec4\u91ccCTR\u9ad8\u7684\u521b\u610f\u662f\u600e\u4e48\u5199\u7684\uff0c\u76f4\u63a5\u53c2\u8003'],
+      '\u5f88\u4f4e': ['\u7acb\u523b\u505c\u6b62\u8fd9\u4e2a\u521b\u610f\u2014\u2014\u5b83\u5728\u6d6a\u8d39\u4f60\u7684\u5c55\u793a\u673a\u4f1a','\u68c0\u67e5\u5173\u952e\u8bcd\u548c\u521b\u610f\u662f\u5426\u4e0d\u5339\u914d\u2014\u2014\u4f60\u4e70\u4e86\u201c\u7537\u88c5\u201d\u4f46\u521b\u610f\u5199\u7684\u662f\u201c\u5973\u88c5\u201d\uff1f','\u6392\u540d\u592a\u9760\u540e\u4e5f\u4f1a\u62c9\u4f4eCTR\uff0c\u53bb\u67e5\u6392\u540d\u662f\u4e0d\u662f\u6389\u4e86']
+    },
+    keywords: ['CTR','\u70b9\u51fb\u7387','ctr']
+  },
+
+  /* ---- CPA ---- */
+  cpa: {
+    label: '\u8f6c\u5316\u6210\u672c\uff08CPA\uff09',
+    format: function(v){ return '\u00a5'+fmt(v,1); },
+    eval: function(v, bench){
+      if(v == null || v === 0) return {level:'\u65e0\u6570\u636e', cls:'b-gray', txt:'\u6682\u65e0\u8f6c\u5316\u6216\u6d88\u8d39\u6570\u636e'};
+      if(bench && bench > 0){
+        var ratio = v/bench;
+        if(ratio <= 0.7) return {level:'\u4f18\u79c0', cls:'b-green', txt:'CPA \u00a5'+fmt(v,1)+'\uff0c\u4f4e\u4e8e\u76ee\u6807\u00a5'+fmt(bench,1)+'\uff0c\u6bcf\u4e2a\u8f6c\u5316\u82b1\u7684\u94b1\u6bd4\u9884\u671f\u5c11'};
+        if(ratio <= 1.0) return {level:'\u826f\u597d', cls:'b-blue', txt:'CPA \u00a5'+fmt(v,1)+'\uff0c\u7565\u4f4e\u4e8e\u6216\u63a5\u8fd1\u76ee\u6807\u00a5'+fmt(bench,1)+'\uff0c\u5728\u53ef\u63a5\u53d7\u8303\u56f4\u5185'};
+        if(ratio <= 1.5) return {level:'\u504f\u9ad8', cls:'b-amber', txt:'CPA \u00a5'+fmt(v,1)+'\uff0c\u9ad8\u4e8e\u76ee\u6807\u00a5'+fmt(bench,1)+'\uff0c\u6bcf\u4e2a\u8f6c\u5316\u591a\u82b1\u4e86'+(ratio-1)*100|0+'%\u7684\u94b1'};
+        return {level:'\u8d85\u6807', cls:'b-red', txt:'CPA \u00a5'+fmt(v,1)+'\uff0c\u5927\u5e45\u8d85\u8fc7\u76ee\u6807\u00a5'+fmt(bench,1)+'\uff0c\u6210\u672c\u5931\u63a7\uff0c\u5fc5\u987b\u7acb\u5373\u5904\u7406'};
+      }
+      /* 无基准时对比账户均值 */
+      return {level:'\u4ec5\u4f9b\u53c2\u8003', cls:'b-gray', txt:'CPA \u00a5'+fmt(v,1)+'\uff0c\u6682\u65e0\u76ee\u6807CPA\u4f5c\u5bf9\u6bd4\uff0c\u5efa\u8bae\u5728\u8bbe\u7f6e\u4e2d\u8bbe\u5b9a\u76ee\u6807CPA\u4ee5\u4fbf\u7cbe\u51c6\u5bf9\u6bd4'};
+    },
+    what: '\u83b7\u5f97\u4e00\u4e2a\u8f6c\u5316\u5e73\u5747\u82b1\u4e86\u591a\u5c11\u94b1\u3002\u8d8a\u4f4e\u8d8a\u5212\u7b97\u3002\u5982\u679c\u4f60\u8bbe\u4e86\u76ee\u6807CPA\uff0c\u8d85\u8fc7\u76ee\u6807\u5c31\u662f\u4e8f\u94b1\u3002',
+    advices: {
+      '\u4f18\u79c0': ['\u4fdd\u6301\u5f53\u524d\u7b56\u7565\uff0c\u53ef\u4ee5\u8003\u8651\u52a0\u9884\u7b97\u62a2\u66f4\u591a\u91cf'],
+      '\u826f\u597d': ['\u7ee7\u7eed\u76d1\u63a7\uff0c\u4fdd\u6301\u5f53\u524d\u6295\u653e\u7b56\u7565'],
+      '\u504f\u9ad8': ['\u67e5\u770b\u662f\u5426\u6709\u5927\u91cf\u65b0\u589e\u65e0\u8f6c\u5316\u641c\u7d22\u8bcd\u5728\u82b1\u94b1','\u68c0\u67e5\u662f\u5426\u67d0\u4e2a\u5173\u952e\u8bcd\u7a81\u7136\u6d88\u8d39\u72c2\u6da8\u4f46\u6ca1\u8f6c\u5316'],
+      '\u8d85\u6807': ['\u7acb\u5373\u6392\u67e5\u2014\u2014\u53bbCPA\u57fa\u51c6\u5f52\u56e0\u6a21\u5757\u770b\u54ea\u5929\u51fa\u4e86\u95ee\u9898','\u68c0\u67e5\u662f\u5426\u6709\u901a\u914d\u8fc7\u5bbd\u7684\u6a21\u5f0f\u5728\u5927\u91cf\u70e7\u94b1\u96f6\u8f6c\u5316']
+    }
+  },
+
+  /* ---- 消费 ---- */
+  cost: {
+    label: '\u6d88\u8d39',
+    format: function(v){ return '\u00a5'+fmt(v,0); },
+    eval: function(v, bench){
+      if(v == null) return {level:'\u65e0\u6570\u636e', cls:'b-gray', txt:'\u6682\u65e0\u6d88\u8d39\u6570\u636e'};
+      if(v === 0) return {level:'\u96f6\u6d88\u8d39', cls:'b-gray', txt:'\u672c\u5468\u671f\u672a\u4ea7\u751f\u6d88\u8d39\uff0c\u53ef\u80fd\u5df2\u6682\u505c\u6216\u672a\u83b7\u5f97\u5c55\u793a'};
+      if(v >= 300) return {level:'\u9ad8\u6d88\u8d39', cls:'b-red', txt:'\u6d88\u8d39\u00a5'+fmt(v,0)+'\uff0c\u91d1\u989d\u8f83\u9ad8\uff0c\u9700\u91cd\u70b9\u5173\u6ce8\u5176\u8f6c\u5316\u60c5\u51b5'};
+      return {level:'\u6b63\u5e38', cls:'b-blue', txt:'\u6d88\u8d39\u00a5'+fmt(v,0)+'\uff0c\u91d1\u989d\u5728\u6b63\u5e38\u8303\u56f4'};
+    },
+    what: '\u8fd9\u4e2a\u7ef4\u5ea6\u82b1\u4e86\u591a\u5c11\u94b1\u3002\u4f46\u82b1\u94b1\u591a\u4e0d\u4e00\u5b9a\u662f\u574f\u4e8b\u2014\u2014\u5173\u952e\u662f\u82b1\u5b8c\u540e\u6709\u6ca1\u6709\u8f6c\u5316\u3002',
+    advices: {
+      '\u9ad8\u6d88\u8d39': ['\u91cd\u70b9\u68c0\u67e5\u8fd9\u4e2a\u7ef4\u5ea6\u7684\u8f6c\u5316\u60c5\u51b5\u2014\u2014\u82b1\u591a\u5c11\u94b1\u4e0d\u91cd\u8981\uff0c\u82b1\u5b8c\u6709\u6ca1\u6709\u4e1c\u897f\u624d\u91cd\u8981','\u5982\u679c\u9ad8\u6d88\u8d39\u4f46\u96f6\u8f6c\u5316\uff0c\u53bb\u641c\u7d22\u8bcd\u62a5\u544a\u770b\u4e70\u5230\u7684\u6d41\u91cf\u662f\u5426\u4e0d\u5bf9\u53e3']
+    }
+  },
+
+  /* ---- 转化数 ---- */
+  conv: {
+    label: '\u8f6c\u5316\u6570',
+    format: function(v){ return v+' \u4e2a'; },
+    eval: function(v){
+      if(v == null) return {level:'\u65e0\u6570\u636e', cls:'b-gray', txt:'\u6682\u65e0\u8f6c\u5316\u6570\u636e'};
+      if(v === 0) return {level:'\u96f6\u8f6c\u5316', cls:'b-red', txt:'0\u4e2a\u8f6c\u5316\uff0c\u82b1\u4e86\u94b1\u4f46\u6ca1\u4ea7\u51fa\uff0c\u9700\u8981\u6392\u67e5\u539f\u56e0'};
+      if(v >= 5) return {level:'\u4f18\u79c0', cls:'b-green', txt:v+'\u4e2a\u8f6c\u5316\uff0c\u8f6c\u5316\u91cf\u5145\u8db3\uff0c\u8fd9\u662f\u4f60\u7684\u4e3b\u529b\u8bcd'};
+      if(v >= 2) return {level:'\u826f\u597d', cls:'b-blue', txt:v+'\u4e2a\u8f6c\u5316\uff0c\u4e2d\u7b49\u8f6c\u5316\u91cf'};
+      return {level:'\u8f83\u5c11', cls:'b-amber', txt:v+'\u4e2a\u8f6c\u5316\uff0c\u8f6c\u5316\u91cf\u8f83\u5c11\uff0c\u6837\u672c\u4e0d\u8db3\u65f6\u5224\u65ad\u4f1a\u6709\u8bef\u5dee'};
+    },
+    what: '\u7528\u6237\u70b9\u4e86\u5e7f\u544a\u540e\u771f\u7684\u4e0b\u5355/\u7559\u8d44\u6599\u4e86\u3002\u8fd9\u662f\u6700\u91cd\u8981\u7684\u6307\u6807\u2014\u2014\u6700\u7ec8\u76ee\u7684\u3002',
+    advices: {
+      '\u96f6\u8f6c\u5316': ['\u67e5\u641c\u7d22\u8bcd\u662f\u5426\u4e0e\u4e1a\u52a1\u5339\u914d\uff0c\u4e0d\u5339\u914d\u5c31\u52a0\u5426\u8bcd','\u67e5\u6392\u540d\u662f\u5426\u592a\u9760\u540e\uff08\u7528\u6237\u770b\u4e0d\u5230\uff09\u6216\u521b\u610f\u662f\u5426\u592a\u5dee\uff08\u770b\u5230\u4e86\u4f46\u4e0d\u70b9\uff09'],
+      '\u4f18\u79c0': ['\u4fdd\u62a4\u597d\u8fd9\u4e2a\u8bcd\u7684\u6392\u540d\u548c\u9884\u7b97\uff0c\u8fd9\u662f\u4f60\u7684\u201c\u62db\u8d22\u6811\u201d','\u53ef\u4ee5\u8003\u8651\u63d0\u9ad8\u51fa\u4ef7\u62a2\u66f4\u597d\u7684\u4f4d\u7f6e\uff0c\u591a\u62ff\u8f6c\u5316'],
+      '\u826f\u597d': ['\u7ee7\u7eed\u89c2\u5bdf\uff0c\u4fdd\u6301\u5f53\u524d\u6295\u653e\u7b56\u7565'],
+      '\u8f83\u5c11': ['\u6837\u672c\u592a\u5c11\uff0c\u5148\u89c2\u5bdf\u4e00\u6bb5\u65f6\u95f4\u7d2f\u79ef\u6570\u636e\u540e\u518d\u5224\u65ad']
+    }
+  },
+
+  /* ---- 四象限 ---- */
+  quad: {
+    label: '\u5173\u952e\u8bcd\u56db\u8c61\u9650',
+    eval: function(v){
+      var m = {A:{level:'\u91cd\u70b9\u8bcd', cls:'b-blue', txt:'A\u533a\uff1a\u9ad8\u6d88\u8d39\u9ad8\u8f6c\u5316\u2014\u2014\u4f60\u7684\u4e3b\u529b\u8f93\u51fa\u3002\u4fdd\u62a4\u6392\u540d\u3001\u4fdd\u8bc1\u9884\u7b97\uff0c\u4e0d\u8981\u968f\u4fbf\u52a8\u5b83\u4eec\u3002'},
+        B:{level:'\u95ee\u9898\u8bcd', cls:'b-red', txt:'B\u533a\uff1a\u9ad8\u6d88\u8d39\u4f4e\u8f6c\u5316\u2014\u2014\u94b1\u82b1\u4e86\u4f46\u6ca1\u6548\u679c\u3002\u5fc5\u987b\u7acb\u5373\u5904\u7406\uff1a\u67e5\u641c\u7d22\u8bcd\u5339\u914d\u5ea6\u3001\u52a0\u5426\u8bcd\u3001\u964d\u4f4e\u51fa\u4ef7\u3002'},
+        C:{level:'\u6f5c\u529b\u8bcd', cls:'b-green', txt:'C\u533a\uff1a\u4f4e\u6d88\u8d39\u9ad8\u8f6c\u5316\u2014\u2014\u88ab\u57cb\u6ca1\u7684\u201c\u91d1\u5b50\u201d\u3002\u63d0\u4ef7\u62a2\u66f4\u597d\u4f4d\u7f6e\u3001\u653e\u5bbd\u5339\u914d\u8bd5\u8bd5\uff0c\u6316\u6398\u66f4\u591a\u91cf\u3002'},
+        D:{level:'\u89c2\u5bdf\u8bcd', cls:'b-gray', txt:'D\u533a\uff1a\u4f4e\u6d88\u8d39\u4f4e\u8f6c\u5316\u2014\u2014\u5148\u89c2\u5bdf\u7740\uff0c\u770b\u540e\u7eed\u80fd\u4e0d\u80fd\u8dd1\u5230C\u533a\u53d8\u201c\u6f5c\u529b\u80a1\u201d\u3002'}
+      };
+      return m[v] || {level:'\u672a\u77e5', cls:'b-gray', txt:'\u6682\u65e0\u8c61\u9650\u6570\u636e'};
+    }
+  },
+
+  /* ---- 匹配度评分 ---- */
+  matchScore: {
+    label: '\u641c\u7d22\u8bcd\u5339\u914d\u5ea6',
+    eval: function(v){
+      if(v == null) return {level:'\u65e0\u6570\u636e', cls:'b-gray'};
+      if(v >= 70) return {level:'\u9ad8\u5339\u914d', cls:'b-green', txt:'\u5339\u914d\u5ea6 '+v+'\u5206\uff08\u9ad8\uff09\u2014\u2014\u7528\u6237\u641c\u7684\u4e1c\u897f\u8ddf\u4f60\u5356\u7684\u57fa\u672c\u4e00\u81f4\uff0c\u6d41\u91cf\u5f88\u7cbe\u51c6'};
+      if(v >= 40) return {level:'\u4e2d\u5339\u914d', cls:'b-amber', txt:'\u5339\u914d\u5ea6 '+v+'\u5206\uff08\u4e2d\uff09\u2014\u2014\u6cbe\u70b9\u8fb9\u4f46\u4e0d\u591f\u7cbe\u51c6\uff0c\u53ef\u80fd\u6709\u90e8\u5206\u6d41\u91cf\u8dd1\u504f'};
+      return {level:'\u4f4e\u5339\u914d', cls:'b-red', txt:'\u5339\u914d\u5ea6 '+v+'\u5206\uff08\u4f4e\uff09\u2014\u2014\u7528\u6237\u641c\u7684\u8ddf\u4f60\u5356\u7684\u516b\u7aff\u5b50\u6253\u4e0d\u7740\uff0c\u8fd9\u7b14\u94b1\u57fa\u672c\u767d\u82b1\u4e86'};
+    },
+    what: '\u7528\u6237\u771f\u6b63\u641c\u7684\u8bcd\uff0c\u8ddf\u4f60\u82b1\u94b1\u4e70\u7684\u5173\u952e\u8bcd\u6709\u591a\u50cf\u3002\u8d8a\u9ad8\u8d8a\u50cf\uff08\u5f97\u5206\u8d8a\u9ad8\uff09\u3002\u4f4e\u4e8e40\u5206\u7684\u641c\u7d22\u8bcd\u57fa\u672c\u662f\u6d6a\u8d39\u94b1\u3002',
+    advices: {
+      '\u4f4e\u5339\u914d': ['\u7acb\u5373\u52a0\u5165\u5426\u5b9a\u8bcd\u6e05\u5355\uff0c\u522b\u8ba9\u5b83\u7ee7\u7eed\u82b1\u4f60\u7684\u94b1','\u5982\u679c\u8fd9\u4e2a\u641c\u7d22\u8bcd\u82b1\u4e86\u5f88\u591a\u94b1\uff0c\u7528\u77ed\u8bed\u5426\u5b9a\u4e00\u9505\u7aef\u66f4\u9ad8\u6548'],
+      '\u4e2d\u5339\u914d': ['\u89c2\u5bdf\u5b83\u7684\u8f6c\u5316\u60c5\u51b5\u2014\u2014\u5982\u679c\u6709\u8f6c\u5316\u5c31\u7559\u7740\uff0c\u6ca1\u8f6c\u5316\u5c31\u5426\u6389'],
+      '\u9ad8\u5339\u914d': ['\u5982\u679c\u8fd8\u6ca1\u4e70\u8fd9\u4e2a\u8bcd\uff0c\u8d76\u7d27\u52a0\u4e3a\u7cbe\u786e\u5339\u914d\u5173\u952e\u8bcd']
+    }
+  },
+
+  /* ---- 无效点击过滤比 ---- */
+  invalidRatio: {
+    label: '\u65e0\u6548\u70b9\u51fb\u8fc7\u6ee4\u6bd4',
+    format: function(v){ return (v*100).toFixed(1)+'%'; },
+    eval: function(v){
+      if(v == null) return {level:'\u65e0\u6570\u636e', cls:'b-gray'};
+      var pct = v*100;
+      if(pct <= 15) return {level:'\u6b63\u5e38', cls:'b-green', txt:'\u8fc7\u6ee4\u6bd4 '+pct.toFixed(1)+'%\uff0c\u5728\u884c\u4e1a\u5408\u683c\u7ebf15%\u4ee5\u5185\uff0c360\u53cd\u4f5c\u5f0a\u7cfb\u7edf\u6b63\u5e38\u5de5\u4f5c'};
+      if(pct <= 25) return {level:'\u504f\u9ad8', cls:'b-amber', txt:'\u8fc7\u6ee4\u6bd4 '+pct.toFixed(1)+'%\uff0c\u8d85\u8fc7\u5408\u683c\u7ebf\uff0c\u6d41\u91cf\u4e2d\u201c\u63ba\u6c34\u201d\u6bd4\u4f8b\u504f\u9ad8\uff0c\u9700\u8981\u5173\u6ce8\u8d8b\u52bf'};
+      return {level:'\u4e25\u91cd', cls:'b-red', txt:'\u8fc7\u6ee4\u6bd4 '+pct.toFixed(1)+'%\uff0c\u4e25\u91cd\u8d85\u6807\uff01\u6bcf\u82b14\u5757\u94b1\u5c31\u6709\u8fd11\u5757\u662f\u6d6a\u8d39\u7684\uff0c\u5fc5\u987b\u7acb\u5373\u5904\u7406'};
+    },
+    what: '\u88ab360\u53cd\u4f5c\u5f0a\u7cfb\u7edf\u62e6\u622a\u7684\u70b9\u51fb\u5360\u603b\u70b9\u51fb\u7684\u6bd4\u4f8b\u3002\u8d8a\u9ad8=\u5783\u573e\u6d41\u91cf\u8d8a\u591a\u3002\u884c\u4e1a\u5408\u683c\u7ebf\u662f15%\u3002',
+    advices: {
+      '\u6b63\u5e38': ['\u4fdd\u6301\u5f53\u524d\u5339\u914d\u65b9\u5f0f\u548c\u5426\u5b9a\u8bcd\u8bbe\u7f6e\uff0c\u4e0d\u8981\u968f\u610f\u653e\u5bbd'],
+      '\u504f\u9ad8': ['\u5173\u6ce8\u8d8b\u52bf\u2014\u2014\u5982\u679c\u7ee7\u7eed\u4e0a\u5347\u5c31\u6536\u7d27\u5339\u914d\u65b9\u5f0f','\u53bb\u65e0\u6548\u70b9\u51fb\u62a5\u544a\u770b\u54ea\u4e9b\u65f6\u6bb5/\u5730\u57df\u6700\u4e25\u91cd\uff0c\u9488\u5bf9\u6027\u8c03\u6574'],
+      '\u4e25\u91cd': ['\u7acb\u5373\u5927\u91cf\u52a0\u5426\u5b9a\u8bcd\uff0c\u6536\u7d27\u5339\u914d\u65b9\u5f0f','\u4ece\u5e7f\u6cdb\u5339\u914d\u6539\u6210\u77ed\u8bed\u5339\u914d\u6216\u7cbe\u786e\u5339\u914d','\u68c0\u67e5\u662f\u5426\u67d0\u4e2a\u5173\u952e\u8bcd\u5360\u4e86\u5927\u91cf\u65e0\u6548\u6d41\u91cf\uff0c\u76f4\u63a5\u505c\u6b62\u90a3\u4e2a\u8bcd']
+    }
+  },
+
+  /* ---- 排名 ---- */
+  rank: {
+    label: '\u5e7f\u544a\u6392\u540d',
+    eval: function(v){
+      if(v == null) return {level:'\u65e0\u6570\u636e', cls:'b-gray'};
+      if(v <= 2) return {level:'\u4f18\u79c0', cls:'b-green', txt:'\u6392\u540d '+v.toFixed(1)+'\uff0c\u4f4d\u7f6e\u975e\u5e38\u597d\uff0c\u7528\u6237\u7b2c\u4e00\u773c\u5c31\u80fd\u770b\u5230\u4f60\u7684\u5e7f\u544a'};
+      if(v <= 4) return {level:'\u826f\u597d', cls:'b-blue', txt:'\u6392\u540d '+v.toFixed(1)+'\uff0c\u4f4d\u7f6e\u8f83\u597d\uff0c\u5728\u7528\u6237\u89c6\u7ebf\u8303\u56f4\u5185'};
+      if(v <= 6) return {level:'\u4e00\u822c', cls:'b-amber', txt:'\u6392\u540d '+v.toFixed(1)+'\uff0c\u4f4d\u7f6e\u504f\u540e\uff0c\u90e8\u5206\u7528\u6237\u53ef\u80fd\u6ed1\u8fc7\u770b\u4e0d\u5230'};
+      return {level:'\u8f83\u5dee', cls:'b-red', txt:'\u6392\u540d '+v.toFixed(1)+'\uff0c\u4f4d\u7f6e\u592a\u9760\u540e\u4e86\uff0c\u5927\u90e8\u5206\u7528\u6237\u6839\u672c\u770b\u4e0d\u5230\u4f60\u7684\u5e7f\u544a'};
+    },
+    what: '\u4f60\u7684\u5e7f\u544a\u5728\u641c\u7d22\u7ed3\u679c\u91cc\u6392\u7b2c\u51e0\u4f4d\u3002\u6570\u5b57\u8d8a\u5c0f\u8d8a\u9760\u524d\u3002\u6392\u524d3\u4f4d\u80fd\u62ff\u5230\u5927\u90e8\u5206\u70b9\u51fb\u3002',
+    advices: {
+      '\u8f83\u5dee': ['\u63d0\u9ad8\u51fa\u4ef7\u62a2\u56de\u4f4d\u7f6e\u2014\u2014\u4f46\u5148\u786e\u8ba4\u8fd9\u4e2a\u8bcd\u503c\u4e0d\u503c\u5f97\u591a\u82b1\u94b1','\u68c0\u67e5\u8d28\u91cf\u5206\u662f\u5426\u4e0b\u964d\uff08\u4f4e\u5339\u914d\u6d41\u91cf\u4f1a\u62c9\u4f4e\u8d28\u91cf\u5206\u2014\u2014\u8d28\u91cf\u5206\u4f4e\u51fa\u4ef7\u5c31\u5f97\u66f4\u9ad8\uff09'],
+      '\u4e00\u822c': ['\u5982\u679cCTR\u4e5f\u4f4e\u5c31\u63d0\u4ef7\uff0c\u5982\u679cCTR\u8fd8\u53ef\u4ee5\u5c31\u5148\u7ef4\u6301'],
+      '\u826f\u597d': ['\u4fdd\u6301\u51fa\u4ef7\uff0c\u4e0d\u8981\u8f7b\u6613\u964d\u4ef7'],
+      '\u4f18\u79c0': ['\u6392\u540d\u5df2\u7ecf\u5f88\u597d\u4e86\uff0c\u5982\u679c\u8fd8\u6ca1\u8f6c\u5316\u5c31\u4e0d\u662f\u6392\u540d\u95ee\u9898\u4e86\uff08\u53bb\u770b\u521b\u610f\u548c\u641c\u7d22\u8bcd\u5339\u914d\uff09']
+    }
+  },
+
+  /* ---- 集中度 ---- */
+  concentration: {
+    label: '\u96c6\u4e2d\u5ea6',
+    format: function(v){ return (v*100).toFixed(0)+'%'; },
+    eval: function(v, bench){
+      /* bench = 'geo' or 'time' */
+      var pct = v*100;
+      if(pct > 60) return {level:'\u8fc7\u5ea6\u96c6\u4e2d', cls:'b-red', txt:'\u96c6\u4e2d\u5ea6 '+pct.toFixed(0)+'%\uff0c\u8fc7\u5ea6\u96c6\u4e2d\u2014\u2014\u201c\u6240\u6709\u9e21\u86cb\u653e\u5728\u4e00\u4e2a\u7bee\u5b50\u201d\uff0c\u4e07\u4e00\u8fd9\u4e2a\u7ef4\u5ea6\u51fa\u95ee\u9898\u4f60\u5c31\u5168\u5b8c\u4e86'};
+      if(pct > 35) return {level:'\u504f\u96c6\u4e2d', cls:'b-amber', txt:'\u96c6\u4e2d\u5ea6 '+pct.toFixed(0)+'%\uff0c\u6709\u4e9b\u504f\u96c6\u4e2d\uff0c\u53ef\u4ee5\u8003\u8651\u5206\u6563\u98ce\u9669'};
+      return {level:'\u5206\u6563', cls:'b-green', txt:'\u96c6\u4e2d\u5ea6 '+pct.toFixed(0)+'%\uff0c\u5206\u5e03\u8f83\u5747\u5300\uff0c\u6297\u98ce\u9669\u80fd\u529b\u5f3a'};
+    },
+    what: '\u4f60\u7684\u9884\u7b97\u6709\u591a\u5c11\u6bd4\u4f8b\u7838\u5728\u6700\u96c6\u4e2d\u7684\u7ef4\u5ea6\u4e0a\u3002\u592a\u96c6\u4e2d=\u98ce\u9669\u5927\uff08\u4e07\u4e00\u8fd9\u4e2a\u7ef4\u5ea6\u6389\u4e86\u4f60\u5c31\u5168\u5d29\u4e86\uff09\u3002',
+    advices: {
+      '\u8fc7\u5ea6\u96c6\u4e2d': ['\u5206\u6563\u9884\u7b97\u5230\u66f4\u591a\u7ef4\u5ea6\uff0c\u4e0d\u8981\u53ea\u9760\u4e00\u4e24\u4e2a\u201c\u660e\u661f\u201d\u652f\u6491\u5168\u76d8','\u5c0f\u9884\u7b97\u6d4b\u8bd5\u5176\u4ed6\u7ef4\u5ea6\u7684\u8f6c\u5316\u60c5\u51b5\uff0c\u57f9\u80b2\u201c\u65b0\u79c0\u201d'],
+      '\u504f\u96c6\u4e2d': ['\u53ef\u4ee5\u9002\u5f53\u5206\u6563\uff0c\u4f46\u4e0d\u7528\u592a\u62c5\u5fc3'],
+      '\u5206\u6563': ['\u4fdd\u6301\u5f53\u524d\u5206\u5e03\uff0c\u7ed3\u6784\u5065\u5eb7']
+    }
+  },
+
+  /* ---- Pearson r 值（相关系数） ---- */
+  rValue: {
+    label: '\u76f8\u5173\u7cfb\u6570\uff08Pearson r\uff09',
+    format: function(v){ return 'r='+v.toFixed(2); },
+    eval: function(v){
+      var abs = Math.abs(v);
+      if(isNaN(abs)) return {level:'\u65e0\u6570\u636e', cls:'b-gray', txt:'\u65e0\u6cd5\u8ba1\u7b97\u76f8\u5173\u7cfb\u6570\uff0c\u6570\u636e\u91cf\u4e0d\u8db3'};
+      var dir=v>=0?'\u6b63':'\u8d1f', dirDesc=v>=0?'\u201c\u4f60\u6da8\u6211\u4e5f\u6da8\u201d':'\u201c\u6b64\u6d88\u5f7c\u957f\u201d';
+      if(abs >= 0.6) return {level:'\u5f3a\u76f8\u5173-'+dir, levelKey:'\u5f3a\u76f8\u5173-'+dir, cls:'b-red', txt:'r='+v.toFixed(2)+'\uff08\u5f3a'+dir+'\u76f8\u5173\uff09\u2014\u2014'+dirDesc+'\uff0c\u5173\u7cfb\u975e\u5e38\u660e\u663e\uff0c\u5927\u6982\u7387\u662f\u771f\u7684\u6709\u5173\u8054\uff08\u4f46\u4ecd\u9700\u7ed3\u5408\u5e38\u8bc6\u5224\u65ad\u662f\u5426\u56e0\u679c\uff09'};
+      if(abs >= 0.4) return {level:'\u4e2d\u7b49\u76f8\u5173-'+dir, levelKey:'\u4e2d\u7b49\u76f8\u5173-'+dir, cls:'b-amber', txt:'r='+v.toFixed(2)+'\uff08\u4e2d\u7b49'+dir+'\u76f8\u5173\uff09\u2014\u2014'+dirDesc+'\uff0c\u80fd\u770b\u5230\u8d8b\u52bf\uff0c\u4f46\u6837\u672c\u6709\u9650\uff0c\u53ef\u4ee5\u53c2\u8003\u4f46\u522b\u5168\u4fe1'};
+      if(abs >= 0.2) return {level:'\u5f31\u76f8\u5173-'+dir, levelKey:'\u5f31\u76f8\u5173-'+dir, cls:'b-gray', txt:'r='+v.toFixed(2)+'\uff08\u5f31'+dir+'\u76f8\u5173\uff09\u2014\u2014\u6570\u636e\u91cc\u80fd\u770b\u5230\u4e00\u70b9\u82d7\u5934\uff0c\u4f46\u592a\u5f31\u4e86\uff0c\u522b\u8fc7\u5ea6\u89e3\u8bfb'};
+      return {level:'\u65e0\u663e\u8457\u76f8\u5173', cls:'b-gray', txt:'r='+v.toFixed(2)+'\uff08\u65e0\u663e\u8457\u76f8\u5173\uff09\u2014\u2014\u6570\u636e\u91cc\u770b\u4e0d\u51fa\u660e\u663e\u5173\u7cfb'};
+    },
+    what: '\u8861\u91cf\u4e24\u4e2a\u53d8\u91cf\u662f\u5426\u201c\u540c\u6b65\u53d8\u5316\u201d\u3002|r|\u8d8a\u63a5\u8fd11\u8d8a\u540c\u6b65\u3002r>0=\u540c\u5411\uff08\u4f60\u6da8\u6211\u4e5f\u6da8\uff09\uff0cr<0=\u53cd\u5411\uff08\u4f60\u6da8\u6211\u8dcc\uff09\u3002\u6ce8\u610f\uff1a\u76f8\u5173\u2260\u56e0\u679c\uff0c\u53ea\u662f\u201c\u540c\u65f6\u53d1\u751f\u201d\u3002',
+    advices: {
+      '\u5f3a\u76f8\u5173-\u6b63': ['\u8fd9\u4e24\u4e2a\u7ef4\u5ea6\u540c\u6b65\u6da8\u8dcc\u2014\u2014\u5982\u679c\u662f\u201c\u6295\u653e\u5f3a\u5ea6\u2191\u2192\u8f6c\u5316\u2191\u201d\u5c31\u53ef\u4ee5\u52a0\u5927\u6295\u653e','\u4f46\u5148\u786e\u8ba4\u662f\u201c\u56e0\u679c\u201d\u8fd8\u662f\u201c\u7b2c\u4e09\u56e0\u7d20\u201d\uff1a\u4f8b\u5982\u201c\u5b63\u8282\uff08\u6625\u8282\uff09\u201d\u540c\u65f6\u63a8\u52a8\u4e86\u4e24\u4e2a\u7ef4\u5ea6'],
+      '\u5f3a\u76f8\u5173-\u8d1f': ['\u8fd9\u4e24\u4e2a\u7ef4\u5ea6\u6b64\u6d88\u5f7c\u957f\u2014\u2014\u5982\u679c\u662f\u201c\u96c6\u4e2d\u5ea6\u2191\u2192\u8f6c\u5316\u2193\u201d\uff0c\u5efa\u8bae\u5206\u6563\u6295\u653e\u964d\u4f4e\u96c6\u4e2d\u5ea6','\u4f46\u5148\u786e\u8ba4\u662f\u201c\u56e0\u679c\u201d\u8fd8\u662f\u201c\u5de7\u5408\u201d\u2014\u2014\u7ed3\u5408\u4e1a\u52a1\u5e38\u8bc6\u5224\u65ad\u903b\u8f91\u662f\u5426\u901a\u987a'],
+      '\u4e2d\u7b49\u76f8\u5173-\u6b63': ['\u53ef\u4ee5\u53c2\u8003\u4f46\u522b\u76f4\u63a5\u4e0b\u7ed3\u8bba\uff0c\u591a\u6512\u70b9\u6570\u636e\u518d\u770b','\u5982\u679c\u786e\u5b9e\u662f\u540c\u5411\u5173\u7cfb\uff0c\u53ef\u4ee5\u5c1d\u8bd5\u52a0\u5927\u4e3b\u529b\u7ef4\u5ea6\u7684\u6295\u653e'],
+      '\u4e2d\u7b49\u76f8\u5173-\u8d1f': ['\u53ef\u4ee5\u53c2\u8003\u4f46\u522b\u76f4\u63a5\u4e0b\u7ed3\u8bba\uff0c\u591a\u6512\u70b9\u6570\u636e\u518d\u770b','\u5982\u679c\u786e\u5b9e\u662f\u6b64\u6d88\u5f7c\u957f\uff0c\u8003\u8651\u5206\u6563\u6295\u653e\u6216\u7ed9\u88ab\u5ffd\u7565\u7684\u7ef4\u5ea6\u5c0f\u9884\u7b97\u6d4b\u8bd5'],
+      '\u5f31\u76f8\u5173': ['\u5173\u7cfb\u592a\u5f31\uff0c\u4e0d\u8981\u6d6a\u8d39\u65f6\u95f4\u7814\u7a76']
+    }
+  },
+
+  /* ---- 转化率 CVR ---- */
+  cvr: {
+    label: '\u8f6c\u5316\u7387\uff08CVR\uff09',
+    format: function(v){ return (v*100).toFixed(1)+'%'; },
+    eval: function(v){
+      if(v == null) return {level:'\u65e0\u6570\u636e', cls:'b-gray'};
+      var pct = v*100;
+      if(pct >= 5) return {level:'\u4f18\u79c0', cls:'b-green', txt:'CVR '+pct.toFixed(1)+'%\uff0c\u6bcf\u767e\u6b21\u70b9\u51fb\u80fd\u8f6c\u5316'+pct.toFixed(0)+'\u4e2a\uff0c\u8f6c\u5316\u7387\u5f88\u9ad8'};
+      if(pct >= 1) return {level:'\u6b63\u5e38', cls:'b-blue', txt:'CVR '+pct.toFixed(1)+'%\uff0c\u8f6c\u5316\u7387\u5728\u6b63\u5e38\u8303\u56f4'};
+      return {level:'\u504f\u4f4e', cls:'b-amber', txt:'CVR '+pct.toFixed(1)+'%\uff0c\u504f\u4f4e\u2014\u2014\u70b9\u8fdb\u6765\u7684\u4eba\u5f88\u591a\u4f46\u4e0b\u5355\u7684\u5f88\u5c11\uff0c\u53ef\u80fd\u521b\u610f\u5938\u5f20\u6216\u843d\u5730\u9875\u4f53\u9a8c\u5dee'};
+    }
+  },
+
+  /* ---- oCPC 学习状态 ---- */
+  ocpcStatus: {
+    label: 'oCPC\u72b6\u6001',
+    eval: function(v, bench){
+      /* v = learning flag, bench = days */
+      if(v) return {level:'\u5b66\u4e60\u671f', cls:'b-amber', txt:'oCPC\u6b63\u5728\u5b66\u4e60\u671f\uff08\u5df2\u8fd0\u884c'+(bench||'?')+'\u5929\uff09\u2014\u20143-7\u5929\u5185\u4e0d\u5b9c\u9891\u7e41\u8c03\u6574\uff0c\u8ba9\u7b97\u6cd5\u5148\u5b66\u4f1a'};
+      return {level:'\u5df2\u7a33\u5b9a', cls:'b-green', txt:'oCPC\u6a21\u578b\u5df2\u7a33\u5b9a\uff0c\u53ef\u4ee5\u6b63\u5e38\u4f18\u5316\u8c03\u6574'};
+    },
+    what: 'oCPC\u6295\u653e\u5305\u7684\u5b66\u4e60\u72b6\u6001\u3002\u5b66\u4e60\u671f\u5185\u7b97\u6cd5\u5728\u6478\u7d22\u6700\u4f73\u51fa\u4ef7\u7b56\u7565\uff0c\u9891\u7e41\u5e72\u9884\u4f1a\u6253\u4e71\u5b66\u4e60\u3002',
+    advices: {
+      '\u5b66\u4e60\u671f': ['\u5fcd\u4f4f\u522b\u8c03\u2014\u2014\u4e0d\u8981\u52a0\u5426\u8bcd\u3001\u4e0d\u8981\u6539\u9875\u9762\u3001\u4e0d\u8981\u5927\u8c03\u9884\u7b97','\u8fde\u7eed3\u5929\u6210\u672c\u8d85\u57fa\u51c6\u00b115%\u518d\u5e72\u9884'],
+      '\u5df2\u7a33\u5b9a': ['\u6301\u7eed\u76d1\u63a7CPA\u6ce2\u52a8\uff0c\u6ce8\u610f\u6295\u653e\u5305\u5185\u5173\u952e\u8bcd\u7684\u8f6c\u5316\u60c5\u51b5']
+    }
+  },
+
+  /* ---- 地域诊断 ---- */
+  geoDiag: {
+    label: '\u5730\u57df\u6295\u653e\u5efa\u8bae',
+    eval: function(v){
+      var m = {
+        '\u6269\u91cf': {level:'\u6269\u91cf\u533a', cls:'b-green', txt:'\u8fd9\u4e2a\u5730\u533aCTR\u9ad8\u4f46\u9884\u7b97\u5c11\u2014\u2014\u7528\u6237\u611f\u5174\u8da3\u4f46\u4f60\u6ca1\u7ed9\u8db3\u94b1\u3002\u5efa\u8bae\u52a0\u5927\u6295\u653e\u6d4b\u8bd5\u589e\u957f\u7a7a\u95f4\u3002'},
+        '\u4fdd\u6301': {level:'\u4fdd\u6301\u533a', cls:'b-blue', txt:'\u8fd9\u4e2a\u5730\u533aCTR\u9ad8\u4e14\u9884\u7b97\u5145\u8db3\u2014\u2014\u8868\u73b0\u826f\u597d\uff0c\u7ef4\u6301\u73b0\u72b6\u3002'},
+        '\u964d\u4ef7': {level:'\u964d\u4ef7\u533a', cls:'b-amber', txt:'\u8fd9\u4e2a\u5730\u533aCTR\u4f4e\u4f46\u82b1\u4e86\u5f88\u591a\u94b1\u2014\u2014\u4e0d\u611f\u5174\u8da3\u5374\u5728\u70e7\u94b1\u3002\u5efa\u8bae\u964d\u4f4e\u51fa\u4ef7\u7cfb\u6570\u6216\u7f29\u5c0f\u6295\u653e\u8303\u56f4\u3002'},
+        '\u6536\u7f29': {level:'\u6536\u7f29\u533a', cls:'b-red', txt:'\u8fd9\u4e2a\u5730\u533aCTR\u6700\u4f4e\u2014\u2014\u6ca1\u4eba\u70b9\uff0c\u5efa\u8bae\u76f4\u63a5\u505c\u6b62\u6295\u653e\u6216\u5927\u5e45\u964d\u4ef7\u3002'}
+      };
+      return m[v] || {level:'\u672a\u77e5', cls:'b-gray'};
+    }
+  },
+
+  /* ---- 分时效率 ---- */
+  hourEff: {
+    label: '\u5206\u65f6\u6548\u7387',
+    eval: function(v){
+      var m = {
+        '\u9ad8\u6548': {level:'\u9ad8\u6548\u65f6\u6bb5', cls:'b-green', txt:'\u8fd9\u4e2a\u65f6\u6bb5CTR\u8fdc\u8d85\u5e73\u5747\u2014\u2014\u662f\u201c\u9ec4\u91d1\u65f6\u6bb5\u201d\uff0c\u52a0\u6295\u3001\u63d0\u9ad8\u51fa\u4ef7\u7cfb\u6570\u3002'},
+        '\u4f4e\u6548': {level:'\u4f4e\u6548\u65f6\u6bb5', cls:'b-red', txt:'\u8fd9\u4e2a\u65f6\u6bb5CTR\u660e\u663e\u4f4e\u4e8e\u5e73\u5747\u2014\u2014\u201c\u5783\u573e\u65f6\u6bb5\u201d\uff0c\u964d\u4f4e\u51fa\u4ef7\u7cfb\u6570\u6216\u76f4\u63a5\u6682\u505c\u3002'},
+        '\u6b63\u5e38': {level:'\u6b63\u5e38\u65f6\u6bb5', cls:'b-blue', txt:'\u8fd9\u4e2a\u65f6\u6bb5\u8868\u73b0\u4e2d\u89c4\u4e2d\u77e9\uff0c\u6309\u9ed8\u8ba4\u7b56\u7565\u5373\u53ef\u3002'}
+      };
+      return m[v] || {level:'\u672a\u77e5', cls:'b-gray'};
+    }
+  },
+
+  /* ---- 关键词转化状态 ---- */
+  convStatus: {
+    label: '\u8f6c\u5316\u72b6\u6001',
+    eval: function(v){
+      var m = {
+        '\u7a33\u5b9a': {level:'\u7a33\u5b9a', cls:'b-green', txt:'\u8fd9\u4e2a\u8bcd\u4e00\u76f4\u5728\u7a33\u5b9a\u51fa\u5355\u2014\u2014\u4f60\u8d26\u6237\u7684\u201c\u5b9a\u6d77\u795e\u9488\u201d\uff0c\u522b\u4e71\u52a8\u5b83\u7684\u8bbe\u7f6e\u3002'},
+        '\u65b0\u589e': {level:'\u65b0\u589e', cls:'b-blue', txt:'\u8fd9\u4e2a\u8bcd\u6700\u8fd1\u521a\u5f00\u59cb\u8f6c\u5316\u2014\u2014\u201c\u65b0\u79c0\u201d\uff0c\u89c2\u5bdf3-5\u5929\u786e\u8ba4\u6301\u7eed\u6027\uff0c\u5148\u522b\u6025\u7740\u8c03\u4ef7\u3002'},
+        '\u8870\u51cf': {level:'\u8870\u51cf', cls:'b-red', txt:'\u8fd9\u4e2a\u8bcd\u8f6c\u5316\u5728\u4e0b\u6ed1\u2014\u2014\u201c\u5371\u91cd\u75c5\u4eba\u201d\uff0c\u7acb\u5373\u6392\u67e5\u6392\u540d\u3001\u9884\u7b97\u3001\u7ade\u54c1\u52a8\u5411\u3002'},
+        '\u6ce2\u52a8': {level:'\u6ce2\u52a8', cls:'b-amber', txt:'\u8fd9\u4e2a\u8bcd\u8f6c\u5316\u65f6\u6709\u65f6\u65e0\u2014\u2014\u201c\u4e0d\u7a33\u5b9a\u201d\uff0c\u68c0\u67e5\u6392\u540d\u548c\u9884\u7b97\u662f\u5426\u6ce2\u52a8\u3002'},
+        '\u5076\u53d1': {level:'\u5076\u53d1', cls:'b-gray', txt:'\u8fd9\u4e2a\u8bcd\u53ea\u8f6c\u5316\u8fc7\u4e00\u6b21\u2014\u2014\u6837\u672c\u592a\u5c11\uff0c\u5148\u89c2\u5bdf\u79ef\u7d2f\u6570\u636e\u3002'}
+      };
+      return m[v] || {level:v, cls:'b-gray'};
+    }
+  },
+
+  /* ---- Top3 集中度趋势 ---- */
+  top3Share: {
+    label: 'Top3\u8f6c\u5316\u96c6\u4e2d\u5ea6',
+    format: function(v){ return (v*100).toFixed(0)+'%'; },
+    eval: function(v){
+      var pct = v*100;
+      if(pct > 80) return {level:'\u8fc7\u5ea6\u96c6\u4e2d', cls:'b-red', txt:'Top3\u5360\u6bd4 '+pct.toFixed(0)+'%\uff0c\u592a\u9ad8\u4e86\uff01\u6574\u4e2a\u8d26\u6237\u592a\u4f9d\u8d56\u8fd9\u51e0\u4e2a\u8bcd\uff0c\u5b83\u4eec\u4e00\u6389\u4f60\u5c31\u5b8c\u4e86\u3002\u5fc5\u987b\u57f9\u80b2\u66f4\u591a\u8f6c\u5316\u8bcd\u3002'};
+      if(pct > 60) return {level:'\u8f83\u9ad8', cls:'b-amber', txt:'Top3\u5360\u6bd4 '+pct.toFixed(0)+'%\uff0c\u6bd4\u4f8b\u8f83\u9ad8\uff0c\u5efa\u8bae\u57f9\u80b2\u66f4\u591a\u4e2d\u957f\u5c3e\u8f6c\u5316\u8bcd\u5206\u6563\u98ce\u9669\u3002'};
+      return {level:'\u5065\u5eb7', cls:'b-green', txt:'Top3\u5360\u6bd4 '+pct.toFixed(0)+'%\uff0c\u7ed3\u6784\u5065\u5eb7\uff0c\u8f6c\u5316\u5206\u5e03\u5747\u5300\uff0c\u6297\u98ce\u9669\u80fd\u529b\u5f3a\u3002'};
+    }
+  },
+
+  /* ---- ROAS ---- */
+  roas: {
+    label: '\u6295\u4ea7\u6bd4\uff08ROAS\uff09',
+    format: function(v){ return v.toFixed(2); },
+    eval: function(v){
+      if(v >= 3) return {level:'\u4f18\u79c0', cls:'b-green', txt:'ROAS '+v.toFixed(2)+'\uff0c\u6bcf\u82b11\u5757\u94b1\u56de\u672c'+v.toFixed(1)+'\u5757\uff0c\u6295\u5165\u4ea7\u51fa\u6bd4\u5f88\u9ad8'};
+      if(v >= 1) return {level:'\u826f\u597d', cls:'b-blue', txt:'ROAS '+v.toFixed(2)+'\uff0c\u8f6c\u5316\u4ef7\u503c\u8d85\u8fc7\u4e86\u5e7f\u544a\u6210\u672c\uff0c\u6b63\u5728\u76c8\u5229'};
+      return {level:'\u4e8f\u635f', cls:'b-red', txt:'ROAS '+v.toFixed(2)+'\uff0c\u5e7f\u544a\u6210\u672c\u9ad8\u4e8e\u8f6c\u5316\u4ef7\u503c\uff0c\u6b63\u5728\u4e8f\u94b1\u2014\u2014\u8981\u4e48\u964d\u4f4e\u6210\u672c\uff0c\u8981\u4e48\u63d0\u9ad8\u5ba2\u5355\u4ef7'};
+    }
+  },
+
+  /* ---- 匹配模式评估 ---- */
+  modeAssessment: {
+    label: '\u89e6\u53d1\u6a21\u5f0f\u8bc4\u4f30',
+    eval: function(v){
+      var m = {
+        '\u4f18': {level:'\u4f18', cls:'b-green', txt:'\u8fd9\u4e2a\u89e6\u53d1\u6a21\u5f0f\u7684\u5339\u914d\u8d28\u91cf\u5f88\u597d\uff0c\u6d41\u91cf\u7cbe\u51c6\uff0c\u53ef\u4ee5\u9002\u5f53\u52a0\u9884\u7b97\u3002'},
+        '\u4e2d': {level:'\u4e2d', cls:'b-amber', txt:'\u8fd9\u4e2a\u89e6\u53d1\u6a21\u5f0f\u7684\u5339\u914d\u8d28\u91cf\u4e00\u822c\uff0c\u6ce8\u610f\u76d1\u63a7\u96f6\u8f6c\u5316\u8bcd\u5360\u6bd4\u3002'},
+        '\u6d41\u91cf\u8dd1\u504f\u98ce\u9669': {level:'\u8dd1\u504f\u98ce\u9669', cls:'b-red', txt:'\u8fd9\u4e2a\u89e6\u53d1\u6a21\u5f0f\u7684\u5339\u914d\u8d28\u91cf\u5f88\u5dee\uff0c\u5927\u91cf\u4e0d\u76f8\u5173\u6d41\u91cf\u5728\u82b1\u94b1\u3002\u5efa\u8bae\u7d27\u7f29\u5339\u914d\u6216\u52a0\u5426\u8bcd\u3002'},
+        '\u5339\u914d\u8fc7\u5bbd': {level:'\u5339\u914d\u8fc7\u5bbd', cls:'b-red', txt:'\u8fd9\u4e2a\u89e6\u53d1\u6a21\u5f0f\u7684\u5339\u914d\u8303\u56f4\u592a\u5bbd\u4e86\uff0c\u5927\u91cf\u96f6\u8f6c\u5316\u8bcd\u5728\u6d6a\u8d39\u9884\u7b97\u3002\u5efa\u8bae\u6536\u7d27\u5339\u914d\u65b9\u5f0f\u3002'}
+      };
+      return m[v] || {level:v, cls:'b-gray'};
+    }
+  },
+
+  /* ---- 零转化词占比 ---- */
+  zeroConvCostShare: {
+    label: '\u96f6\u8f6c\u5316\u8bcd\u6d88\u8d39\u5360\u6bd4',
+    format: function(v){ return (v*100).toFixed(0)+'%'; },
+    eval: function(v){
+      var pct = v*100;
+      if(pct > 30) return {level:'\u8b66\u544a', cls:'b-red', txt:'\u96f6\u8f6c\u5316\u8bcd\u6d88\u8d39\u5360\u6bd4 '+pct.toFixed(0)+'%\uff0c\u8d85\u8fc7\u4e09\u5206\u4e4b\u4e00\u7684\u9884\u7b97\u5728\u6d6a\u8d39\uff01\u4e0d\u91c7\u53d6\u884c\u52a8\u5373\u7ee7\u7eed\u4e8f\u635f\u3002'};
+      if(pct > 15) return {level:'\u504f\u9ad8', cls:'b-amber', txt:'\u96f6\u8f6c\u5316\u8bcd\u6d88\u8d39\u5360\u6bd4 '+pct.toFixed(0)+'%\uff0c\u504f\u9ad8\uff0c\u5efa\u8bae\u67e5\u770b\u54ea\u4e9b\u8bcd\u5728\u6d6a\u8d39\u94b1\u3002'};
+      return {level:'\u6b63\u5e38', cls:'b-green', txt:'\u96f6\u8f6c\u5316\u8bcd\u6d88\u8d39\u5360\u6bd4 '+pct.toFixed(0)+'%\uff0c\u5728\u6b63\u5e38\u8303\u56f4\u5185\u3002'};
+    }
+  },
+
+  /* ---- 否定词类型 ---- */
+  negType: {
+    label: '\u5426\u5b9a\u8bcd\u7c7b\u578b',
+    eval: function(v){
+      if(v==='\u77ed\u8bed\u5426\u5b9a') return {level:'\u8b66\u544a', cls:'b-amber', txt:'\u77ed\u8bed\u5426\u5b9a\u2014\u2014\u4f1a\u963b\u65ad\u6240\u6709\u5305\u542b\u8fd9\u4e2a\u8bcd\u6839\u7684\u641c\u7d22\uff0c\u4e00\u6b21\u6027\u5835\u4f4f\u5927\u91cf\u5783\u573e\u8bcd\uff0c\u4f46\u8981\u5c0f\u5fc3\u522b\u8bef\u4f24\u6b63\u5e38\u8bcd\u3002'};
+      return {level:'\u7cbe\u786e', cls:'b-blue', txt:'\u7cbe\u786e\u5426\u5b9a\u2014\u2014\u53ea\u5835\u8fd9\u4e00\u4e2a\u641c\u7d22\u8bcd\uff0c\u5b89\u5168\u4f46\u6548\u7387\u4f4e\uff0c\u9002\u5408\u5904\u7406\u5c11\u91cf\u6d6a\u8d39\u8bcd\u3002'};
+    }
+  },
+
+  /* ---- 优先级 ---- */
+  severity: {
+    label: '\u4f18\u5148\u7ea7',
+    eval: function(v){
+      if(v==='P0') return {level:'\u7d27\u6025', cls:'b-red', txt:'P0\u7ea7\u2014\u2014\u4eca\u5929\u5fc5\u987b\u5904\u7406\uff01\u8fd9\u4e2a\u95ee\u9898\u6b63\u5728\u6301\u7eed\u70e7\u4f60\u7684\u94b1\uff0c\u591a\u62d6\u4e00\u5929\u591a\u4e8f\u4e00\u5929\u3002'};
+      if(v==='P1') return {level:'\u91cd\u8981', cls:'b-amber', txt:'P1\u7ea7\u2014\u2014\u672c\u5468\u5185\u5904\u7406\u3002\u73b0\u5728\u662fP1\uff0c\u4e0b\u5468\u671f\u53ef\u80fd\u4f1a\u53d8\u6210P0\u3002'};
+      return {level:'\u5e38\u89c4', cls:'b-blue', txt:'P2\u7ea7\u2014\u2014\u6709\u7a7a\u5c31\u505a\u3002\u6301\u7eed\u4f18\u5316\u7684\u65b9\u5411\uff0c\u4e0d\u6025\u3002'};
+    }
+  }
+};
+
+/* ============================================================
+   浮层初始化 & 事件处理
+   使用 event delegation 在 document 层监听，性能最优
+   ============================================================ */
+var dataTipTimer = null;
+var dataTipShowing = false;
+
+function buildDataTipHTML(typeKey, value, bench, label, context){
+  var def = DATA_TIP[typeKey];
+  if(!def) return '';
+  var result = def.eval(value, bench);
+  var fmtVal = def.format ? def.format(value) : (value != null ? String(value) : '—');
+  var displayLabel = label || def.label;
+
+  var html = '<div class="dt-dim"><span class="badge '+result.cls+'">'+esc(displayLabel)+'</span>';
+  if(fmtVal) html += ' <span style="font-size:17px;font-weight:800;margin-left:4px">'+esc(fmtVal)+'</span>';
+  if(context) html += ' <span style="font-size:11px;color:var(--muted);margin-left:4px">'+esc(context)+'</span>';
+  html += '</div>';
+
+  html += '<div class="dt-eval '+result.cls+'-bg">'+(result.txt || '')+'</div>';
+
+  if(def.what){
+    html += '<div class="dt-what">\ud83d\udca1 '+esc(def.what)+'</div>';
+  }
+
+  if(def.advices){
+    var advKey = result.levelKey || result.level || '\u6b63\u5e38';
+    var advs = def.advices[advKey] || def.advices[result.level] || def.advices['\u6b63\u5e38'];
+    if(advs && advs.length){
+      html += '<div class="dt-opt"><b>\u2714 \u4f60\u5e94\u8be5\u8fd9\u6837\u505a\uff1a</b><ol>'+
+        advs.map(function(a){ return '<li>'+esc(a)+'</li>'; }).join('')+'</ol></div>';
+    }
+  }
+
+  return html;
+}
+
+function showDataTip(e){
+  var el = e.target.closest('[data-tip-type]');
+  if(!el){ hideDataTip(); return; }
+
+  var typeKey = el.getAttribute('data-tip-type');
+  if(!typeKey) return;
+  var def = DATA_TIP[typeKey];
+  if(!def) return;
+
+  var value = el.getAttribute('data-tip-value');
+  var bench = el.getAttribute('data-tip-bench');
+  var label = el.getAttribute('data-tip-label');
+  var context = el.getAttribute('data-tip-context');
+
+  /* 解析数值 */
+  if(value !== null && value !== ''){
+    if(value.indexOf('.') >= 0 && !isNaN(parseFloat(value))){
+      value = parseFloat(value);
+    } else if(!isNaN(parseInt(value,10)) && value === String(parseInt(value,10))){
+      value = parseInt(value,10);
+    }
+  }
+  if(bench !== null && bench !== ''){
+    if(bench.indexOf('.') >= 0 && !isNaN(parseFloat(bench))){
+      bench = parseFloat(bench);
+    } else if(!isNaN(parseInt(bench,10)) && bench === String(parseInt(bench,10))){
+      bench = parseInt(bench,10);
+    }
+  }
+
+  var tip = document.getElementById('dataTooltip');
+  var content = document.getElementById('dataTipContent');
+  if(!tip || !content) return;
+
+  clearTimeout(dataTipTimer);
+  dataTipShowing = true;
+
+  content.innerHTML = buildDataTipHTML(typeKey, value, bench, label, context);
+  tip.classList.add('show');
+
+  /* 强制刷新布局以获取正确高度 */
+  void tip.offsetHeight;
+
+  /* --- 定位：优先在触发元素下方，空间不够则上方，都不够就贴边 --- */
+  var rect = el.getBoundingClientRect();
+  var tipW = tip.offsetWidth || 360;
+  var tipH = tip.offsetHeight || 80;
+  var pad = 10;
+  var edge = 8;
+
+  /* 水平居中于触发元素，但不超出视口 */
+  var left = rect.left + rect.width/2 - tipW/2;
+  if(left < edge) left = edge;
+  if(left + tipW > window.innerWidth - edge) left = window.innerWidth - tipW - edge;
+
+  var spaceBelow = window.innerHeight - rect.bottom;
+  var spaceAbove = rect.top;
+  var top;
+
+  if(spaceBelow >= tipH + pad){
+    top = rect.bottom + pad;
+  } else if(spaceAbove >= tipH + pad){
+    top = rect.top - tipH - pad;
+  } else if(spaceBelow >= spaceAbove){
+    top = rect.bottom + pad;
+    if(top + tipH > window.innerHeight - edge) top = window.innerHeight - tipH - edge;
+  } else {
+    top = rect.top - tipH - pad;
+    if(top < edge) top = edge;
+  }
+  top = Math.max(edge, Math.min(top, window.innerHeight - tipH - edge));
+
+  tip.style.left = left+'px';
+  tip.style.top = top+'px';
+  tip.style.maxWidth = Math.min(400, window.innerWidth - 16)+'px';
+  tip.style.maxHeight = Math.min(tip.scrollHeight, window.innerHeight * 0.7)+'px';
+}
+
+function hideDataTip(){
+  dataTipShowing = false;
+  dataTipTimer = setTimeout(function(){
+    if(!dataTipShowing){
+      var tip = document.getElementById('dataTooltip');
+      if(tip) tip.classList.remove('show');
+    }
+  }, 300);
+}
+
+function cancelHideDataTip(){
+  clearTimeout(dataTipTimer);
+  dataTipShowing = true;
+}
+
+function initDataTips(){
+  var tip = document.getElementById('dataTooltip');
+  if(!tip) return;
+
+  /* mouseover: 显示浮层 */
+  document.addEventListener('mouseover', function(e){
+    var el = e.target.closest('[data-tip-type]');
+    if(!el){ hideDataTip(); return; }
+    cancelHideDataTip();
+    showDataTip(e);
+  });
+
+  /* mouseout: 延迟隐藏（给用户时间移到浮层上） */
+  document.addEventListener('mouseout', function(e){
+    var el = e.target.closest('[data-tip-type]');
+    if(!el) return;
+    if(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.data-tooltip')) return;
+    hideDataTip();
+  });
+
+  /* mousemove: 鼠标在元素内移动时保持浮层跟随 */
+  document.addEventListener('mousemove', function(e){
+    var el = e.target.closest('[data-tip-type]');
+    if(el && dataTipShowing){
+      /* 只在浮层可见时更新位置 */
+    }
+  });
+
+  /* 浮层自身：鼠标移入保持显示，移出隐藏 */
+  tip.addEventListener('mouseenter', function(){ cancelHideDataTip(); });
+  tip.addEventListener('mouseleave', function(){ hideDataTip(); });
+}
+
+/* 自动初始化 */
+if(typeof document !== 'undefined'){
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', initDataTips);
+  } else {
+    initDataTips();
+  }
+}

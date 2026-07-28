@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>360搜索推广效果评估分析系统</title>
 <style>
 /* ============================================================
@@ -11,25 +14,25 @@
    ============================================================ */
 :root{
   /* —— 主色：360 品牌绿 —— */
-  --p:#0EA45C; --p-hover:#0B8C4E; --p-active:#0A7C45;
+  --p:#0A7C45; --p-hover:#09723F; --p-active:#086536;
   --p-50:#E8F8F0; --p-100:#CDEFDD; --p-700:#0A7C45; --p-ink:#075C33;
   /* —— AI 强调色（区分于品牌绿） —— */
   --ai:#6D4AFF; --ai-hover:#5B34F0; --ai-50:#F1ECFF; --ai-700:#4B2FD6;
   /* —— 语义色 —— */
-  --ok:#16A34A; --ok-bg:#E7F6EC; --ok-bd:#BFE6CB;
-  --warn:#E08A00; --warn-bg:#FDF3E3; --warn-bd:#F6DFB0;
-  --danger:#E5484D; --danger-bg:#FDECEC; --danger-bd:#F7C9C9;
-  --info:#2D7FF9; --info-bg:#EAF2FE; --info-bd:#C5DDFB;
+  --ok:#0F7A39; --ok-bg:#E7F6EC; --ok-bd:#BFE6CB;
+  --warn:#9A5B00; --warn-bg:#FDF3E3; --warn-bd:#F6DFB0;
+  --danger:#C53035; --danger-bg:#FDECEC; --danger-bd:#F7C9C9;
+  --info:#1E63D6; --info-bg:#EAF2FE; --info-bd:#C5DDFB;
   /* —— 中性色（浅） —— */
   --bg:#F4F6F5; --surface:#FFFFFF; --surface-2:#F7F9F8; --surface-3:#EEF2F0;
   --border:#E6EBE9; --border-strong:#D6DED9;
-  --text:#15231D; --text-2:#3D4B44; --muted:#6B7A72; --muted-2:#93A199;
+  --text:#101E18; --text-2:#32423A; --muted:#4E5E55; --muted-2:#5E7268;
   /* —— 图表/热点 颜色 —— */
-  --chart-grid:#EBEFED; --chart-axis:#9AA6A0; --chart-label:#6B7A72;
-  --chart-cost:#BFD9F2; --chart-cost-zero:#F4B4B4; --chart-conv:#0EA45C; --chart-conv-zero:#E5484D;
+  --chart-grid:#EBEFED; --chart-axis:#9AA6A0; --chart-label:#4E5E55;
+  --chart-cost:#BFD9F2; --chart-cost-zero:#F4B4B4; --chart-conv:#0A7C45; --chart-conv-zero:#C53035;
   --geo-shrink:#F4B4B4; --geo-down:#F6D98A; --geo-up:#9FE3BC; --geo-keep:#BFD9F2;
-  --heat-0:#EEF1F0; --heat-1:#C6EED6; --heat-2:#5FD99A; --heat-3:#0EA45C;
-  --heat-0-t:#9AA6A0; --heat-1-t:#0A5C33; --heat-2-t:#08351E; --heat-3-t:#FFFFFF;
+  --heat-0:#EEF1F0; --heat-1:#C6EED6; --heat-2:#5FD99A; --heat-3:#0A7C45;
+  --heat-0-t:#5E7268; --heat-1-t:#0A5C33; --heat-2-t:#08351E; --heat-3-t:#FFFFFF;
   /* —— 间距（4px 基准） —— */
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px; --s10:40px; --s12:48px;
   /* —— 圆角 —— */
@@ -38,7 +41,7 @@
   --sh-sm:0 1px 2px rgba(16,35,29,.05), 0 1px 3px rgba(16,35,29,.04);
   --sh:0 2px 8px rgba(16,35,29,.06), 0 1px 2px rgba(16,35,29,.04);
   --sh-md:0 8px 24px rgba(16,35,29,.10), 0 2px 6px rgba(16,35,29,.06);
-  --sh-p:0 0 0 3px rgba(14,164,92,.18);
+  --sh-p:0 0 0 3px rgba(10,124,69,.18);
   /* —— 字体 —— */
   --font:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --mono:"JetBrains Mono",Consolas,"SFMono-Regular",monospace;
@@ -54,12 +57,12 @@
   --info:#5AA2FF; --info-bg:#0F1C30; --info-bd:#1E3A5E;
   --bg:#0E1512; --surface:#16201B; --surface-2:#1B2722; --surface-3:#212E28;
   --border:#27332C; --border-strong:#33413A;
-  --text:#E6EFEA; --text-2:#C2CFC8; --muted:#8A9A91; --muted-2:#64756C;
+  --text:#E6EFEA; --text-2:#C2CFC8; --muted:#8A9A91; --muted-2:#8FA097;
   --chart-grid:#22302A; --chart-axis:#5C6B62; --chart-label:#8A9A91;
   --chart-cost:#2C4A66; --chart-cost-zero:#7A2E2E; --chart-conv:#22C55E; --chart-conv-zero:#F26469;
   --geo-shrink:#7A2E2E; --geo-down:#6B531E; --geo-up:#1E4A30; --geo-keep:#2C4A66;
   --heat-0:#202C26; --heat-1:#13402A; --heat-2:#1C7A48; --heat-3:#22C55E;
-  --heat-0-t:#64756C; --heat-1-t:#9FE3BC; --heat-2-t:#DFF7E8; --heat-3-t:#06200F;
+  --heat-0-t:#8A9A91; --heat-1-t:#9FE3BC; --heat-2-t:#DFF7E8; --heat-3-t:#06200F;
   --sh-sm:0 1px 2px rgba(0,0,0,.4);
   --sh:0 2px 10px rgba(0,0,0,.45);
   --sh-md:0 12px 30px rgba(0,0,0,.55);
@@ -188,12 +191,17 @@ th.num{text-align:right}
 
 /* ===================== 提示框 ===================== */
 .alert{border-radius:var(--r);padding:11px 14px;margin-bottom:9px;font-size:13px;display:flex;gap:9px;
-  align-items:flex-start;line-height:1.6;border:1px solid transparent}
+  align-items:flex-start;line-height:1.6;border:1px solid transparent;flex-wrap:wrap}
 .alert.danger{background:var(--danger-bg);color:var(--danger);border-color:var(--danger-bd)}
 .alert.warn{background:var(--warn-bg);color:#9A5B00;border-color:var(--warn-bd)}
 .alert.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-bd)}
 .alert.info{background:var(--info-bg);color:var(--info);border-color:var(--info-bd)}
 [data-theme="dark"] .alert.warn{color:#F2C46B}
+
+/* 关键词列表 chip（二八法则等场景） */
+.kw-list{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:6px}
+.kw-chip{display:inline-block;padding:2px 8px;border-radius:6px;background:var(--bg);border:1px solid var(--border);
+  font-size:12px;color:var(--text-2);white-space:nowrap}
 
 /* ===================== 导图 / 四象限 ===================== */
 .quad-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -252,12 +260,83 @@ th.num{text-align:right}
   font-size:13px;font-family:inherit;background:var(--surface);color:var(--text)}
 .toolbar input[type=text]:focus,.toolbar select:focus{outline:none;border-color:var(--p)}
 .chart-wrap{overflow-x:auto;padding:0}
+.chart-wrap canvas{cursor:grab}
+.chart-wrap canvas:active{cursor:grabbing}
 .mono{font-family:var(--mono);font-size:12px}
 .prio{display:inline-flex;align-items:center;justify-content:center;width:34px;height:22px;border-radius:6px;
   font-size:11px;font-weight:800;color:#fff;flex-shrink:0}
 .p0{background:var(--danger)}.p1{background:var(--warn)}.p2{background:var(--info)}
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--surface);
   padding:11px 22px;border-radius:var(--r-pill);font-size:13px;z-index:200;display:none;box-shadow:var(--sh-md);font-weight:500}
+.covar-tip{position:fixed;z-index:300;max-width:380px;background:var(--surface);color:var(--text);
+  border:1px solid var(--border);border-radius:12px;padding:14px 16px;font-size:13px;line-height:1.7;
+  box-shadow:0 8px 30px rgba(0,0,0,0.14),0 2px 8px rgba(0,0,0,0.06);
+  pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .18s,transform .18s}
+.covar-tip.show{opacity:1;transform:translateY(0)}
+.covar-tip .tip-dim{font-weight:700;font-size:14px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.covar-tip .tip-mean{font-size:13px;line-height:1.65;margin-bottom:8px;padding:8px 10px;border-radius:8px;background:var(--bg,#f8fafa)}
+.covar-tip .tip-opt{font-size:13px;color:var(--text,#1a1a2e);margin-top:2px}
+.covar-tip .tip-opt ol{margin:4px 0 0;padding-left:20px;list-style-type:decimal}
+.covar-tip .tip-opt ol li{margin-bottom:4px;line-height:1.6;font-size:12.5px}
+.covar-tip .tip-opt ol li:last-child{margin-bottom:0}
+.covar-tip-arrow{position:absolute;width:10px;height:10px;background:var(--surface);border-left:1px solid var(--border);border-bottom:1px solid var(--border)}
+.covar-tip-arrow.top{top:-5px;transform:rotate(135deg)}
+.covar-tip-arrow.bottom{bottom:-5px;transform:rotate(-45deg)}
+
+/* ===================== 全局帮���提示系统 ===================== */
+.help-btn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;
+  border:1.5px solid var(--border-strong);background:transparent;color:var(--muted);cursor:help;
+  font-size:12px;font-weight:700;font-family:inherit;line-height:1;flex-shrink:0;
+  transition:all var(--t-fast);position:relative;user-select:none;margin-left:2px;padding:0;
+  outline:none}
+.help-btn:hover,.help-btn:focus{background:var(--p-50);border-color:var(--p);color:var(--p-700)}
+.help-btn:focus-visible{box-shadow:var(--sh-p)}
+.help-tooltip{position:fixed;z-index:400;max-width:420px;background:var(--surface);color:var(--text);
+  border:1px solid var(--border-strong);border-radius:var(--r-lg);padding:18px 20px;font-size:13px;
+  line-height:1.75;box-shadow:0 12px 40px rgba(0,0,0,0.16),0 3px 12px rgba(0,0,0,0.06);
+  pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .18s ease,transform .18s ease;
+  overflow-y:auto;max-height:80vh}
+.help-tooltip.show{opacity:1;transform:translateY(0);pointer-events:auto}
+.help-tooltip h3{font-size:15px;font-weight:700;margin-bottom:10px;color:var(--p-700);display:flex;align-items:center;gap:6px}
+.help-tooltip h3 .ic{font-size:16px}
+.help-tooltip .ht-section{margin-bottom:12px}
+.help-tooltip .ht-section:last-child{margin-bottom:0}
+.help-tooltip .ht-label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted-2);margin-bottom:3px}
+.help-tooltip .ht-text{font-size:13px;color:var(--text-2);line-height:1.65}
+.help-tooltip .ht-actions{margin-top:10px;padding:10px 12px;background:var(--p-50);border-radius:var(--r-sm);
+  border-left:3px solid var(--p);font-size:12.5px;color:var(--p-ink);line-height:1.65}
+.help-tooltip .ht-actions b{display:block;margin-bottom:4px;font-size:13px}
+.help-tooltip .ht-actions ol{margin:4px 0 0;padding-left:18px}
+.help-tooltip .ht-actions ol li{margin-bottom:4px}
+.help-tooltip .ht-actions ol li:last-child{margin-bottom:0}
+.help-tooltip .ht-arrow{position:absolute;width:10px;height:10px;background:var(--surface);
+  border-left:1px solid var(--border-strong);border-bottom:1px solid var(--border-strong)}
+.help-tooltip .ht-arrow.top{top:-5px;transform:rotate(135deg)}
+.help-tooltip .ht-arrow.bottom{bottom:-5px;transform:rotate(-45deg)}
+
+/* ===================== 数据感知浮层提示系统 ===================== */
+.data-tooltip{position:fixed;z-index:390;max-width:400px;background:var(--surface);color:var(--text);
+  border:1px solid var(--border-strong);border-radius:var(--r-lg);padding:12px 16px;font-size:12.5px;
+  line-height:1.5;box-shadow:0 12px 40px rgba(0,0,0,0.16),0 3px 12px rgba(0,0,0,0.06);
+  pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .16s ease,transform .16s ease;
+  overflow-y:auto;max-height:460px}
+.data-tooltip.show{opacity:1;transform:translateY(0);pointer-events:auto}
+.data-tooltip .dt-dim{display:flex;align-items:center;gap:5px;margin-bottom:6px;flex-wrap:wrap}
+.data-tooltip .dt-eval{font-size:12.5px;font-weight:600;margin-bottom:6px;padding:6px 8px;border-radius:7px;line-height:1.45}
+.data-tooltip .dt-eval.b-green-bg{background:var(--ok-bg);color:var(--ok)}
+.data-tooltip .dt-eval.b-red-bg{background:var(--danger-bg);color:var(--danger)}
+.data-tooltip .dt-eval.b-amber-bg{background:var(--warn-bg);color:var(--warn)}
+.data-tooltip .dt-eval.b-blue-bg{background:var(--info-bg);color:var(--info)}
+.data-tooltip .dt-eval.b-gray-bg{background:var(--surface-2);color:var(--muted)}
+.data-tooltip .dt-what{font-size:12px;color:var(--muted);margin-bottom:4px;line-height:1.45}
+.data-tooltip .dt-opt{margin-top:2px;padding:6px 8px;background:var(--p-50);border-radius:7px;border-left:3px solid var(--p)}
+.data-tooltip .dt-opt b{font-size:12px;color:var(--p-ink)}
+.data-tooltip .dt-opt ol{margin:3px 0 0;padding-left:16px;font-size:11.5px;color:var(--text-2)}
+.data-tooltip .dt-opt ol li{margin-bottom:2px;line-height:1.45}
+.data-tooltip .dt-opt ol li:last-child{margin-bottom:0}
+.data-tooltip .dt-stat{font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.45}
+
 footer.foot{text-align:center;color:var(--muted);font-size:12px;padding:24px;line-height:1.7}
 
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -278,6 +357,31 @@ footer.foot{text-align:center;color:var(--muted);font-size:12px;padding:24px;lin
   .side-foot{display:none}
   main.content{padding:18px 16px 60px}
 }
+/* ---------- ⓪ 数据覆盖 / 工作流 / 转化链路漏斗 ---------- */
+.funnel{margin:8px 0 4px;border:1px solid var(--border, #e5e7eb);border-radius:14px;overflow:hidden}
+.funnel-stage{padding:12px 16px;border-bottom:1px solid var(--border, #e5e7eb);background:linear-gradient(90deg, rgba(37,99,235,0.04), transparent)}
+.funnel-stage:last-child{border-bottom:none}
+.fs-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.fs-name{font-weight:700;font-size:15px;color:var(--text, #1f2937)}
+.fs-desc{color:var(--muted, #6b7280);font-size:12.5px}
+.fs-cov{margin-top:7px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fs-miss{color:var(--danger, #dc2626);font-size:12px;opacity:.8}
+.wf-cat{margin-top:12px}
+.wf-cat-h{font-weight:700;color:var(--text, #1f2937);font-size:14px;margin-bottom:6px;padding-left:8px;border-left:3px solid var(--p, #0A7C45)}
+.wf-mod{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:8px;flex-wrap:wrap}
+.wf-mod:nth-child(even){background:rgba(0,0,0,0.02)}
+.wf-mod-name{font-weight:600;font-size:13.5px}
+.wf-mod-need{color:var(--muted, #6b7280);font-size:12px}
+[data-theme="dark"] .funnel-stage{background:linear-gradient(90deg, rgba(96,165,250,0.06), transparent)} [data-theme="dark"] .wf-mod:nth-child(even){background:rgba(255,255,255,0.03)}
+
+/* ---------- 离线 / DeepSeek 模式切换开关 ---------- */
+.seg{display:inline-flex;align-items:center;border:1px solid var(--border, #e5e7eb);border-radius:9px;overflow:hidden;background:var(--surface, #fff)}
+.seg-btn{appearance:none;border:none;background:transparent;color:var(--muted, #6b7280);font-size:12.5px;padding:6px 11px;cursor:pointer;transition:.18s;white-space:nowrap}
+.seg-btn:hover{color:var(--text, #1f2937)}
+.seg-btn.active{background:var(--p, #0A7C45);color:#fff;font-weight:600}
+.seg-btn + .seg-btn{border-left:1px solid var(--border, #e5e7eb)}
+[data-theme="dark"] .seg{background:rgba(255,255,255,0.04)} [data-theme="dark"] .seg-btn{color:#9ca3af} [data-theme="dark"] .seg-btn:hover{color:#e5e7eb}
+
 </style>
 </head>
 <body>
