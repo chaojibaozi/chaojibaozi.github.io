@@ -148,7 +148,8 @@ function runAnalysis(){
     const pc = checkPeriodConsistency();
     if(pc){ showPeriodAlert(pc); return; }
   }
-  R = { coverage: cov, deviceScope: cov.deviceScope, deviceUnknown: cov.deviceUnknown };
+  ACCOUNT_KEY = extractAccountKey(FILES.map(f=>f.name));   // v18：从文件名识别客户，隔离历史快照（不同客户不可比）
+  R = { coverage: cov, deviceScope: cov.deviceScope, deviceUnknown: cov.deviceUnknown, accountKey: ACCOUNT_KEY, compareSuppressed: null };
   const hasSearch = FILES.some(f=>f.type==='search');
   if(!hasSearch){
     /* 无搜索词报告：仅运行不依赖搜索词的独立维度模块，核心模块给安全空占位——实现"缺失其他模块文件也能分析" */
@@ -336,7 +337,7 @@ function runAnalysis(){
   const geo=geoRes.geo, geoTot=geoRes.geoTot, geoAvgCtr=geoRes.geoAvgCtr, geoAvgCpc=geoRes.geoAvgCpc;
 
   /* ---- 跨周期对比 ---- */
-  PREV = findPrev(period);
+  PREV = findPrev(period, ACCOUNT_KEY);
   let compare=null;
   if(PREV){
     const pk = PREV.convKw||{};
@@ -353,7 +354,7 @@ function runAnalysis(){
     compare = { period:PREV.period, cost:PREV.cost, conv:PREV.conv, clicks:PREV.clicks, shows:PREV.shows, changes };
   }
 
-  R = Object.assign(R, { period, dates, daily, tot, targetCPA, highCost, kws, convKws, coreKws, zeroDays, queries, negList, addList:addFinal, convQueries, modeStats, matchMode, planStats, creGroups, weakCre, topCre, advCompare, geo, geoAvgCtr, geoAvgCpc, geoTot, compare });
+  R = Object.assign(R, { period, dates, daily, tot, targetCPA, highCost, kws, convKws, coreKws, zeroDays, queries, negList, addList:addFinal, convQueries, modeStats, matchMode, planStats, creGroups, weakCre, topCre, advCompare, geo, geoAvgCtr, geoAvgCpc, geoTot, compare, accountKey: ACCOUNT_KEY, compareSuppressed: PREV? null : {reason: ACCOUNT_KEY? 'noPrev':'unknown', account: ACCOUNT_KEY} });
   /* Bug #6 修复：R.coreConvPct 之前从未赋值 → 仪表盘/PDF 中"核心转化词"卡片恒显 0.00% */
   R.coreConvPct = tot.conv>0 ? coreKws.reduce(function(s,kw){ var k=convKws.find(function(ck){return ck.kw===kw;}); return s+(k?k.conv:0); },0)/tot.conv : 0;
 

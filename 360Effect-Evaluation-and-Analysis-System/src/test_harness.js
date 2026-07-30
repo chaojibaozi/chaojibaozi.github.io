@@ -77,8 +77,9 @@ console.log('\n-- P0 动作 --');
 R.actions.filter(a=>a.p===0).forEach(a=>console.log('[P0]['+a.mod+']', a.act.slice(0,110)));
 console.log('\n-- 匹配度抽检 --');
 [['捷配下载','捷配pcb官网登录入口'],['pcb4层板','捷配pcb官网登录'],['铝基板打样在线下单','金筑铝单板官网入口'],['捷配pcb下单','捷配pcb下单']].forEach(([k,q])=>console.log(`${k} vs ${q} => ${matchScore(k,q)} (${matchLevel(matchScore(k,q))})`));
-// 历史环比模拟：伪造上周期快照后重跑
-localStorage.setItem('sem360_history', JSON.stringify([{period:'2026-04-20至2026-04-26', cost:4000, conv:30, clicks:500, shows:6000, convKw:{'捷配pcb下单':12,'已流失词':3,'杭州捷配pcb在线下单':5}}]));
+// 历史环比模拟：伪造同客户上周期快照后重跑（v18：按本批文件名账户匹配）
+const _ak = extractAccountKey(FILES.map(f=>f.name));
+localStorage.setItem('sem360_history', JSON.stringify([{period:'2026-04-20至2026-04-26', cost:4000, conv:30, clicks:500, shows:6000, convKw:{'捷配pcb下单':12,'已流失词':3,'杭州捷配pcb在线下单':5}, account:_ak}]));
 runAnalysis();
 console.log('\n-- 跨周期对比验证 --');
 console.log('对比周期:', R.compare.period);

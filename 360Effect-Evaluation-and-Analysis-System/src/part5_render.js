@@ -384,17 +384,29 @@ function renderOverview(){
   kpis.push({l:'设备端', v:dsVal, d: ds==='unknown'?'建议文件名标 PC/移动':'离线自动识别'});
   let cmp=null;
   if(R.compare){
-    cmp={cost:R.compare.cost, conv:R.compare.conv, clicks:R.compare.clicks};
+    cmp={cost:R.compare.cost, conv:R.compare.conv, clicks:R.compare.clicks, shows:R.compare.shows};
   }
   document.getElementById('ov-kpis').innerHTML = kpis.map((k,i)=>{
     let delta='';
     if(cmp){
       if(k.l==='总消费') delta=deltaHtml(t.cost,cmp.cost,'¥');
-      if(k.l==='总转化') delta=deltaHtml(t.conv,cmp.conv,'',true);
+      if(k.l==='总展示') delta=deltaHtml(t.shows,cmp.shows,'');
       if(k.l==='总点击') delta=deltaHtml(t.clicks,cmp.clicks,'');
+      if(k.l==='总转化') delta=deltaHtml(t.conv,cmp.conv,'',true);
     }
     return `<div class="kpi"${(k.tip?' data-tip-type="'+k.tip+'"':'')+(k.tv!=null?' data-tip-value="'+k.tv+'"':'')+(k.tb!=null?' data-tip-bench="'+k.tb+'"':'')+(k.tc?' data-tip-context="'+esc(k.tc)+'"':'')}><div class="lbl">${k.l}</div><div class="val ${k.cls||''}">${k.v}</div><div class="delta">${delta||k.d||''}</div></div>`;
   }).join('');
+
+  const ph=document.getElementById('ov-period-hint');
+  if(ph){
+    if(R.compare) ph.innerHTML='';
+    else if(R.compareSuppressed){
+      const msg = R.compareSuppressed.reason==='unknown'
+        ? '未能从文件名识别客户标识，已隐藏上期对比（避免跨客户误比）。'
+        : '未找到同客户「'+esc(R.accountKey)+'」的上期数据，已隐藏上期环比对比。';
+      ph.innerHTML='<span class="ph-ic">ℹ️</span> '+msg;
+    } else ph.innerHTML='';
+  }
 
   drawDailyChart();
 
@@ -422,7 +434,7 @@ function renderOverview(){
        ['点击',fmt0(c.clicks),fmt0(R.tot.clicks),deltaHtml(R.tot.clicks,c.clicks,'')],
        ['转化',fmt0(c.conv),fmt0(R.tot.conv),deltaHtml(R.tot.conv,c.conv,'',true)],
        ['CPA',c.conv?('¥'+fmt(c.cost/c.conv)):'—', R.tot.conv?('¥'+fmt(R.tot.cpa)):'—', (c.conv&&R.tot.conv)?deltaHtml(R.tot.cpa,c.cost/c.conv,'¥'):'—']],[0]);
-  } else cc.style.display='none';
+  } else { cc.style.display='block'; document.getElementById('ov-compare').innerHTML = '<div class="empty">'+(R.compareSuppressed&&R.compareSuppressed.reason!=='unknown'?'未找到同客户「'+esc(R.accountKey)+'」的上期数据，无法进行同期对比。':'无上期数据，无法进行同期对比。')+'</div>'; }
 
   /* 下周期预测卡片（任务13） */
   const fc=document.getElementById('ov-forecast-card');
@@ -714,7 +726,7 @@ function renderConv(){
     document.getElementById('convCompare').innerHTML = `<div class="section-hint">对比周期：${R.compare.period}</div>`+tableHtml(
       ['关键词','上期转化','本期转化','变化'],
       chg.filter(c=>c.st!=='持平'||c.cur>0).map(c=>[esc(c.kw), c.prev, c.cur, `<span class="badge ${stCls[c.st]}">${c.st}</span>`]),[0]);
-  } else cc.style.display='none';
+  } else { cc.style.display='block'; document.getElementById('convCompare').innerHTML = '<div class="empty">'+(R.compareSuppressed&&R.compareSuppressed.reason!=='unknown'?'未找到同客户「'+esc(R.accountKey)+'」的上期数据，无法进行转化词环比对比。':'无上期数据，无法进行转化词环比对比。')+'</div>'; }
 }
 
 /* ---------- 分日转化关键词 · 日度变化追踪（v9） ---------- */

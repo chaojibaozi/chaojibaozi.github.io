@@ -165,6 +165,8 @@ main.content{max-width:1320px;width:100%;margin:0 auto;padding:22px 26px 80px}
 .up{color:var(--danger)!important}.down{color:var(--ok)!important}
 /* 账户总览 KPI 行：自适应列数，尽量一排，空间不足再折行 */
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.period-hint{font-size:12px;color:var(--muted);margin:-4px 0 12px;padding:6px 10px;background:var(--card);border:1px solid var(--bd);border-radius:8px;line-height:1.6}
+.period-hint .ph-ic{margin-right:4px}
 .kpi-row .kpi{padding:12px 14px}
 .kpi-row .kpi .val{font-size:21px}
 .kpi-row .kpi .lbl{font-size:11.5px}
@@ -610,6 +612,7 @@ footer.foot{text-align:center;color:var(--muted);font-size:12px;padding:24px;lin
       <div class="panel active" id="p-overview">
         <div id="ov-alerts"></div>
         <div class="kpi-row" id="ov-kpis"></div>
+        <div id="ov-period-hint" class="period-hint"></div>
         <div class="card"><h2><span class="ic">📈</span> 分日趋势 <span class="tag">消费 / 点击 / 转化 / CPA</span><span class="help-btn" data-help="overview-trend" title="分日趋势图帮助">?</span><span class="spacer"></span><button class="btn ai sm" onclick="runModuleAI('overview')">🤖 AI解读本模块</button></h2>
           <div class="chart-wrap"><canvas id="chartDaily" width="1200" height="320"></canvas></div>
           <div class="ai-box" id="ai-overview"><h4>🤖 DeepSeek 模块解读</h4><div class="ai-content"></div></div>
@@ -876,6 +879,7 @@ let R = null;                                         // 分析结果
 let PERIOD_ACK = false;                               // v16：用户已确认「周期不一致仍继续分析」；文件列表变更即复位
 let ACTIONS_EXPANDED = false;                         // v17：仪表盘操作预览展开状态
 let PREV = null;                                      // 上一周期快照
+let ACCOUNT_KEY = '';                                // v18：从文件名自动识别的账户标识，用于隔离不同客户的历史快照
 /* 四象限元数据（账户级共享，置于核心层确保 part5/part6 均可见，避免跨文件 const 依赖在导出报告时崩溃） */
 var QUAD_META={
   A:{name:'A · 重点词（高消费·有转化）', cls:'b-blue', action:'账户利润主力：稳排名不盲目抢第一（2-4名即可）；持续监控CPA变化；围绕其拓展同结构关键词；确保创意与落地页最优版本。'},
@@ -1271,21 +1275,60 @@ function mergeFiles(){
 /* ---------- 历史存储 ---------- */
 function historyAll(){ try{ return JSON.parse(localStorage.getItem('sem360_history')||'[]'); }catch(e){ return []; } }
 function saveSnapshot(snap){
+  const account = ACCOUNT_KEY || ('__unknown_'+Date.now());   // v18：按当前批次账户隔离，避免跨客户快照互相覆盖
   let h = historyAll();
-  h = h.filter(x=>x.period!==snap.period);       // 同周期覆盖
-  h.push(snap); h.sort((a,b)=>a.period<b.period?-1:1);
+  h = h.filter(x=> !(x.period===snap.period && x.account===account));   // 同账户同周期覆盖
+  h.push(Object.assign({account}, snap)); h.sort((a,b)=>a.period<b.period?-1:1);
   if(h.length>24) h=h.slice(h.length-24);
   try{ localStorage.setItem('sem360_history', JSON.stringify(h)); }catch(e){ toast('历史存储空间不足，已跳过保存'); }
 }
-function findPrev(period){
-  const h = historyAll().filter(x=>x.period<period);
+function findPrev(period, account){
+  // v18：仅匹配同账户（文件名自动识别）的历史快照，避免不同客户跨比（各行业客户数据不可比）
+  const h = historyAll().filter(x=>x.account===account && x.period<period);
   return h.length? h[h.length-1] : null;
+}
+/* v18：从一批文件名自动提取账户标识（客户/账户用户名）。
+   策略：① 多文件取所有文件名共有的、非日期、非报告类型的关键词（按首文件顺序拼接）；
+         ② 单文件取首个非日期、非报告类型词；
+         ③ 兜底取最长公共前缀的首段。取不到则返 ''（此时快照以唯一标记存储，永不参与跨批对比）。 */
+function extractAccountKey(fileNames){
+  if(!fileNames || !fileNames.length) return '';
+  const bases = fileNames.map(n=>{
+    let s = String(n).split(/[\\/]/).pop();
+    return s.replace(/\.[^.]+$/, '');
+  }).filter(Boolean);
+  if(!bases.length) return '';
+  const STOP = new Set(['搜索词','关键词','搜索关键词','地域','计划','推广计划','推广组','推广','组','账户','账号','ocpc','创意','时段','分时','无效','点击','排名','报告','分日','日报','数据','data','report','明细','汇总','全维度','维度','效果','统计','analysis','csv','xls','query']);
+  const SEP = /[_\-－\s—~.]+/;
+  const toks = s => String(s).split(SEP).map(t=>t.trim()).filter(Boolean)
+    .map(t=>{ let u=t; STOP.forEach(w=>{ if(u.indexOf(w)>=0) u=u.split(w).join(''); }); return u; })  // 剔除嵌入的报告类型词缀（如「搜索词报告」→「」）
+    .filter(t=>t.length>0)
+    .filter(t=>!/^\d{4}[-/]?\d{1,2}([-/]\d{1,2})?$/.test(t))
+    .filter(t=>!/^\d{6,8}$/.test(t))
+    .filter(t=>!/^(19|20)\d{2}$/.test(t))
+    .filter(t=>!STOP.has(t.toLowerCase()));
+  if(bases.length===1){
+    const ts = toks(bases[0]);
+    return ts.length ? ts[0] : '';   // 单文件且整名均为报告类型/日期 → 无法识别客户，返回空（隔离，不误比）
+  }
+  let common=null;
+  bases.forEach(b=>{ const ts=new Set(toks(b)); common = common===null? ts : new Set([...common].filter(x=>ts.has(x))); });
+  const arr=[...(common||[])];
+  if(arr.length){ arr.sort((a,b)=> bases[0].indexOf(a)-bases[0].indexOf(b)); return arr.join(''); }
+  const seg = longestCommonPrefix(bases).split(SEP)[0];
+  return seg || '';
+}
+function longestCommonPrefix(arr){
+  if(!arr.length) return '';
+  let p=arr[0];
+  for(const s of arr){ let i=0; while(i<p.length && i<s.length && p[i]===s[i]) i++; p=p.slice(0,i); }
+  return p;
 }
 function openHistory(){
   const h=historyAll();
   document.getElementById('historyList').innerHTML = h.length?
-    ('<table><tr><th>周期</th><th class="num">消费</th><th class="num">转化</th><th class="num">CPA</th><th class="num">转化词数</th><th>保存时间</th></tr>'+
-    h.slice().reverse().map(x=>`<tr><td>${x.period}</td><td class="num">¥${fmt(x.cost)}</td><td class="num">${x.conv}</td><td class="num">${x.conv?('¥'+fmt(x.cost/x.conv)):'-'}</td><td class="num">${Object.keys(x.convKw||{}).length}</td><td>${x.savedAt||''}</td></tr>`).join('')+'</table>')
+    ('<table><tr><th>客户</th><th>周期</th><th class="num">消费</th><th class="num">转化</th><th class="num">CPA</th><th class="num">转化词数</th><th>保存时间</th></tr>'+
+    h.slice().reverse().map(x=>`<tr><td>${esc(x.account && x.account.indexOf('__unknown_')!==0 ? x.account : '未识别')}</td><td>${x.period}</td><td class="num">¥${fmt(x.cost)}</td><td class="num">${x.conv}</td><td class="num">${x.conv?('¥'+fmt(x.cost/x.conv)):'-'}</td><td class="num">${Object.keys(x.convKw||{}).length}</td><td>${x.savedAt||''}</td></tr>`).join('')+'</table>')
     : '<div class="empty">暂无历史周期。完成一次分析后自动保存。</div>';
   document.getElementById('historyModal').classList.add('show');
 }
@@ -1479,7 +1522,8 @@ function runAnalysis(){
     const pc = checkPeriodConsistency();
     if(pc){ showPeriodAlert(pc); return; }
   }
-  R = { coverage: cov, deviceScope: cov.deviceScope, deviceUnknown: cov.deviceUnknown };
+  ACCOUNT_KEY = extractAccountKey(FILES.map(f=>f.name));   // v18：从文件名识别客户，隔离历史快照（不同客户不可比）
+  R = { coverage: cov, deviceScope: cov.deviceScope, deviceUnknown: cov.deviceUnknown, accountKey: ACCOUNT_KEY, compareSuppressed: null };
   const hasSearch = FILES.some(f=>f.type==='search');
   if(!hasSearch){
     /* 无搜索词报告：仅运行不依赖搜索词的独立维度模块，核心模块给安全空占位——实现"缺失其他模块文件也能分析" */
@@ -1667,7 +1711,7 @@ function runAnalysis(){
   const geo=geoRes.geo, geoTot=geoRes.geoTot, geoAvgCtr=geoRes.geoAvgCtr, geoAvgCpc=geoRes.geoAvgCpc;
 
   /* ---- 跨周期对比 ---- */
-  PREV = findPrev(period);
+  PREV = findPrev(period, ACCOUNT_KEY);
   let compare=null;
   if(PREV){
     const pk = PREV.convKw||{};
@@ -1684,7 +1728,7 @@ function runAnalysis(){
     compare = { period:PREV.period, cost:PREV.cost, conv:PREV.conv, clicks:PREV.clicks, shows:PREV.shows, changes };
   }
 
-  R = Object.assign(R, { period, dates, daily, tot, targetCPA, highCost, kws, convKws, coreKws, zeroDays, queries, negList, addList:addFinal, convQueries, modeStats, matchMode, planStats, creGroups, weakCre, topCre, advCompare, geo, geoAvgCtr, geoAvgCpc, geoTot, compare });
+  R = Object.assign(R, { period, dates, daily, tot, targetCPA, highCost, kws, convKws, coreKws, zeroDays, queries, negList, addList:addFinal, convQueries, modeStats, matchMode, planStats, creGroups, weakCre, topCre, advCompare, geo, geoAvgCtr, geoAvgCpc, geoTot, compare, accountKey: ACCOUNT_KEY, compareSuppressed: PREV? null : {reason: ACCOUNT_KEY? 'noPrev':'unknown', account: ACCOUNT_KEY} });
   /* Bug #6 修复：R.coreConvPct 之前从未赋值 → 仪表盘/PDF 中"核心转化词"卡片恒显 0.00% */
   R.coreConvPct = tot.conv>0 ? coreKws.reduce(function(s,kw){ var k=convKws.find(function(ck){return ck.kw===kw;}); return s+(k?k.conv:0); },0)/tot.conv : 0;
 
@@ -2999,17 +3043,29 @@ function renderOverview(){
   kpis.push({l:'设备端', v:dsVal, d: ds==='unknown'?'建议文件名标 PC/移动':'离线自动识别'});
   let cmp=null;
   if(R.compare){
-    cmp={cost:R.compare.cost, conv:R.compare.conv, clicks:R.compare.clicks};
+    cmp={cost:R.compare.cost, conv:R.compare.conv, clicks:R.compare.clicks, shows:R.compare.shows};
   }
   document.getElementById('ov-kpis').innerHTML = kpis.map((k,i)=>{
     let delta='';
     if(cmp){
       if(k.l==='总消费') delta=deltaHtml(t.cost,cmp.cost,'¥');
-      if(k.l==='总转化') delta=deltaHtml(t.conv,cmp.conv,'',true);
+      if(k.l==='总展示') delta=deltaHtml(t.shows,cmp.shows,'');
       if(k.l==='总点击') delta=deltaHtml(t.clicks,cmp.clicks,'');
+      if(k.l==='总转化') delta=deltaHtml(t.conv,cmp.conv,'',true);
     }
     return `<div class="kpi"${(k.tip?' data-tip-type="'+k.tip+'"':'')+(k.tv!=null?' data-tip-value="'+k.tv+'"':'')+(k.tb!=null?' data-tip-bench="'+k.tb+'"':'')+(k.tc?' data-tip-context="'+esc(k.tc)+'"':'')}><div class="lbl">${k.l}</div><div class="val ${k.cls||''}">${k.v}</div><div class="delta">${delta||k.d||''}</div></div>`;
   }).join('');
+
+  const ph=document.getElementById('ov-period-hint');
+  if(ph){
+    if(R.compare) ph.innerHTML='';
+    else if(R.compareSuppressed){
+      const msg = R.compareSuppressed.reason==='unknown'
+        ? '未能从文件名识别客户标识，已隐藏上期对比（避免跨客户误比）。'
+        : '未找到同客户「'+esc(R.accountKey)+'」的上期数据，已隐藏上期环比对比。';
+      ph.innerHTML='<span class="ph-ic">ℹ️</span> '+msg;
+    } else ph.innerHTML='';
+  }
 
   drawDailyChart();
 
@@ -3037,7 +3093,7 @@ function renderOverview(){
        ['点击',fmt0(c.clicks),fmt0(R.tot.clicks),deltaHtml(R.tot.clicks,c.clicks,'')],
        ['转化',fmt0(c.conv),fmt0(R.tot.conv),deltaHtml(R.tot.conv,c.conv,'',true)],
        ['CPA',c.conv?('¥'+fmt(c.cost/c.conv)):'—', R.tot.conv?('¥'+fmt(R.tot.cpa)):'—', (c.conv&&R.tot.conv)?deltaHtml(R.tot.cpa,c.cost/c.conv,'¥'):'—']],[0]);
-  } else cc.style.display='none';
+  } else { cc.style.display='block'; document.getElementById('ov-compare').innerHTML = '<div class="empty">'+(R.compareSuppressed&&R.compareSuppressed.reason!=='unknown'?'未找到同客户「'+esc(R.accountKey)+'」的上期数据，无法进行同期对比。':'无上期数据，无法进行同期对比。')+'</div>'; }
 
   /* 下周期预测卡片（任务13） */
   const fc=document.getElementById('ov-forecast-card');
@@ -3329,7 +3385,7 @@ function renderConv(){
     document.getElementById('convCompare').innerHTML = `<div class="section-hint">对比周期：${R.compare.period}</div>`+tableHtml(
       ['关键词','上期转化','本期转化','变化'],
       chg.filter(c=>c.st!=='持平'||c.cur>0).map(c=>[esc(c.kw), c.prev, c.cur, `<span class="badge ${stCls[c.st]}">${c.st}</span>`]),[0]);
-  } else cc.style.display='none';
+  } else { cc.style.display='block'; document.getElementById('convCompare').innerHTML = '<div class="empty">'+(R.compareSuppressed&&R.compareSuppressed.reason!=='unknown'?'未找到同客户「'+esc(R.accountKey)+'」的上期数据，无法进行转化词环比对比。':'无上期数据，无法进行转化词环比对比。')+'</div>'; }
 }
 
 /* ---------- 分日转化关键词 · 日度变化追踪（v9） ---------- */

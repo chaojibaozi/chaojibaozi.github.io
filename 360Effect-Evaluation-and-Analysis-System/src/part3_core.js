@@ -8,6 +8,7 @@ let R = null;                                         // 分析结果
 let PERIOD_ACK = false;                               // v16：用户已确认「周期不一致仍继续分析」；文件列表变更即复位
 let ACTIONS_EXPANDED = false;                         // v17：仪表盘操作预览展开状态
 let PREV = null;                                      // 上一周期快照
+let ACCOUNT_KEY = '';                                // v18：从文件名自动识别的账户标识，用于隔离不同客户的历史快照
 /* 四象限元数据（账户级共享，置于核心层确保 part5/part6 均可见，避免跨文件 const 依赖在导出报告时崩溃） */
 var QUAD_META={
   A:{name:'A · 重点词（高消费·有转化）', cls:'b-blue', action:'账户利润主力：稳排名不盲目抢第一（2-4名即可）；持续监控CPA变化；围绕其拓展同结构关键词；确保创意与落地页最优版本。'},
@@ -403,21 +404,60 @@ function mergeFiles(){
 /* ---------- 历史存储 ---------- */
 function historyAll(){ try{ return JSON.parse(localStorage.getItem('sem360_history')||'[]'); }catch(e){ return []; } }
 function saveSnapshot(snap){
+  const account = ACCOUNT_KEY || ('__unknown_'+Date.now());   // v18：按当前批次账户隔离，避免跨客户快照互相覆盖
   let h = historyAll();
-  h = h.filter(x=>x.period!==snap.period);       // 同周期覆盖
-  h.push(snap); h.sort((a,b)=>a.period<b.period?-1:1);
+  h = h.filter(x=> !(x.period===snap.period && x.account===account));   // 同账户同周期覆盖
+  h.push(Object.assign({account}, snap)); h.sort((a,b)=>a.period<b.period?-1:1);
   if(h.length>24) h=h.slice(h.length-24);
   try{ localStorage.setItem('sem360_history', JSON.stringify(h)); }catch(e){ toast('历史存储空间不足，已跳过保存'); }
 }
-function findPrev(period){
-  const h = historyAll().filter(x=>x.period<period);
+function findPrev(period, account){
+  // v18：仅匹配同账户（文件名自动识别）的历史快照，避免不同客户跨比（各行业客户数据不可比）
+  const h = historyAll().filter(x=>x.account===account && x.period<period);
   return h.length? h[h.length-1] : null;
+}
+/* v18：从一批文件名自动提取账户标识（客户/账户用户名）。
+   策略：① 多文件取所有文件名共有的、非日期、非报告类型的关键词（按首文件顺序拼接）；
+         ② 单文件取首个非日期、非报告类型词；
+         ③ 兜底取最长公共前缀的首段。取不到则返 ''（此时快照以唯一标记存储，永不参与跨批对比）。 */
+function extractAccountKey(fileNames){
+  if(!fileNames || !fileNames.length) return '';
+  const bases = fileNames.map(n=>{
+    let s = String(n).split(/[\\/]/).pop();
+    return s.replace(/\.[^.]+$/, '');
+  }).filter(Boolean);
+  if(!bases.length) return '';
+  const STOP = new Set(['搜索词','关键词','搜索关键词','地域','计划','推广计划','推广组','推广','组','账户','账号','ocpc','创意','时段','分时','无效','点击','排名','报告','分日','日报','数据','data','report','明细','汇总','全维度','维度','效果','统计','analysis','csv','xls','query']);
+  const SEP = /[_\-－\s—~.]+/;
+  const toks = s => String(s).split(SEP).map(t=>t.trim()).filter(Boolean)
+    .map(t=>{ let u=t; STOP.forEach(w=>{ if(u.indexOf(w)>=0) u=u.split(w).join(''); }); return u; })  // 剔除嵌入的报告类型词缀（如「搜索词报告」→「」）
+    .filter(t=>t.length>0)
+    .filter(t=>!/^\d{4}[-/]?\d{1,2}([-/]\d{1,2})?$/.test(t))
+    .filter(t=>!/^\d{6,8}$/.test(t))
+    .filter(t=>!/^(19|20)\d{2}$/.test(t))
+    .filter(t=>!STOP.has(t.toLowerCase()));
+  if(bases.length===1){
+    const ts = toks(bases[0]);
+    return ts.length ? ts[0] : '';   // 单文件且整名均为报告类型/日期 → 无法识别客户，返回空（隔离，不误比）
+  }
+  let common=null;
+  bases.forEach(b=>{ const ts=new Set(toks(b)); common = common===null? ts : new Set([...common].filter(x=>ts.has(x))); });
+  const arr=[...(common||[])];
+  if(arr.length){ arr.sort((a,b)=> bases[0].indexOf(a)-bases[0].indexOf(b)); return arr.join(''); }
+  const seg = longestCommonPrefix(bases).split(SEP)[0];
+  return seg || '';
+}
+function longestCommonPrefix(arr){
+  if(!arr.length) return '';
+  let p=arr[0];
+  for(const s of arr){ let i=0; while(i<p.length && i<s.length && p[i]===s[i]) i++; p=p.slice(0,i); }
+  return p;
 }
 function openHistory(){
   const h=historyAll();
   document.getElementById('historyList').innerHTML = h.length?
-    ('<table><tr><th>周期</th><th class="num">消费</th><th class="num">转化</th><th class="num">CPA</th><th class="num">转化词数</th><th>保存时间</th></tr>'+
-    h.slice().reverse().map(x=>`<tr><td>${x.period}</td><td class="num">¥${fmt(x.cost)}</td><td class="num">${x.conv}</td><td class="num">${x.conv?('¥'+fmt(x.cost/x.conv)):'-'}</td><td class="num">${Object.keys(x.convKw||{}).length}</td><td>${x.savedAt||''}</td></tr>`).join('')+'</table>')
+    ('<table><tr><th>客户</th><th>周期</th><th class="num">消费</th><th class="num">转化</th><th class="num">CPA</th><th class="num">转化词数</th><th>保存时间</th></tr>'+
+    h.slice().reverse().map(x=>`<tr><td>${esc(x.account && x.account.indexOf('__unknown_')!==0 ? x.account : '未识别')}</td><td>${x.period}</td><td class="num">¥${fmt(x.cost)}</td><td class="num">${x.conv}</td><td class="num">${x.conv?('¥'+fmt(x.cost/x.conv)):'-'}</td><td class="num">${Object.keys(x.convKw||{}).length}</td><td>${x.savedAt||''}</td></tr>`).join('')+'</table>')
     : '<div class="empty">暂无历史周期。完成一次分析后自动保存。</div>';
   document.getElementById('historyModal').classList.add('show');
 }

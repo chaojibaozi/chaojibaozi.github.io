@@ -156,11 +156,8 @@ assert(pct(undefined)==='0.00%', 'pct(undefined)=0.00% (='+pct(undefined)+')');
 assert(pct(null)==='0.00%', 'pct(null)=0.00% (='+pct(null)+')');
 assert(pct(0.1234)===(0.1234*100).toFixed(2)+'%', 'pct(0.1234) 正常 (='+pct(0.1234)+')');
 
-/* ============ T7：跨周期环比 新增/流失/上升/下降 识别 ============ */
+/* ============ T7：跨周期环比 新增/流失/上升/下降 识别（v18：同客户文件名隔离） ============ */
 console.log('\n===== T7 跨周期环比(compare) 识别 =====');
-global.localStorage.setItem('sem360_history', JSON.stringify([
-  {period:'2026-07-01至2026-07-05', savedAt:'x', cost:1000, conv:8, clicks:100, shows:1000, convKw:{A:5,B:3,E:2}}
-]));
 const cmpRows=[];
 ['A','B','C','D','E'].forEach(kw=>{
   D7.forEach(d=>{
@@ -168,15 +165,39 @@ const cmpRows=[];
     cmpRows.push({date:d,plan:'P',group:'G',kw,query:'q',title:'t',mode:'精确',shows:100,clicks:10,cost:20,conv});
   });
 });
-FILES=[{name:'cmp.csv',type:'search',rows:cmpRows}];
+FILES=[{name:'acme_搜索词_2026-07.csv',type:'search',rows:cmpRows}];
+const _ak=extractAccountKey(FILES.map(f=>f.name));
+global.localStorage.setItem('sem360_history', JSON.stringify([
+  {period:'2026-07-01至2026-07-05', savedAt:'x', cost:1000, conv:8, clicks:100, shows:1000, convKw:{A:5,B:3,E:2}, account:_ak}
+]));
 runAnalysis();
-assert(R.compare && R.compare.period==='2026-07-01至2026-07-05', 'compare 关联到上一周期快照');
+assert(R.compare && R.compare.period==='2026-07-01至2026-07-05', 'compare 关联到同客户('+_ak+')上期快照');
 const st={}; R.compare.changes.forEach(c=>st[c.kw]=c.st);
 assert(st.A==='上升', 'A 5→8 判为 上升');
 assert(st.B==='流失', 'B 3→0 判为 流失');
 assert(st.C==='新增', 'C 0→4 判为 新增');
 assert(st.E==='持平', 'E 2→2 判为 持平');
 assert(st.D===undefined, 'D 双周期均 0 转化 → 正确不纳入环比（非 bug）');
+
+/* ============ T8：跨客户历史隔离（v18） ============ */
+console.log('\n===== T8 跨客户历史隔离（v18） =====');
+// 同客户：历史存在同账户快照 → 应匹配为本期上期
+FILES=[{name:'acme_搜索词_2026-08.csv',type:'search',rows:cmpRows}];
+const ak2=extractAccountKey(FILES.map(f=>f.name));
+global.localStorage.setItem('sem360_history', JSON.stringify([
+  {period:'2026-07-01至2026-07-05', savedAt:'x', cost:1000, conv:8, clicks:100, shows:1000, convKw:{A:5}, account:ak2}
+]));
+runAnalysis();
+assert(R.compare && R.compare.period==='2026-07-01至2026-07-05', 'T8 同客户('+ak2+')历史快照匹配为本期上期');
+// 跨客户：历史只有其他客户 → 应被隔离，不显示上期
+FILES=[{name:'otherclient_搜索词_2026-08.csv',type:'search',rows:cmpRows}];
+const ak3=extractAccountKey(FILES.map(f=>f.name));
+global.localStorage.setItem('sem360_history', JSON.stringify([
+  {period:'2026-07-01至2026-07-05', savedAt:'x', cost:1000, conv:8, clicks:100, shows:1000, convKw:{A:5}, account:'acme'}
+]));
+runAnalysis();
+assert(R.compare===null, 'T8 跨客户('+ak3+' vs acme)历史被隔离，无上期对比');
+assert(R.compareSuppressed && R.compareSuppressed.reason==='noPrev', 'T8 跨客户时 compareSuppressed.reason=noPrev');
 
 /* ============ T8：恒定 CVR 关键词 → Pearson 为 NaN 但不崩 ============ */
 console.log('\n===== T8 恒定CVR关键词 → rNew/rLow=NaN 但渲染不崩 =====');
