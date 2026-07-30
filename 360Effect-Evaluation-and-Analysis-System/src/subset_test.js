@@ -18,6 +18,8 @@ function loadScript(p){ let code = fs.readFileSync(p,'utf8').replace(/^(let|cons
 loadScript(__dirname+'/part3_core.js');
 global.renderAll = ()=>{};
 loadScript(__dirname+'/part4_analysis.js');
+PERIOD_ACK = true;   // v16：CAP/MAXROWS 截断致各类型日期覆盖不一致的「伪周期错位」（测试环境产物），
+                     // 模拟用户确认继续；周期拦截行为由 period_test.js 专项覆盖。
 
 const DIR = path.join(__dirname,'..','testdata') + '/';
 const CAP = 5*1048576;        // 超大文件仅读前 5MB（避免 OOM），逻辑校验不受影响

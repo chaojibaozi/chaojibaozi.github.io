@@ -40,10 +40,79 @@ if(typeof window!=='undefined' && window.addEventListener){
 }
 
 function renderAll(){
-  renderWorkflow(); renderOverview(); renderQuad(); renderConv(); renderConvDaily(); renderQuery(); renderCreative(); renderGeo(); renderCpa(); renderShift(); renderCovar(); renderActions(); renderDiag();
+  renderDashboard(); renderWorkflow(); renderOverview(); renderQuad(); renderConv(); renderConvDaily(); renderQuery(); renderCreative(); renderGeo(); renderCpa(); renderShift(); renderCovar(); renderActions(); renderDiag();
 }
 
-/* ---------- ⓪ 数据覆盖与诊断工作流（自适应：丢入哪些文件就跑哪些分析） ---------- */
+/* ---------- 全局仪表盘（Dashboard） ---------- */
+function renderDashboard(){
+  const dc=document.getElementById('dashboardCard'), el=document.getElementById('dashboard');
+  if(!dc||!el||!R||!R.tot) return;
+  dc.style.display='block';
+  const tot=R.tot, prev=R.compare||{};
+  const delta=(key)=>{
+    if(!prev[key]&&prev[key]!==0) return '';
+    const p=prev[key], c=tot[key];
+    if(p===0&&c===0) return '';
+    const d=p?((c-p)/p*100):0;
+    const cls=d>0?'up':'down';
+    const arrow=d>0?'↑':'↓';
+    return `<span class="dc-delta ${cls}">${arrow} ${Math.abs(d).toFixed(1)}%</span>`;
+  };
+  /* 环比转化 */
+  const compareConv = R.compare && R.compare.conv!==undefined? R.compare.conv : null;
+  const convDelta = compareConv!==null?
+    (compareConv===0&&R.tot.conv===0?'':`<span class="dc-delta ${R.tot.conv>compareConv?'up':'down'}">${R.tot.conv>compareConv?'↑':'↓'} ${compareConv?(Math.abs((R.tot.conv-compareConv)/compareConv*100).toFixed(1)):'—'}%</span>`)
+    :(prev.conv?delta('conv'):'');
+  el.innerHTML=[
+    {l:'总消费',v:'¥'+fmt(R.tot.cost,0),s:fmt0(R.tot.shows)+' 展示 · '+R.dates.length+' 天',d:delta('cost'),cls:'dc-cost'},
+    {l:'点击',v:fmt0(R.tot.clicks),s:'CTR '+pct(R.tot.ctr),d:delta('clicks'),cls:'dc-click'},
+    {l:'转化',v:R.tot.conv,s:'CPA ¥'+(R.tot.conv?fmt(R.tot.cpa):'—'),d:convDelta,cls:'dc-conv'},
+    {l:'转化成本',v:'¥'+(R.tot.conv?fmt(R.tot.cpa):'—'),s:'日均 ¥'+fmt(R.tot.cost/R.dates.length,0)+'/'+(R.tot.conv?fmt(R.tot.conv/R.dates.length,1):'0')+' 转',d:'',cls:'dc-cpa'},
+    {l:'核心转化词',v:(R.coreKws?R.coreKws.length:'—'),s:'贡献 '+pct(R.coreConvPct||0)+' 转化',d:'',cls:'dc-ctr'},
+    {l:'诊断操作',v:(R.actions||[]).length,s:'P0:'+(R.actions||[]).filter(a=>a.p===0).length+' P1:'+(R.actions||[]).filter(a=>a.p===1).length+' P2:'+(R.actions||[]).filter(a=>a.p===2).length,d:'',cls:'dc-shows'}
+  ].map(c=>
+    `<div class="dash-card ${c.cls}"><div class="dc-lbl">${c.l}</div><div class="dc-val">${c.v}</div><div class="dc-sub">${c.s}${c.d?' '+c.d:''}</div></div>`
+  ).join('');
+
+  /* 操作摘要快捷入口 */
+  const hintEl=document.getElementById('dashboard-hint');
+  if(hintEl) hintEl.textContent='分析周期：'+R.period+' · 已载入 '+(R.coverage?R.coverage.typesPresent.length:0)+' 类报告 · 设备：'+(R.coverage?(R.coverage.deviceScope==='both'?'PC+移动':R.coverage.deviceScope||'未识别'):'—');
+
+  const actQuick=document.getElementById('dashboard-actions-quick');
+  if(actQuick && R.actions && R.actions.length){
+    const p0=R.actions.filter(a=>a.p===0), p1=R.actions.filter(a=>a.p===1), p2=R.actions.filter(a=>a.p===2);
+    let html='<div class="section-hint" style="margin-bottom:6px">⚡ 紧急操作预览（点击展开/折叠）：</div><div class="action-summary">';
+    if(p0.length) html+='<span class="action-chip ac-p0" onclick="toggleActionPreview()">🔴 P0 紧急：'+p0.length+' 条</span>';
+    if(p1.length) html+='<span class="action-chip" onclick="toggleActionPreview()">🟡 P1 重要：'+p1.length+' 条</span>';
+    html+='<span class="action-chip" onclick="switchToActions()">📋 查看完整清单（'+(p0.length+p1.length+p2.length)+' 条）</span>';
+    html+='</div>';
+    html+='<div id="actionPreviewPanel" class="action-preview" style="display:'+(ACTIONS_EXPANDED?'block':'none')+'">'+(ACTIONS_EXPANDED?renderActionPreviewItems():'')+'</div>';
+    actQuick.innerHTML=html;
+  }
+}
+/* 仪表盘操作预览：展开/折叠 */
+function renderActionPreviewItems(){
+  const top=R.actions.slice(0, Math.min(10, R.actions.length));
+  let html='<div class="action-preview-header"><span>前 '+top.length+' 条优先级操作</span><button class="btn sm" onclick="toggleActionPreview()">▲ 收起预览</button></div>';
+  html+=top.map(a=>'<div class="alert '+(a.p===0?'danger':(a.p===1?'warn':'info'))+'"><span class="prio p'+a.p+'">P'+a.p+'</span><div><b>['+esc(a.mod)+']</b> '+esc(a.act)+'</div></div>').join('');
+  if(R.actions.length>top.length) html+='<div class="section-hint" style="margin-top:8px">还有 '+(R.actions.length-top.length)+' 条操作，<a href="javascript:switchToActions()">查看完整清单 →</a></div>';
+  return html;
+}
+function toggleActionPreview(){
+  ACTIONS_EXPANDED = !ACTIONS_EXPANDED;
+  const panel=document.getElementById('actionPreviewPanel');
+  if(panel){
+    panel.style.display = ACTIONS_EXPANDED ? 'block':'none';
+    if(ACTIONS_EXPANDED) panel.innerHTML = renderActionPreviewItems();
+  } else {
+    renderDashboard();
+  }
+}
+/* 快捷跳转到操作清单 */
+function switchToActions(){
+  const tab=document.querySelector('.tab[data-p="p-actions"]');
+  if(tab) switchTab(tab);
+}
 function deviceScopeBlock(cov){
   const ds = cov.deviceScope || 'unknown';
   const label = ds==='both'?'PC + 移动（混合投放）': ds==='pc'?'仅 PC 端': ds==='mobile'?'仅 移动端':'未识别设备端';
@@ -268,7 +337,7 @@ function renderShift(){
       {l:'分析的高转化词', v:sd.data.length+' 个', d:'转化≥3 的核心词'},
       {l:'CVR 骤降关联点', v: sd.data.reduce((s,x)=>s+x.drops.length,0)+' 处', d:'CVR较前日骤降≥30%'},
       {l:'关联结论数', v: sd.data.reduce((s,x)=>s+x.conclusions.length,0)+' 条', d:'CVR骤降且搜索词结构变化'},
-      {l:'新词↔CVR 相关性', v: sd.data.length? fmt(sd.data.reduce((s,x)=>s+(isNaN(x.rNew)?0:x.rNew),0)/sd.data.length,2):'—', d:'Pearson r（越接近1越正相关）', tip:'rValue', tv:sd.data.length?sd.data.reduce((s,x)=>s+(isNaN(x.rNew)?0:x.rNew),0)/sd.data.length:0}
+      {l:'新词↔CVR 相关性', v:(()=>{const v=sd.data.filter(x=>x.rNew!=null&&!isNaN(x.rNew));return v.length?fmt(v.reduce((s,x)=>s+x.rNew,0)/v.length,2):'—';})(), d:'Pearson r（越接近1越正相关，仅统计可计算的核心词）', tip:'rValue', tv:(()=>{const v=sd.data.filter(x=>x.rNew!=null&&!isNaN(x.rNew));return v.length?v.reduce((s,x)=>s+x.rNew,0)/v.length:0;})()}
     ].map(k=>`<div class="kpi"${(k.tip?' data-tip-type="'+k.tip+'" data-tip-value="'+k.tv+'"':'')+(k.tb!=null?' data-tip-bench="'+k.tb+'"':'')+(k.tc?' data-tip-context="'+esc(k.tc)+'"':'')}><div class="lbl">${k.l}</div><div class="val">${k.v}</div><div class="delta">${k.d}</div></div>`).join('');
 
     host.innerHTML = sd.data.map(x=>{
@@ -277,7 +346,7 @@ function renderShift(){
       const conc = x.conclusions.length? x.conclusions.map(c=>`<div class="alert warn" style="margin-bottom:6px">${esc(c)}</div>`).join('')
         : '<div class="alert ok" style="margin-bottom:6px">未检测到 CVR 骤降与搜索词结构变化（新词涌入/低质量占比）的明显关联</div>';
       return `<div class="card" style="margin-top:14px">
-        <h2><span class="ic">🔗</span> ${esc(x.kw)} <span class="tag">${x.conv} 转化 · 新词↔CVR r=${isNaN(x.rNew)?'—':x.rNew.toFixed(2)} · 低质量↔CVR r=${isNaN(x.rLow)?'—':x.rLow.toFixed(2)}</span><span class="help-btn" data-help="shift" title="转化关联诊断帮助">?</span></h2>
+        <h2><span class="ic">🔗</span> ${esc(x.kw)} <span class="tag">${x.conv} 转化 · 新词↔CVR r=${(x.rNew==null||isNaN(x.rNew))?'—':x.rNew.toFixed(2)} · 低质量↔CVR r=${(x.rLow==null||isNaN(x.rLow))?'—':x.rLow.toFixed(2)}</span><span class="help-btn" data-help="shift" title="转化关联诊断帮助">?</span></h2>
         <div class="section-hint">逐日：CVR（转化率）｜搜索词总数｜当日新词数（相对累计）｜低质量词数（匹配分&lt;30）｜低质量占比</div>
         <div class="scroll-table"><table><tr><th>日期</th><th class="num">CVR</th><th class="num">搜索词数</th><th class="num">新词</th><th class="num">低质量词</th><th class="num">低质量占比</th></tr>${rows}</table></div>
         ${conc}</div>`;
@@ -476,42 +545,70 @@ function drawDailyChart(){
   /* 标签密度：当可视点过多时智能跳过，避免重叠 */
   const labelStep = Math.max(1, Math.ceil(st.count/20));
   /* 消费柱 */
+  const convLabelBoxes=[]; // 记录已绘转化标签占位，用于碰撞避让
+  function boxOverlap(x,y,w,h){ for(const b of convLabelBoxes){ if(x<b.x+b.w && x+w>b.x && y<b.y+b.h && y+h>b.y) return true; } return false; }
+  ctx.font='12px "Microsoft YaHei"'; ctx.textAlign='center';
   visible.forEach((x,i)=>{
     const bx=padL+i*iw+iw*0.18, bw=iw*0.4;
     const bh=(H-padT-padB)*x.cost/maxCost;
     ctx.fillStyle = x.conv===0&&x.cost>=SET.zeroConvCost ? C.costZero : C.cost;
     ctx.fillRect(bx,H-padB-bh,bw,bh);
-    ctx.fillStyle=C.label; ctx.textAlign='center';
+    ctx.fillStyle=C.label;
     if(i%labelStep===0){
       ctx.fillText(x.date.slice(5), padL+i*iw+iw/2, H-padB+16);
     }
-    ctx.fillText('¥'+fmt0(x.cost), bx+bw/2, H-padB-bh-6);
+    /* 柱顶金额：过密或标签宽于柱+间距时隐藏，避免横向重叠 */
+    const costLabel='¥'+fmt0(x.cost);
+    const costLW=ctx.measureText(costLabel).width;
+    if(iw>=42 && costLW <= iw*0.92){
+      ctx.fillText(costLabel, bx+bw/2, H-padB-bh-6);
+    }
   });
   /* 转化线（预计算坐标，供后续避让判断） */
   const pt=visible.map((x,i)=>({px:padL+i*iw+iw/2, py:H-padB-(H-padT-padB)*x.conv/maxConv, bh:(H-padT-padB)*x.cost/maxCost}));
   ctx.strokeStyle=C.conv; ctx.lineWidth=2; ctx.beginPath();
   pt.forEach((p,i)=> i?ctx.lineTo(p.px,p.py):ctx.moveTo(p.px,p.py));
   ctx.stroke();
+  ctx.font='12px "Microsoft YaHei"';
   pt.forEach((p,i)=>{
     const x=visible[i];
     ctx.fillStyle=x.conv===0?C.convZero:C.conv;
     ctx.beginPath();ctx.arc(p.px,p.py,4,0,7);ctx.fill();
-    /* 转化标签避让：默认数据点上方，与柱顶"¥"距离<14px 时改放数据点下方；下方紧贴 X 轴则改放柱顶更上方 */
+    /* 转化标签避让：默认数据点上方，与柱顶金额距离<14px 时改放数据点下方；下方紧贴 X 轴则改放柱顶更上方 */
     const barLabelY=H-padB-p.bh-6;
     let labelY=p.py-10;
     if(Math.abs(labelY-barLabelY)<14){
       if(p.py+18 < H-padB-4) labelY=p.py+18;
       else labelY=barLabelY-14;
     }
-    ctx.fillStyle=C.label; ctx.fillText(x.conv+'转化', p.px, labelY);
+    const txt=x.conv+'转化';
+    const tw=ctx.measureText(txt).width;
+    const th=13;
+    const lx=p.px-tw/2, ly=labelY-th;
+    /* 与已绘标签碰撞则跳过，避免连续等值标签堆叠 */
+    if(!boxOverlap(lx-2,ly-2,tw+4,th+4)){
+      ctx.fillStyle=C.label; ctx.fillText(txt, p.px, labelY);
+      convLabelBoxes.push({x:lx-2,y:ly-2,w:tw+4,h:th+4});
+    }
   });
-  /* 图例 */
-  ctx.fillStyle=C.cost;ctx.fillRect(padL,8,14,10);
-  ctx.fillStyle=C.label;ctx.textAlign='left';ctx.fillText('消费（左轴）',padL+20,17);
-  ctx.strokeStyle=C.conv;ctx.beginPath();ctx.moveTo(padL+120,13);ctx.lineTo(padL+150,13);ctx.stroke();
-  ctx.fillText('转化数（右轴）',padL+156,17);
-  ctx.fillStyle=C.costZero;ctx.fillRect(padL+280,8,14,10);
-  ctx.fillStyle=C.label;ctx.fillText('零转化高消费日',padL+300,17);
+  /* 图例：右上角自右向左排列，不与左轴标签抢占空间 */
+  ctx.font='12px "Microsoft YaHei"';
+  const legendItems=[
+    {t:'消费（左轴）', box:C.cost, line:null},
+    {t:'转化数（右轴）', box:null, line:C.conv},
+    {t:'零转化高消费日', box:C.costZero, line:null}
+  ];
+  let lx=W-padR;
+  for(let i=legendItems.length-1;i>=0;i--){
+    const it=legendItems[i];
+    const tw=ctx.measureText(it.t).width;
+    const textX=lx;
+    const boxX=textX-tw-18;
+    if(it.box){ ctx.fillStyle=it.box; ctx.fillRect(boxX,8,14,10); }
+    if(it.line){ ctx.strokeStyle=it.line; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(boxX,13); ctx.lineTo(boxX+14,13); ctx.stroke(); }
+    ctx.fillStyle=C.label; ctx.textAlign='right'; ctx.fillText(it.t, textX, 17);
+    lx=boxX-8;
+  }
 
   /* 导航提示（当数据多于可视窗口时） */
   if(d.length > st.count){
@@ -725,17 +822,25 @@ function renderQuery(){
     : '<div class="empty">暂无建议加词</div>';
 
   const mf=document.getElementById('qModeFilter');
-  if(mf.options.length<=1) R.modeStats.forEach(m=>{ const o=document.createElement('option');o.value=m.mode;o.textContent=m.mode;mf.appendChild(o); });
-  renderQueryTable();
+  /* Bug P0-5 修复：增加 mf null 检查 */
+  if(mf && mf.options.length<=1) R.modeStats.forEach(m=>{ const o=document.createElement('option');o.value=m.mode;o.textContent=m.mode;mf.appendChild(o); });
+  window._queryPage=1; renderQueryTable();
 }
 function renderQueryTable(){
   const s=(document.getElementById('qSearch').value||'').toLowerCase();
-  const mf=document.getElementById('qModeFilter').value, lf=document.getElementById('qMatchFilter').value;
-  const list=R.queries.filter(q=>(!s||q.query.toLowerCase().includes(s)||q.kw.toLowerCase().includes(s))&&(!mf||q.mode===mf)&&(!lf||q.level===lf)).slice(0,500);
+  /* Bug P0-5 修复：增加 DOM 元素 null 检查 */
+  var mfEl=document.getElementById('qModeFilter'), lfEl=document.getElementById('qMatchFilter');
+  const mf=mfEl?mfEl.value:'', lf=lfEl?lfEl.value:'';
+  const full=R.queries.filter(q=>(!s||q.query.toLowerCase().includes(s)||q.kw.toLowerCase().includes(s))&&(!mf||q.mode===mf)&&(!lf||q.level===lf));
+  const PAGE=200, total=full.length; let page=window._queryPage||1;
+  const pages=Math.ceil(total/PAGE);
+  const list=full.slice(0,page*PAGE);
   const lvCls={'高':'b-green','中':'b-amber','低':'b-red'};
   document.getElementById('queryTable').innerHTML=tableHtml(
     ['搜索词','触发关键词','触发模式','匹配度','展示','点击','消费','转化'],
-    list.map(q=>[esc(q.query),esc(q.kw),esc(q.mode),dt('matchScore',q.score,`<span class="badge ${lvCls[q.level]}">${q.level} ${q.score}</span>`),fmt0(q.shows),fmt0(q.clicks),'¥'+fmt(q.cost),q.conv?('<b>'+q.conv+'</b>'):'0']),[0,1,2,3]);
+    list.map(q=>[esc(q.query),esc(q.kw),esc(q.mode),dt('matchScore',q.score,`<span class="badge ${lvCls[q.level]}">${q.level} ${q.score}</span>`),fmt0(q.shows),fmt0(q.clicks),'¥'+fmt(q.cost),q.conv?('<b>'+q.conv+'</b>'):'0']),[0,1,2,3])
+    +(list.length<total?'<div class="load-more-row" onclick="window._queryPage='+(page+1)+';renderQueryTable();">📋 加载更多（已显示 '+list.length+'/'+total+' 条，点击展开下一页）</div>'
+      :(total>PAGE?'<div class="total-count">已显示全部 '+total+' 条搜索词</div>':''));
 }
 function copyNegList(){ copyText(R.negList.map(q=>q.query).join('\n'),'否词清单已复制（'+R.negList.length+'个）'); }
 function copyAddList(){ copyText(R.addList.map(q=>q.query).join('\n'),'加词清单已复制（'+R.addList.length+'个）'); }
@@ -834,7 +939,7 @@ function renderCpa(){
     {l:'基准日', v:c.baselineDays.length+' 天', d:c.baselineDays.map(d=>d.slice(5)).join('、')||'—'},
     {l:'高 CPA 异动日', v:c.highDays.length+' 天', d:c.highDays.map(d=>d.slice(5)).join('、')||'无'},
     {l:'高日预估超额成本', v:'¥'+fmt(c.wastedCost,0), d:'相对基准CPA多花的钱'}
-  ].map(k=>`<div class="kpi"${(k.tip?' data-tip-type="'+k.tip+'" data-tip-value="'+k.tv+'"':'')+(k.tb!=null?' data-tip-bench="'+k.tb+'"':'')}><div class="lbl">${k.l}</div><div class="val">${k.v}</div><div class="delta">${k.d}</div></div>`).join('');
+  ].map(k=>`<div class="kpi"${(k.tip&&k.tv!=null?' data-tip-type="'+k.tip+'" data-tip-value="'+k.tv+'"':'')+(k.tb!=null?' data-tip-bench="'+k.tb+'"':'')}><div class="lbl">${k.l}</div><div class="val">${k.v}</div><div class="delta">${k.d}</div></div>`).join('');  /* v15：tv 为 null（无转化日）时不得输出 data-tip-value="null"（字符串"null"会让浮层解读错误），与 ov-kpis 守卫一致 */
 
   drawCpaChart();
 
@@ -842,6 +947,7 @@ function renderCpa(){
   if(c.highDays.length){
     document.getElementById('cpa-attr').innerHTML = c.highDays.map(hd=>{
       const f=c.factors.find(x=>x.date===hd);
+      if(!f) return '';   /* v15：与上方告警循环(886)守卫一致——防御 factors 缺条目时 f.cpa 抛错致整面板崩溃 */
       const culps=(c.kwCulprits[hd]||[]).slice(0,6);
       const news=c.newTerms.filter(t=>t.highDays.includes(hd));
       const spk=c.spikedTerms.filter(t=>t.date===hd);
@@ -866,7 +972,6 @@ function renderCpa(){
   document.getElementById('cpa-kwMatrix').innerHTML = km.length? '<table><tr><th>关键词</th><th class="num">总消费</th><th class="num">基准CPA</th>'+
     R.dates.map(d=>`<th style="text-align:center">${d.slice(5)}</th>`).join('')+'</tr>'+
     km.map(k=>{
-      const bcls = k.baselineCpa!=null?'b-gray':'b-gray';
       return `<tr><td>${esc(k.kw)}</td><td class="num">¥${fmt(k.cost)}</td><td class="num">${k.baselineCpa!=null?('¥'+fmt(k.baselineCpa,1)):'—'}</td>`+
       R.dates.map(d=>{ const o=k.perDay[d]; if(!o||o.cost===0) return '<td></td>'; return `<td style="text-align:center">${dt('cpa',o.cpa,cpaCell(o, base),base,k.kw+' '+d.slice(5))}</td>`; }).join('')+
       '</tr>';
@@ -934,7 +1039,7 @@ function drawCpaChart(){
 /* ---------- ⑦ 操作清单 ---------- */
 function renderActions(){
   const pName={0:'P0 紧急',1:'P1 重要',2:'P2 常规'};
-  document.getElementById('actionList').innerHTML = R.actions.length? R.actions.map(a=>
+  document.getElementById('actionList').innerHTML = (R.actions||[]).length? R.actions.map(a=>
     `<div class="alert ${a.p===0?'danger':(a.p===1?'warn':'info')}"><span class="prio p${a.p}">P${a.p}</span><div><b>[${a.mod}]</b> ${a.act}</div></div>`).join('')
     : '<div class="empty">无操作建议</div>';
 }
@@ -980,6 +1085,10 @@ function renderHourDiag(){
   const D=R.hour;
   if(!card||!el) return;
   if(!D||!D.has){ card.style.display='none'; return; }
+  /* Bug P0-6 修复：确保子数组存在 */
+  if(!Array.isArray(D.worst)) D.worst = [];
+  if(!Array.isArray(D.best)) D.best = [];
+  if(!Array.isArray(D.byHour)) D.byHour = [];
   card.style.display='block';
   const kpis=[
     {l:'账户均值CTR', v:pct(D.avgCtr), d:'低效时段判定基准', tip:'ctr', tv:D.avgCtr, tc:'账户周期均值CTR'},
@@ -1000,6 +1109,10 @@ function renderInvalidDiag(){
   const D=R.invalid;
   if(!card||!el) return;
   if(!D||!D.has){ card.style.display='none'; return; }
+  /* Bug P0-6 修复：确保子数组存在 */
+  if(!Array.isArray(D.flags)) D.flags = [];
+  if(!Array.isArray(D.worst)) D.worst = [];
+  if(!Array.isArray(D.daily)) D.daily = [];
   card.style.display='block';
   const kpis=[
     {l:'过滤比均值', v:pct(D.avgRatio,1), d:D.avgRatio>15?'\u26a0\ufe0f 超行业合格线15%':'<15% 合格', tip:'invalidRatio', tv:D.avgRatio, tc:'账户周期过滤比均值'},
@@ -1021,6 +1134,8 @@ function renderOcpcDiag(){
   const D=R.ocpc;
   if(!card||!el) return;
   if(!D||!D.has){ card.style.display='none'; return; }
+  /* Bug P0-6 修复：确保子数组存在 */
+  if(!Array.isArray(D.pkgs)) D.pkgs = [];
   card.style.display='block';
   const kpis=[
     {l:'投放包数', v:D.pkgs.length+' 个', d:'使用 oCPC 智能出价'},
@@ -1034,3 +1149,442 @@ function renderOcpcDiag(){
     tableHtml(['oCPC投放包','展示','点击','CTR','CPC','消耗','覆盖天数'], rows,[0]) +
     (D.learning?`<div class="alert warn" style="margin-top:8px">学习期内（投放包活跃 ${(D.learnDays||R.dates.length)} 天）：连续3天成本超基准±15%再干预，避免破坏模型学习。</div>`:'');
 }
+
+/* ============================================================
+   图表点击弹窗系统（Chart Click Popup）
+   
+   用户点击 Canvas 图表数据点或 HTML KPI卡片/表格行时，
+   弹出结构化浮层，展示该元素的详细数据、迷你图表和分析建议。
+   浮层排版条理清晰、内容准确、重要信息一目了然。
+   ============================================================ */
+
+/* ---- 弹窗核心函数 ---- */
+function showChartPopup(title, badge, sections){
+  /* Bug P0-3 修复：增加 cpTitle/cpBadge null 检查 */
+  var t = document.getElementById('cpTitle'); if(t) t.textContent = title;
+  var b = document.getElementById('cpBadge'); if(b) b.textContent = badge || '📊';
+  var body = document.getElementById('cpBody');
+  if(!body) return;
+  
+  var html = '';
+  sections.forEach(function(sec){
+    if(!sec) return;
+    html += '<div class="cp-section">';
+    if(sec.title) html += '<div class="cp-section-title">'+esc(sec.title)+'</div>';
+    
+    /* KPI 卡片行 */
+    if(sec.kpis && sec.kpis.length){
+      html += '<div class="cp-kpi-row">';
+      sec.kpis.forEach(function(k){
+        html += '<div class="cp-kpi">'+
+          '<div class="cp-k-lbl">'+esc(k.l)+'</div>'+
+          '<div class="cp-k-val">'+esc(k.v)+'</div>'+
+          (k.d?'<div class="cp-k-delta" style="color:'+(k.dc||'var(--muted)')+'">'+esc(k.d)+'</div>':'')+
+        '</div>';
+      });
+      html += '</div>';
+    }
+    
+    /* 数据表格 */
+    if(sec.table && sec.table.rows && sec.table.rows.length){
+      html += '<div class="cp-table-wrap"><table><thead><tr>';
+      sec.table.cols.forEach(function(c){ html += '<th>'+esc(c)+'</th>'; });
+      html += '</tr></thead><tbody>';
+      sec.table.rows.forEach(function(row){
+        html += '<tr>';
+        row.forEach(function(cell){
+          html += '<td>'+(typeof cell==='string'?cell:esc(String(cell)))+'</td>';
+        });
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    
+    /* 迷你柱状图 */
+    if(sec.bars && sec.bars.length){
+      var maxV = Math.max.apply(null, sec.bars.map(function(b){ return b.v||0; })) || 1;
+      html += '<div class="cp-mini-chart">';
+      sec.bars.forEach(function(b){
+        var h = Math.max(4, (b.v||0)/maxV*56);
+        html += '<div class="mc-bar" style="height:'+h+'px;background:'+(b.color||'var(--p)')+'" title="'+esc(b.label||'')+': '+esc(String(b.v))+'"></div>';
+      });
+      html += '</div>';
+      if(sec.barLegend){
+        html += '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;display:flex;gap:16px">';
+        sec.barLegend.forEach(function(l){
+          html += '<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+l.color+';margin-right:4px"></span>'+esc(l.label)+'</span>';
+        });
+        html += '</div>';
+      }
+    }
+    
+    /* 分析/建议 */
+    if(sec.analysis){
+      html += '<div class="cp-analysis">'+sec.analysis+'</div>';
+    }
+    
+    html += '</div>';
+  });
+  
+  body.innerHTML = html;
+  /* Bug P0-4 修复：增加 chartPopupOverlay null 检查 */
+  var ov = document.getElementById('chartPopupOverlay'); if(ov) ov.classList.add('show');
+  /* 按需滚动到顶部 */
+  body.scrollTop = 0;
+}
+
+function hideChartPopup(){
+  var ov = document.getElementById('chartPopupOverlay');
+  if(ov) ov.classList.remove('show');
+}
+
+/* ---- 点击/拖动区分（Canvas 通用） ---- */
+var _cpClickState = { startX:0, startY:0, moved:false, threshold:6 };
+
+function _cpMarkDown(e){
+  _cpClickState.startX = e.clientX;
+  _cpClickState.startY = e.clientY;
+  _cpClickState.moved = false;
+}
+function _cpMarkMove(e){
+  if(!_cpClickState.moved){
+    var dx = e.clientX - _cpClickState.startX, dy = e.clientY - _cpClickState.startY;
+    if(Math.abs(dx)>_cpClickState.threshold || Math.abs(dy)>_cpClickState.threshold) _cpClickState.moved = true;
+  }
+}
+
+/* ============================================================
+   ① 分日趋势图点击 → 显示当日全维度明细
+   ============================================================ */
+function _initDailyChartClick(cv){
+  if(cv._cpBound) return; cv._cpBound = true;
+  cv.addEventListener('mousedown', function(e){ _cpMarkDown(e); });
+  cv.addEventListener('mouseup', function(e){
+    if(_cpClickState.moved){ _cpClickState.startX = 0; return; }
+    /* Bug #1 修复：移除 isDragging 冗余检测——moved 标志已正确区分拖动/点击。
+       且 chartDailyState.isDragging 在 mousedown 设为 true，但 window mouseup 才重置，
+       canvas mouseup 先于 window mouseup 触发，导致此处 isDragging 恒为 true → 弹窗永远不触发 */
+    _cpClickState.startX = 0;
+    var d = R.daily; if(!d||!d.length) return;
+    var st = chartDailyState || {offset:0, count:Math.min(d.length,20)};
+    var wrap = cv.parentElement, cssW = (wrap?wrap.clientWidth:0)||cv.clientWidth||900;
+    cssW = Math.max(320, Math.floor(cssW));
+    var padL=60, padR=60, iw=(cssW-padL-padR)/st.count;
+    var idx = Math.floor((e.offsetX - padL)/iw);
+    if(idx<0||idx>=st.count) return;
+    var actualIdx = st.offset + idx;
+    if(actualIdx<0||actualIdx>=d.length) return;
+    showDailyDetail(d, actualIdx);
+  });
+}
+
+function showDailyDetail(d, idx){
+  var x = d[idx];
+  /* 环比：找前一日数据 */
+  var prev = idx>0?d[idx-1]:null;
+  var deltaCostNum = prev&&prev.cost?((x.cost-prev.cost)/prev.cost*100):null;
+  var deltaConvNum = prev&&prev.conv?((x.conv-prev.conv)/prev.conv*100):null;
+  var deltaCtrNum  = prev&&prev.ctr?((x.ctr-prev.ctr)*100):null;
+  var deltaCost = deltaCostNum!==null?deltaCostNum.toFixed(1):null;
+  var deltaConv = deltaConvNum!==null?deltaConvNum.toFixed(1):null;
+  var deltaCtr  = deltaCtrNum!==null?deltaCtrNum.toFixed(1):null;
+  
+  /* 当日是否有零转化高消费预警 */
+  var zeroWarn = x.conv===0 && x.cost >= (SET.zeroConvCost||300);
+  
+  /* 当日转化词详情（如有） */
+  var convKwRows = [];
+  /* Bug #4 修复：daily 对象字段为 present（kw 字符串数组），非 top3Kws */
+  if(R.convDaily && R.convDaily.daily){
+    var cdDay = R.convDaily.daily.find(function(dd){ return dd.date===x.date; });
+    if(cdDay && cdDay.present && cdDay.present.length){
+      convKwRows = cdDay.present.slice(0,5).map(function(kw, i){ return [i+1, esc(kw)]; });
+    }
+  }
+  
+  var sections = [
+    { title: '📅 '+x.date+' 当日核心指标', kpis: [
+      {l:'消费', v:'¥'+fmt(x.cost), d:deltaCost?'较前日 '+(deltaCostNum>0?'+':'')+deltaCost+'%':null, dc:deltaCostNum>0?'var(--danger)':'var(--ok)'},
+      {l:'转化数', v:fmt(x.conv,1), d:deltaConv?'较前日 '+(deltaConvNum>0?'+':'')+deltaConv+'%':null, dc:deltaConvNum>0?'var(--ok)':'var(--danger)'},
+      {l:'展示', v:fmt0(x.shows), d:deltaCtr?'CTR变化 '+(deltaCtrNum>0?'+':'')+deltaCtr+'pp':null},
+      {l:'点击', v:fmt0(x.clicks), d:'CPC ¥'+fmt(x.cpc,1)},
+      {l:'CPA', v:x.conv?'¥'+fmt(x.cost/x.conv,1):'∞', d:x.cpaStatus||(x.conv===0&&x.cost>=100?'⚠️ 零转化高消费':''), dc:zeroWarn?'var(--danger)':'var(--muted)'},
+      {l:'CTR', v:(x.ctr*100).toFixed(2)+'%', d:x.ctr>=0.05?'高点击率':(x.ctr>=0.01?'正常':'偏低'), dc:x.ctr>=0.05?'var(--ok)':(x.ctr>=0.01?'var(--muted)':'var(--warn)')}
+    ]},
+    { title: '\u{1F4CA} 周期内分日消费/转化对比', bars: d.slice(Math.max(0,idx-6), Math.min(d.length,idx+7)).map(function(dd,i){
+      return {label:dd.date.slice(5), v:dd.cost, color:dd.date===x.date?'var(--p)':(dd.conv===0&&dd.cost>=100?'var(--danger)':'var(--chart-cost)')};
+    }), barLegend: [{label:'当日',color:'var(--p)'},{label:'零转化高消费',color:'var(--danger)'},{label:'普通',color:'var(--chart-cost)'}] }
+  ];
+  
+  /* 转化词表格 */
+  if(convKwRows.length){
+    sections.push({ title: '\u{1F50D} 当日 Top 转化关键词', table: {cols:['#','关键词'], rows:convKwRows} });
+  }
+  
+  /* 分析建议 */
+  var analysis = '';
+  if(zeroWarn){
+    analysis = '<b>\u{1F6A8} 零转化高消费日预警</b>：当日消费 ¥'+fmt(x.cost)+'但转化为 0，预算被完全浪费。<ol>'+
+      '<li>检查当日是否有新增无转化搜索词大量花钱（去 CPA 归因模块查看）</li>'+
+      '<li>检查关键词排名是否在当日突然下滑（去维度专项诊断 → 排名三分支）</li>'+
+      '<li>若搭配 oCPC，核对当日是否处于\"探索期\"大量扩触发</li></ol>';
+  } else if(x.conv>0 && deltaConvNum!==null && deltaConvNum<-30){
+    analysis = '<b>\u26A0\uFE0F 转化骤降</b>：较前日下降 '+Math.abs(deltaConvNum).toFixed(1)+'%，建议去 CPA 基准归因模块查看当日是否有高CPA异动。';
+  } else if(x.conv>0){
+    analysis = '<b>\u2705 转化正常</b>：当日产出 '+x.conv+' 个转化，CPA ¥'+fmt(x.cost/x.conv,1)+'。继续关注后续日度趋势，若连续 3 日转化低于均值 30% 则需排查。';
+  } else if(x.cost<50){
+    analysis = '<b>\u2139\uFE0F 低消费零转化日</b>：当日消费仅 ¥'+fmt(x.cost)+'，转化偶然为零属正常波动，暂不需要干预。';
+  }
+  if(analysis) sections.push({ title: '\u{1F4DD} 诊断分析', analysis: analysis });
+  
+  showChartPopup(x.date+' 全维度明细', zeroWarn?'🚨':'📅', sections);
+}
+
+/* ============================================================
+   ② 地域分布图点击 → 显示该地域详细数据
+   ============================================================ */
+function _initGeoChartClick(cv){
+  if(cv._cpBound) return; cv._cpBound = true;
+  cv.addEventListener('mousedown', function(e){ _cpMarkDown(e); });
+  cv.addEventListener('mouseup', function(e){
+    if(_cpClickState.moved){ _cpClickState.startX = 0; return; }
+    _cpClickState.startX = 0;
+    var gs = R.geo; if(!gs||!gs.length) return;
+    gs = gs.slice(0,12);
+    var padT=24, padB=30, H=340;
+    var bh=(H-padT-padB)/gs.length;
+    var idx = Math.floor((e.offsetY - padT)/bh);
+    if(idx<0||idx>=gs.length) return;
+    showGeoDetail(gs, idx);
+  });
+}
+
+function showGeoDetail(gs, idx){
+  var g = gs[idx];
+  var diagColor = g.diag==='收缩'?'var(--danger)':(g.diag==='降价'?'var(--warn)':(g.diag==='扩量'?'var(--ok)':'var(--info)'));
+  var diagBadge = g.diag==='收缩'?'b-red':(g.diag==='降价'?'b-amber':(g.diag==='扩量'?'b-green':'b-blue'));
+  
+  /* 全部12地域排名（地域报告无转化列，仅展示消费/CTR/CPC） */
+  var rankRows = gs.map(function(r,i){ return [(i+1), esc(r.region), '¥'+fmt(r.cost), pct(r.ctr,1), '¥'+fmt(r.cpc,1)]; });
+  
+  var sections = [
+    { title: '\u{1F30D} '+g.region+' 地域诊断详情', kpis: [
+      {l:'消费', v:'¥'+fmt(g.cost), d:'排名 #'+(idx+1)+'/'+gs.length, dc:diagColor},
+      {l:'CTR', v:pct(g.ctr,1), d:g.ctr>=0.05?'高于均值':(g.ctr>=0.02?'正常':'偏低'), dc:g.ctr>=0.05?'var(--ok)':(g.ctr>=0.02?'var(--muted)':'var(--warn)')},
+      {l:'CPC', v:'¥'+fmt(g.cpc,1), d:g.cpc<=3?'低成本':(g.cpc<=8?'正常':'偏高')},
+      {l:'诊断', v:g.diag||'保持', d:g.advice||'', dc:diagColor}
+    ]},
+    { title: '\u{1F4CA} TOP12 地域消费对比', bars: gs.map(function(r){
+      return {label:r.region, v:r.cost, color:r.region===g.region?'var(--p)':(r.diag==='收缩'?'var(--danger)':(r.diag==='降价'?'var(--warn)':(r.diag==='扩量'?'var(--ok)':'var(--chart-cost)')))};
+    }), barLegend: [
+      {label:'当前',color:'var(--p)'},{label:'扩量',color:'var(--ok)'},{label:'保持',color:'var(--chart-cost)'},{label:'降价',color:'var(--warn)'},{label:'收缩',color:'var(--danger)'}
+    ]},
+    { title: '\u{1F4CB} TOP12 地域完整排名（地域报告无转化数据）', table: {cols:['排名','地域','消费','CTR','CPC'], rows:rankRows} }
+  ];
+  
+  var analysis = '';
+  if(g.diag==='收缩'){
+    analysis = '<b>\u{1F534} 建议收缩</b>：该地域消费 ¥'+fmt(g.cost)+'，CTR/CPC 效率严重偏低。<ol>'+
+      '<li>降低该地域出价系数至 0.5-0.7 或暂停投放</li><li>检查落地页在该地域的加载速度是否正常</li><li>分析该地域的搜索词是否与业务匹配</li></ol>';
+  } else if(g.diag==='降价'){
+    analysis = '<b>\u{1F7E1} 建议降价</b>：该地域转化成本偏高，可适度降低出价。<ol><li>下调地域出价系数 10-20%</li><li>优先保留精准匹配关键词，暂停广泛匹配</li></ol>';
+  } else if(g.diag==='扩量'){
+    analysis = '<b>\u{1F7E2} 建议扩量</b>：该地域转化效率高，CPA可控，是潜力市场。<ol><li>上调地域出价系数 10-30%</li><li>增加该地域的精准关键词覆盖</li></ol>';
+  } else {
+    analysis = '<b>\u{1F535} 建议保持</b>：该地域表现稳定，维持当前策略即可。';
+  }
+  if(analysis) sections.push({ title: '\u{1F4DD} 优化建议', analysis: analysis });
+  
+  showChartPopup(g.region+' 地域诊断', g.diag==='收缩'?'🔴':(g.diag==='降价'?'🟡':(g.diag==='扩量'?'🟢':'🔵')), sections);
+}
+
+/* ============================================================
+   ③ CPA 归因图点击 → 显示当日 CPA 归因明细
+   ============================================================ */
+function _initCpaChartClick(cv){
+  if(cv._cpBound) return; cv._cpBound = true;
+  cv.addEventListener('mousedown', function(e){ _cpMarkDown(e); });
+  cv.addEventListener('mouseup', function(e){
+    if(_cpClickState.moved){ _cpClickState.startX = 0; return; }
+    _cpClickState.startX = 0;
+    var c = R.cpa; if(!c||!c.days||!c.days.length) return;
+    var d = c.days, wrap = cv.parentElement, cssW = (wrap?wrap.clientWidth:0)||cv.clientWidth||900;
+    cssW = Math.max(320, Math.floor(cssW));
+    var padL=64, padR=20, iw=(cssW-padL-padR)/d.length;
+    var idx = Math.floor((e.offsetX - padL)/iw);
+    if(idx<0||idx>=d.length) return;
+    showCpaDetail(c, d[idx], idx);
+  });
+}
+
+function showCpaDetail(c, x, idx){
+  var base = c.baselineCPA;
+  var devNum = base&&x.cpa?((x.cpa-base)/base*100):null;
+  var dev = devNum!==null?devNum.toFixed(0):null;
+  /* Bug #3 修复：x.excess 不存在于 days 对象，应从 c.factors 查询 */
+  var xExcess = null;
+  if(c.factors && c.factors.length){
+    var xf = c.factors.find(function(f){return f.date===x.date;});
+    if(xf) xExcess = xf.excess;
+  }
+  
+  /* 当日归因关键词 */
+  var culpRows = [];
+  if(c.kwCulprits && c.kwCulprits[x.date]){
+    culpRows = c.kwCulprits[x.date].slice(0,8).map(function(k){
+      return [esc(k.kw), '¥'+fmt(k.cost,1), k.conv||0, k.cpa?('¥'+fmt(k.cpa,1)):'零转化', k.baselineCpa?('¥'+fmt(k.baselineCpa,1)):'—', k.contribution?('¥'+fmt(k.contribution,1)):'—'];
+    });
+  }
+  
+  /* 当日新增无转化词 */
+  var newRows = [];
+  if(c.newTerms){
+    newRows = c.newTerms.filter(function(t){ return t.highDays.indexOf(x.date)>=0; }).slice(0,5).map(function(t){
+      return [esc(t.query), esc(t.kw), esc(t.mode), '¥'+fmt(t.cost,1)];
+    });
+  }
+  
+  var sections = [
+    { title: '\u{1F4C5} '+x.date+' CPA 归因详情', kpis: [
+      {l:'当日CPA', v:x.cpa?'¥'+fmt(x.cpa,1):'∞', d:dev?'较基准 '+(devNum>0?'+':'')+dev+'%':'', dc:(devNum!==null&&devNum>50)?'var(--danger)':(devNum!==null&&devNum>0?'var(--warn)':'var(--ok)')},
+      {l:'基准CPA', v:base?'¥'+fmt(base,1):'—', d:'有转化日度CPA中位数'},
+      {l:'消费', v:'¥'+fmt(x.cost,1), d:x.conv?'转化 '+x.conv+' 个':'零转化', dc:x.conv?'var(--ok)':'var(--danger)'},
+      {l:'高异动日', v:x.isHigh?'🚨 是':'✅ 否', d:x.isHigh?'CPA大幅超标':'在正常范围内', dc:x.isHigh?'var(--danger)':'var(--ok)'},
+      {l:'基准日', v:x.isBaseline?'是':'否', d:x.isBaseline?'该日参与基准计算':'非基准日'},
+      {l:'预估超额', v:xExcess?'¥'+fmt(xExcess,1):'—', d:'相对基准多花的钱'}
+    ]},
+    { title: '\u{1F4CA} 周期 CPA 走势（★当前日）', bars: c.days.map(function(dd,i){
+      return {label:dd.date.slice(5), v:dd.cpa||0, color:dd.date===x.date?'var(--p)':(dd.isHigh?'var(--danger)':(dd.isBaseline?'var(--ok)':'var(--chart-cost)'))};
+    }), barLegend: [{label:'当前',color:'var(--p)'},{label:'高异动',color:'var(--danger)'},{label:'基准日',color:'var(--ok)'},{label:'普通',color:'var(--chart-cost)'}] }
+  ];
+  
+  if(culpRows.length){
+    sections.push({ title: '\u{1F50D} 当日主因关键词（按超额成本排序）', table: {cols:['关键词','消费','转化','当日CPA','基准CPA','超额成本'], rows:culpRows} });
+  }
+  if(newRows.length){
+    sections.push({ title: '\u{2795} 当日新增无转化搜索词（预算吞噬源）', table: {cols:['搜索词','关键词','模式','消费'], rows:newRows} });
+  }
+  
+  var analysis = '';
+  if(x.isHigh && devNum!==null && devNum>50){
+    analysis = '<b>\u{1F6A8} CPA 严重超标</b>：当日CPA较基准高 '+dev+'%，预估浪费 ¥'+(xExcess?fmt(xExcess,1):'—')+'。<ol>'+
+      '<li>立即排查当日新增无转化搜索词→加入否词清单</li>'+
+      '<li>检查是否有 CPC 突然飙升的关键词（排名竞争加剧）</li>'+
+      '<li>查看是否有创意CTR在当日大幅下滑（去创意诊断模块）</li>'+
+      '<li>若使用 oCPC，确认是否处于二阶学习期波动</li></ol>';
+  } else if(x.isHigh){
+    analysis = '<b>\u26A0\uFE0F CPA 轻度超标</b>：当日CPA较基准高 '+dev+'%，建议持续观察，若连续2日超标则按严重超标处理。';
+  } else if(!x.isHigh && x.conv>0){
+    analysis = '<b>\u2705 转化成本正常</b>：当日CPA在基准范围内，转化效率良好。保持当前投放策略。';
+  } else if(x.conv===0){
+    analysis = '<b>\u2139\uFE0F 零转化日</b>：当日未能产出转化。若消费较高（¥'+fmt(x.cost,1)+'），建议检查当日流量质量（无效点击比、搜索词匹配度）。';
+  }
+  if(analysis) sections.push({ title: '\u{1F4DD} 诊断建议', analysis: analysis });
+  
+  showChartPopup(x.date+' CPA归因', x.isHigh?'🚨':(x.conv?'✅':'ℹ️'), sections);
+}
+
+/* ============================================================
+   ④ KPI 卡片点击 → 显示该指标详细数据
+   ============================================================ */
+function _initKpiCardClicks(){
+  /* 委托：点击 .kpi 卡片打开弹窗 */
+  document.addEventListener('click', function(e){
+    var kpi = e.target.closest('.kpi');
+    if(!kpi) return;
+    /* Bug Issue #10 修复：移除 [data-tip-type] 排除——点击弹窗与 hover tooltip 是不同交互，
+       不该互相排斥。原守卫导致所有含 tooltip 的 KPI（总消费/转化/CPA/CTR 等）点击弹窗被屏蔽 */
+    /* 避免干扰按钮 */
+    if(e.target.closest('button,a,input,select')) return;
+    
+    var lbl = (kpi.querySelector('.lbl')||{}).textContent || '';
+    var val = (kpi.querySelector('.val')||{}).textContent || '';
+    var deltaEl = kpi.querySelector('.delta');
+    var delta = deltaEl?deltaEl.textContent:'';
+    
+    if(!lbl) return;
+    
+    /* 根据标签确定数据类型 */
+    var type = _guessKpiType(lbl);
+    showKpiDetail(type, lbl, val, delta);
+  });
+}
+
+function _guessKpiType(lbl){
+  if(lbl.indexOf('消费')>=0||lbl.indexOf('消耗')>=0) return 'cost';
+  if(lbl.indexOf('CPA')>=0||lbl.indexOf('转化成本')>=0) return 'cpa';
+  if(lbl.indexOf('CTR')>=0||lbl.indexOf('点击率')>=0) return 'ctr';
+  if(lbl.indexOf('转化')>=0||lbl.indexOf('转化数')>=0) return 'conv';
+  if(lbl.indexOf('点击')>=0) return 'click';
+  if(lbl.indexOf('展示')>=0) return 'show';
+  if(lbl.indexOf('CPC')>=0) return 'cpc';
+  return 'generic';
+}
+
+function showKpiDetail(type, lbl, val, delta){
+  var sections = [{ title: '\u{1F4CA} '+lbl+' 详情', kpis: [{l:lbl, v:val, d:delta||'—'}] }];
+  
+  /* 匹配 DATA_TIP 规则库的解释 */
+  var dt = DATA_TIP[type];
+  if(dt){
+    var numVal = parseFloat(String(val).replace(/[¥%,]/g,''));
+    if(!isNaN(numVal)){
+      var evalResult = dt.eval(numVal, null);
+      if(evalResult && evalResult.txt){
+        sections.push({ title: '\u{1F4AC} 指标解读', analysis: '<b>'+esc(evalResult.level||'')+'</b>：'+esc(evalResult.txt) });
+      }
+      if(dt.what){
+        sections.push({ title: '\u{1F4A1} 什么是'+lbl+'？', analysis: esc(dt.what) });
+      }
+      if(dt.advices){
+        var advs = dt.advices[evalResult.level] || dt.advices['正常'];
+        if(advs && advs.length){
+          sections.push({ title: '\u2714 优化建议', analysis: '<ol>'+advs.map(function(a){ return '<li>'+esc(a)+'</li>'; }).join('')+'</ol>' });
+        }
+      }
+    }
+  }
+  
+  showChartPopup(lbl+' 详细分析', '📊', sections);
+}
+
+/* ============================================================
+   ⑤ 初始化所有图表点击事件
+   ============================================================ */
+function initChartClickPopups(){
+  /* 全局 mousemove 标记拖动（所有图表共用）。Bug P0-2 修复：仅注册一次 */
+  if(!window._cpMoveBound){ window._cpMoveBound = true; window.addEventListener('mousemove', _cpMarkMove); }
+  
+  /* Canvas 图表 */
+  var dailyCv = document.getElementById('chartDaily');
+  if(dailyCv) _initDailyChartClick(dailyCv);
+  
+  var geoCv = document.getElementById('chartGeo');
+  if(geoCv) _initGeoChartClick(geoCv);
+  
+  var cpaCv = document.getElementById('chartCpa');
+  if(cpaCv) _initCpaChartClick(cpaCv);
+  
+  /* KPI 卡片 */
+  if(!window._cpKpiBound){ window._cpKpiBound = true; _initKpiCardClicks(); }
+  
+  /* 添加"点击查看详情"提示光标到 KPI 卡片 */
+  var style = document.createElement('style');
+  style.id = '_cpStyle';
+  style.textContent = '.kpi{cursor:pointer;transition:transform .15s,box-shadow .15s}.kpi:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,0.08)}canvas{cursor:crosshair}canvas:hover{opacity:.95}';
+  if(!document.getElementById('_cpStyle')) document.head.appendChild(style);
+}
+
+/* 在 renderAll 之后初始化弹窗系统 */
+var _origRenderAll = renderAll;
+renderAll = function(){
+  _origRenderAll();
+  /* 延迟初始化，等 DOM 渲染完 */
+  setTimeout(function(){ initChartClickPopups(); }, 50);
+};
+
+/* 键盘 ESC 关闭弹窗 */
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape') hideChartPopup();
+});
+

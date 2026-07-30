@@ -176,6 +176,7 @@ var DATA_TIP = {
     format: function(v){ return (v*100).toFixed(0)+'%'; },
     eval: function(v, bench){
       /* bench = 'geo' or 'time' */
+      if(v == null) return {level:'无数据', cls:'b-gray', txt:'暂无集中度数据'};
       var pct = v*100;
       if(pct > 60) return {level:'\u8fc7\u5ea6\u96c6\u4e2d', cls:'b-red', txt:'\u96c6\u4e2d\u5ea6 '+pct.toFixed(0)+'%\uff0c\u8fc7\u5ea6\u96c6\u4e2d\u2014\u2014\u201c\u6240\u6709\u9e21\u86cb\u653e\u5728\u4e00\u4e2a\u7bee\u5b50\u201d\uff0c\u4e07\u4e00\u8fd9\u4e2a\u7ef4\u5ea6\u51fa\u95ee\u9898\u4f60\u5c31\u5168\u5b8c\u4e86'};
       if(pct > 35) return {level:'\u504f\u96c6\u4e2d', cls:'b-amber', txt:'\u96c6\u4e2d\u5ea6 '+pct.toFixed(0)+'%\uff0c\u6709\u4e9b\u504f\u96c6\u4e2d\uff0c\u53ef\u4ee5\u8003\u8651\u5206\u6563\u98ce\u9669'};
@@ -192,8 +193,9 @@ var DATA_TIP = {
   /* ---- Pearson r 值（相关系数） ---- */
   rValue: {
     label: '\u76f8\u5173\u7cfb\u6570\uff08Pearson r\uff09',
-    format: function(v){ return 'r='+v.toFixed(2); },
+    format: function(v){ return v!=null ? 'r='+v.toFixed(2) : 'r=\u2014'; },
     eval: function(v){
+      if(v==null) return {level:'\u65e0\u6570\u636e', cls:'b-gray', txt:'\u7f3a\u5c11\u76f8\u5173\u7cfb\u6570\u6570\u636e'};
       var abs = Math.abs(v);
       if(isNaN(abs)) return {level:'\u65e0\u6570\u636e', cls:'b-gray', txt:'\u65e0\u6cd5\u8ba1\u7b97\u76f8\u5173\u7cfb\u6570\uff0c\u6570\u636e\u91cf\u4e0d\u8db3'};
       var dir=v>=0?'\u6b63':'\u8d1f', dirDesc=v>=0?'\u201c\u4f60\u6da8\u6211\u4e5f\u6da8\u201d':'\u201c\u6b64\u6d88\u5f7c\u957f\u201d';
@@ -230,6 +232,7 @@ var DATA_TIP = {
     label: 'oCPC\u72b6\u6001',
     eval: function(v, bench){
       /* v = learning flag, bench = days */
+      if(v == null) return {level:'无数据', cls:'b-gray', txt:'暂无oCPC状态数据'};
       if(v) return {level:'\u5b66\u4e60\u671f', cls:'b-amber', txt:'oCPC\u6b63\u5728\u5b66\u4e60\u671f\uff08\u5df2\u8fd0\u884c'+(bench||'?')+'\u5929\uff09\u2014\u20143-7\u5929\u5185\u4e0d\u5b9c\u9891\u7e41\u8c03\u6574\uff0c\u8ba9\u7b97\u6cd5\u5148\u5b66\u4f1a'};
       return {level:'\u5df2\u7a33\u5b9a', cls:'b-green', txt:'oCPC\u6a21\u578b\u5df2\u7a33\u5b9a\uff0c\u53ef\u4ee5\u6b63\u5e38\u4f18\u5316\u8c03\u6574'};
     },
@@ -287,6 +290,7 @@ var DATA_TIP = {
     label: 'Top3\u8f6c\u5316\u96c6\u4e2d\u5ea6',
     format: function(v){ return (v*100).toFixed(0)+'%'; },
     eval: function(v){
+      if(v == null) return {level:'无数据', cls:'b-gray', txt:'暂无Top3集中度数据'};
       var pct = v*100;
       if(pct > 80) return {level:'\u8fc7\u5ea6\u96c6\u4e2d', cls:'b-red', txt:'Top3\u5360\u6bd4 '+pct.toFixed(0)+'%\uff0c\u592a\u9ad8\u4e86\uff01\u6574\u4e2a\u8d26\u6237\u592a\u4f9d\u8d56\u8fd9\u51e0\u4e2a\u8bcd\uff0c\u5b83\u4eec\u4e00\u6389\u4f60\u5c31\u5b8c\u4e86\u3002\u5fc5\u987b\u57f9\u80b2\u66f4\u591a\u8f6c\u5316\u8bcd\u3002'};
       if(pct > 60) return {level:'\u8f83\u9ad8', cls:'b-amber', txt:'Top3\u5360\u6bd4 '+pct.toFixed(0)+'%\uff0c\u6bd4\u4f8b\u8f83\u9ad8\uff0c\u5efa\u8bae\u57f9\u80b2\u66f4\u591a\u4e2d\u957f\u5c3e\u8f6c\u5316\u8bcd\u5206\u6563\u98ce\u9669\u3002'};
@@ -297,8 +301,9 @@ var DATA_TIP = {
   /* ---- ROAS ---- */
   roas: {
     label: '\u6295\u4ea7\u6bd4\uff08ROAS\uff09',
-    format: function(v){ return v.toFixed(2); },
+    format: function(v){ return v!=null ? v.toFixed(2) : '\u2014'; },
     eval: function(v){
+      if(v==null) return {level:'\u65e0\u6570\u636e', cls:'b-gray', txt:'\u7f3a\u5c11 ROAS \u6570\u636e'};
       if(v >= 3) return {level:'\u4f18\u79c0', cls:'b-green', txt:'ROAS '+v.toFixed(2)+'\uff0c\u6bcf\u82b11\u5757\u94b1\u56de\u672c'+v.toFixed(1)+'\u5757\uff0c\u6295\u5165\u4ea7\u51fa\u6bd4\u5f88\u9ad8'};
       if(v >= 1) return {level:'\u826f\u597d', cls:'b-blue', txt:'ROAS '+v.toFixed(2)+'\uff0c\u8f6c\u5316\u4ef7\u503c\u8d85\u8fc7\u4e86\u5e7f\u544a\u6210\u672c\uff0c\u6b63\u5728\u76c8\u5229'};
       return {level:'\u4e8f\u635f', cls:'b-red', txt:'ROAS '+v.toFixed(2)+'\uff0c\u5e7f\u544a\u6210\u672c\u9ad8\u4e8e\u8f6c\u5316\u4ef7\u503c\uff0c\u6b63\u5728\u4e8f\u94b1\u2014\u2014\u8981\u4e48\u964d\u4f4e\u6210\u672c\uff0c\u8981\u4e48\u63d0\u9ad8\u5ba2\u5355\u4ef7'};
@@ -324,6 +329,7 @@ var DATA_TIP = {
     label: '\u96f6\u8f6c\u5316\u8bcd\u6d88\u8d39\u5360\u6bd4',
     format: function(v){ return (v*100).toFixed(0)+'%'; },
     eval: function(v){
+      if(v == null) return {level:'无数据', cls:'b-gray', txt:'暂无零转化词消费数据'};
       var pct = v*100;
       if(pct > 30) return {level:'\u8b66\u544a', cls:'b-red', txt:'\u96f6\u8f6c\u5316\u8bcd\u6d88\u8d39\u5360\u6bd4 '+pct.toFixed(0)+'%\uff0c\u8d85\u8fc7\u4e09\u5206\u4e4b\u4e00\u7684\u9884\u7b97\u5728\u6d6a\u8d39\uff01\u4e0d\u91c7\u53d6\u884c\u52a8\u5373\u7ee7\u7eed\u4e8f\u635f\u3002'};
       if(pct > 15) return {level:'\u504f\u9ad8', cls:'b-amber', txt:'\u96f6\u8f6c\u5316\u8bcd\u6d88\u8d39\u5360\u6bd4 '+pct.toFixed(0)+'%\uff0c\u504f\u9ad8\uff0c\u5efa\u8bae\u67e5\u770b\u54ea\u4e9b\u8bcd\u5728\u6d6a\u8d39\u94b1\u3002'};
@@ -335,6 +341,7 @@ var DATA_TIP = {
   negType: {
     label: '\u5426\u5b9a\u8bcd\u7c7b\u578b',
     eval: function(v){
+      if(v == null) return {level:'无数据', cls:'b-gray', txt:'暂无否定词类型数据'};
       if(v==='\u77ed\u8bed\u5426\u5b9a') return {level:'\u8b66\u544a', cls:'b-amber', txt:'\u77ed\u8bed\u5426\u5b9a\u2014\u2014\u4f1a\u963b\u65ad\u6240\u6709\u5305\u542b\u8fd9\u4e2a\u8bcd\u6839\u7684\u641c\u7d22\uff0c\u4e00\u6b21\u6027\u5835\u4f4f\u5927\u91cf\u5783\u573e\u8bcd\uff0c\u4f46\u8981\u5c0f\u5fc3\u522b\u8bef\u4f24\u6b63\u5e38\u8bcd\u3002'};
       return {level:'\u7cbe\u786e', cls:'b-blue', txt:'\u7cbe\u786e\u5426\u5b9a\u2014\u2014\u53ea\u5835\u8fd9\u4e00\u4e2a\u641c\u7d22\u8bcd\uff0c\u5b89\u5168\u4f46\u6548\u7387\u4f4e\uff0c\u9002\u5408\u5904\u7406\u5c11\u91cf\u6d6a\u8d39\u8bcd\u3002'};
     }
@@ -362,7 +369,7 @@ function buildDataTipHTML(typeKey, value, bench, label, context){
   var def = DATA_TIP[typeKey];
   if(!def) return '';
   var result = def.eval(value, bench);
-  var fmtVal = def.format ? def.format(value) : (value != null ? String(value) : '—');
+  var fmtVal = (def.format && value != null) ? def.format(value) : (value != null ? String(value) : '\u2014');
   var displayLabel = label || def.label;
 
   var html = '<div class="dt-dim"><span class="badge '+result.cls+'">'+esc(displayLabel)+'</span>';
@@ -395,7 +402,7 @@ function showDataTip(e){
   var typeKey = el.getAttribute('data-tip-type');
   if(!typeKey) return;
   var def = DATA_TIP[typeKey];
-  if(!def) return;
+  if(!def){ hideDataTip(); return; }
 
   var value = el.getAttribute('data-tip-value');
   var bench = el.getAttribute('data-tip-bench');
@@ -428,7 +435,9 @@ function showDataTip(e){
   content.innerHTML = buildDataTipHTML(typeKey, value, bench, label, context);
   tip.classList.add('show');
 
-  /* 强制刷新布局以获取正确高度 */
+  /* 强制刷新布局以获取正确高度，并设定最大高度约束 */
+  void tip.offsetHeight;
+  tip.style.maxHeight = Math.min(tip.scrollHeight, window.innerHeight * 0.7)+'px';
   void tip.offsetHeight;
 
   /* --- 定位：优先在触发元素下方，空间不够则上方，都不够就贴边 --- */
@@ -463,10 +472,11 @@ function showDataTip(e){
   tip.style.left = left+'px';
   tip.style.top = top+'px';
   tip.style.maxWidth = Math.min(400, window.innerWidth - 16)+'px';
-  tip.style.maxHeight = Math.min(tip.scrollHeight, window.innerHeight * 0.7)+'px';
 }
 
 function hideDataTip(){
+  /* Bug 修复：先清旧定时器，防止旧定时器泄露 */
+  clearTimeout(dataTipTimer);
   dataTipShowing = false;
   dataTipTimer = setTimeout(function(){
     if(!dataTipShowing){
@@ -488,7 +498,12 @@ function initDataTips(){
   /* mouseover: 显示浮层 */
   document.addEventListener('mouseover', function(e){
     var el = e.target.closest('[data-tip-type]');
-    if(!el){ hideDataTip(); return; }
+    if(!el){
+      /* 浮层正在显示且鼠标在浮层上 → 不触发隐藏（用户正在阅读） */
+      var tip = document.getElementById('dataTooltip');
+      if(tip && tip.classList.contains('show') && e.target.closest('.data-tooltip')) return;
+      hideDataTip(); return;
+    }
     cancelHideDataTip();
     showDataTip(e);
   });
@@ -499,14 +514,6 @@ function initDataTips(){
     if(!el) return;
     if(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.data-tooltip')) return;
     hideDataTip();
-  });
-
-  /* mousemove: 鼠标在元素内移动时保持浮层跟随 */
-  document.addEventListener('mousemove', function(e){
-    var el = e.target.closest('[data-tip-type]');
-    if(el && dataTipShowing){
-      /* 只在浮层可见时更新位置 */
-    }
   });
 
   /* 浮层自身：鼠标移入保持显示，移出隐藏 */

@@ -42,7 +42,8 @@
         <button id="segDeep" class="seg-btn" onclick="setAIMode('deepseek')">🤖 DeepSeek</button>
       </span>
       <button class="btn ai sm" id="btnGlobalAI" onclick="runGlobalAI()" disabled>🤖 AI诊断</button>
-      <button class="btn primary sm" onclick="exportReport()" id="btnExport" disabled>📄 导出</button>
+      <button class="btn primary sm" onclick="exportReport()" id="btnExport" disabled>📄 HTML报告</button>
+      <button class="btn ai sm" onclick="exportPDFReport()" id="btnExportPDF" disabled>📑 PDF报告</button>
       <button class="btn sm" onclick="toggleTheme()" title="切换浅色 / 深色">🌗</button>
     </div>
   </header>
@@ -90,7 +91,7 @@
       </div>
       <div class="panel active" id="p-overview">
         <div id="ov-alerts"></div>
-        <div class="grid g6" id="ov-kpis"></div>
+        <div class="kpi-row" id="ov-kpis"></div>
         <div class="card"><h2><span class="ic">📈</span> 分日趋势 <span class="tag">消费 / 点击 / 转化 / CPA</span><span class="help-btn" data-help="overview-trend" title="分日趋势图帮助">?</span><span class="spacer"></span><button class="btn ai sm" onclick="runModuleAI('overview')">🤖 AI解读本模块</button></h2>
           <div class="chart-wrap"><canvas id="chartDaily" width="1200" height="320"></canvas></div>
           <div class="ai-box" id="ai-overview"><h4>🤖 DeepSeek 模块解读</h4><div class="ai-content"></div></div>
@@ -108,6 +109,13 @@
         <div class="card" id="ov-compare-card" style="display:none"><h2><span class="ic">🔁</span> 与上一周期对比<span class="help-btn" data-help="overview-compare" title="与上一周期对比帮助">?</span></h2><div id="ov-compare"></div></div>
         <div class="card" id="ov-forecast-card" style="display:none"><h2><span class="ic">📊</span> 下周期预测 <span class="tag">近期趋势外推 · Poisson 置信区间</span><span class="help-btn" data-help="overview-forecast" title="下周期预测帮助">?</span><span class="spacer"></span><button class="btn ai sm" onclick="runModuleAI('overview')">🤖 AI解读本模块</button></h2><div id="ov-forecast"></div></div>
         <div class="ai-box" id="ai-global" style="margin-top:0"><h4>🤖 DeepSeek AI 综合诊断报告</h4><div class="ai-content"></div></div>
+      </div>
+      <!-- ============ 全局仪表盘 ============ -->
+      <div class="card" id="dashboardCard" style="display:none">
+        <h2><span class="ic">📊</span> 分析仪表盘 <span class="tag">一键纵览全维度 KPI</span><span class="spacer"></span><button class="btn ai sm" onclick="runGlobalAI()">🤖 AI诊断</button></h2>
+        <div class="dashboard" id="dashboard"></div>
+        <div class="section-hint" id="dashboard-hint" style="margin-top:8px"></div>
+        <div id="dashboard-actions-quick" style="margin-top:12px"></div>
       </div>
 
       <div class="panel" id="p-quad">
@@ -170,9 +178,9 @@
         </div>
         <div class="card"><h2><span class="ic">📑</span> 搜索词全量明细<span class="help-btn" data-help="query-table" title="搜索词全量明细帮助">?</span></h2>
           <div class="toolbar">
-            <input type="text" id="qSearch" placeholder="搜索搜索词/关键词..." oninput="renderQueryTable()">
-            <select id="qModeFilter" onchange="renderQueryTable()"><option value="">全部触发模式</option></select>
-            <select id="qMatchFilter" onchange="renderQueryTable()">
+            <input type="text" id="qSearch" placeholder="搜索搜索词/关键词..." oninput="window._queryPage=1;renderQueryTable()">
+            <select id="qModeFilter" onchange="window._queryPage=1;renderQueryTable()"><option value="">全部触发模式</option></select>
+            <select id="qMatchFilter" onchange="window._queryPage=1;renderQueryTable()">
               <option value="">全部匹配度</option><option value="高">高匹配</option><option value="中">中匹配</option><option value="低">低匹配</option>
             </select>
           </div>
@@ -313,8 +321,28 @@
   </div>
 </div>
 
+<!-- ============ 数据校验提示弹窗（v16：周期不重叠/维度不足拦截） ============ -->
+<div class="modal-bg" id="dataAlertModal">
+  <div class="modal">
+    <h2 id="dataAlertTitle"><span>⚠️</span> 数据校验提示</h2>
+    <div id="dataAlertBody" style="font-size:13px;line-height:1.85"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px" id="dataAlertBtns"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <div class="covar-tip" id="covarTooltip"><div class="covar-tip-arrow" id="covarTipArrow"></div><div id="covarTipContent"></div></div>
 <div class="help-tooltip" id="helpTooltip"><div class="ht-arrow top" id="helpArrow"></div><div id="helpContent"></div></div>
 <div class="data-tooltip" id="dataTooltip"><div id="dataTipContent"></div></div>
+<!-- 图表点击弹窗 -->
+<div class="chart-popup-overlay" id="chartPopupOverlay" onclick="if(event.target===this)hideChartPopup()">
+  <div class="chart-popup" id="chartPopup">
+    <div class="chart-popup-header">
+      <span class="cp-badge" id="cpBadge">📊</span>
+      <span class="cp-title" id="cpTitle">详情</span>
+      <button class="chart-popup-close" onclick="hideChartPopup()" title="关闭">&times;</button>
+    </div>
+    <div class="chart-popup-body" id="cpBody"></div>
+  </div>
+</div>
 <footer class="foot">360 搜索推广效果评估分析系统 · 纯本地离线运行 · 数据不出本机 · 支持 DeepSeek AI 辅助分析</footer>

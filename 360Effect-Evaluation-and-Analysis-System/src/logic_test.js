@@ -15,8 +15,9 @@ function makeEl(id){ let _html=''; const el={ id, style:{}, dataset:{}, disabled
   getContext(){return ctx2d();}, set innerHTML(v){_html=v;}, get innerHTML(){return _html;} }; return el; }
 global.document = { getElementById(id){ return _els[id]||(_els[id]=makeEl(id)); }, querySelector(){return makeEl('qs');},
   querySelectorAll(){return [];}, createElement(t){ const c=makeEl(t); c.parentElement={clientWidth:900,clientHeight:400}; return c; },
+  addEventListener(){}, removeEventListener(){},   /* v14 图表弹窗在 part5 注册全局 keydown/click，测试壳须提供桩 */
   body:makeEl('body'), documentElement:{ setAttribute(){}, getAttribute(){return 'light';} } };
-global.window = { scrollTo(){}, devicePixelRatio:1 };
+global.window = { scrollTo(){}, devicePixelRatio:1, addEventListener(){}, removeEventListener(){} };
 global.localStorage = { _s:{}, getItem(k){return this._s[k]||null}, setItem(k,v){this._s[k]=v}, removeItem(k){delete this._s[k]} };
 global.navigator = { clipboard:{ writeText:()=>Promise.resolve() } };
 global.confirm = ()=>true; global.fetch = ()=>Promise.reject(new Error('offline test'));

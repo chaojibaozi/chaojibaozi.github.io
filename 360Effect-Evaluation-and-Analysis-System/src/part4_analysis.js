@@ -69,13 +69,85 @@ function showResultUI(periodText){
   const pan=document.getElementById('panels'); if(pan) pan.style.display='block';
   const nav=document.getElementById('nav'); if(nav) nav.style.display='flex';
   const be=document.getElementById('btnExport'); if(be) be.disabled=false;
+  const bp=document.getElementById('btnExportPDF'); if(bp) bp.disabled=false;
   const ba=document.getElementById('btnGlobalAI'); if(ba) ba.disabled=false;
   if(typeof updateAIModeUI==='function') updateAIModeUI();
   const pl=document.getElementById('periodLabel'); if(pl){ pl.textContent='📅 '+periodText; pl.style.display='inline-block'; }
   window.scrollTo(0,0);
 }
+/* ---------- v16：数据校验浮层（周期不重叠 / 维度不足时拦截并提示用户） ---------- */
+function showDataAlert(title, bodyHtml, btns){
+  const t=document.getElementById('dataAlertTitle'), b=document.getElementById('dataAlertBody'), bt=document.getElementById('dataAlertBtns');
+  if(t) t.innerHTML='<span>⚠️</span> '+title;
+  if(b) b.innerHTML=bodyHtml;
+  if(bt) bt.innerHTML=btns;
+  const m=document.getElementById('dataAlertModal'); if(m) m.classList.add('show');
+}
+/* 各类型文件的分日日期集合（周期汇总排名等无单日行的文件不参与周期校验） */
+function getTypePeriods(){
+  const byType={};
+  FILES.forEach(f=>{
+    const ds=(f.rows||[]).map(r=>r.date).filter(d=>isSingleDate(d));
+    if(!ds.length) return;
+    const s = byType[f.type] = byType[f.type] || new Set();
+    ds.forEach(d=>s.add(d));
+  });
+  return byType;
+}
+function periodRangeOf(set){ const a=[...set].sort(); return a[0]+' ~ '+a[a.length-1]+'（'+a.length+'天）'; }
+/* 跨类型周期一致性校验：参照周期＝搜索词（转化锚点）优先，否则取覆盖天数最多的类型。
+   与参照周期完全不重叠 → 该维度数据无法与核心周期做任何日度联动（共变归因/趋势对齐全部失效），
+   重叠 <3 天 → Pearson 相关（最少3对样本）无法计算，跨维联动同样失效。两种情形均须提示用户。 */
+function checkPeriodConsistency(){
+  const byType=getTypePeriods();
+  const types=Object.keys(byType);
+  if(types.length<2) return null;
+  const ref = types.includes('search') ? 'search' : types.slice().sort((a,b)=>byType[b].size-byType[a].size)[0];
+  const refSet=byType[ref];
+  const issues=[];
+  types.forEach(t=>{
+    if(t===ref) return;
+    let ov=0; byType[t].forEach(d=>{ if(refSet.has(d)) ov++; });
+    /* 要求重叠 ≥ min(3, 参照天数, 该类型天数)：两边都 ≥3 天时须重叠 ≥3 天（Pearson 最少3对）；
+       若某类型本身只有 1~2 天，则只要全部落入参照周期即视为一致（避免误报短周期数据） */
+    const need = Math.min(3, refSet.size, byType[t].size);
+    if(ov < need) issues.push({type:t, overlap:ov, range:periodRangeOf(byType[t])});
+  });
+  return issues.length? {ref, refRange:periodRangeOf(refSet), issues} : null;
+}
+function showPeriodAlert(pc){
+  const refName = TYPE_NAME[pc.ref]||pc.ref;
+  const rows = pc.issues.map(i=>'<tr><td style="padding:4px 10px 4px 0;font-weight:600">'+(TYPE_NAME[i.type]||i.type)+'</td><td style="padding:4px 10px 4px 0">'+i.range+'</td><td style="padding:4px 0;color:var(--danger)">'+(i.overlap===0?'完全不重叠':'仅重叠 '+i.overlap+' 天（<3天，无法做日度关联）')+'</td></tr>').join('');
+  showDataAlert('上传文件的时间周期不一致',
+    '<p>系统检测到以下报告与参照周期 <b>'+refName+'：'+pc.refRange+'</b> 的日期<b style="color:var(--danger)">重叠不足</b>，跨维度联动分析（波动归因·共变、日度趋势对齐）将无法有效进行：</p>'+
+    '<table style="margin:10px 0;border-collapse:collapse">'+rows+'</table>'+
+    '<p><b>建议</b>：回到 360 点睛，将上述报告按 <b>与参照周期相同的时间范围</b> 重新导出分日版本后再上传。</p>'+
+    '<p style="color:var(--muted);margin-top:6px">若坚持继续：周期不重叠的维度只做独立解读，不参与跨维共变归因，结论口径将在报告中如实标注。</p>',
+    '<button class="btn" onclick="closeModal(\'dataAlertModal\')">返回重新选择文件</button>'+
+    '<button class="btn primary" onclick="closeModal(\'dataAlertModal\');PERIOD_ACK=true;runAnalysis()">仍要继续分析</button>');
+}
 function runAnalysis(){
   const cov = detectCoverage();
+  /* v16 拦截①：维度太少——没有任何可运行的诊断模块，且无 计划/组/账户 结构报告兜底（analyzePlanLevel），
+     强行进结果页只会得到全空占位（无有效分析价值），须提示用户补充正确文件而非静默展示空报告 */
+  const hasStruct = FILES.some(f=>['plan','grp','acct'].includes(f.type));
+  if(cov.readyCount===0 && !hasStruct){
+    const names=[...new Set(FILES.map(f=>TYPE_NAME[f.type]||f.type))].join('、');
+    showDataAlert('上传的报告维度太少，无法有效分析',
+      '<p>当前仅上传了：<b>'+names+'</b>。该类报告不足以支撑任何诊断模块运行。</p>'+
+      '<p>请至少补充以下任一分日报告：</p>'+
+      '<ul style="margin:8px 0 8px 18px"><li><b>搜索词报告(分日)</b> — 解锁账户总览/四象限/否词/CPA归因等核心模块</li>'+
+      '<li><b>地域/分时/无效点击/oCPC/创意 报告(分日)</b> — 解锁对应维度专项诊断</li>'+
+      '<li><b>计划/推广组/账户 报告(分日)</b> — 解锁计划级 CTR·消耗诊断</li></ul>'+
+      '<p style="color:var(--muted)">注意：请导出<b>含逐日时间列</b>的分日版本，且各报告时间周期保持一致。</p>',
+      '<button class="btn primary" onclick="closeModal(\'dataAlertModal\')">好的，去补充文件</button>');
+    return;
+  }
+  /* v16 拦截②：跨类型时间周期不一致（完全不重叠或重叠<3天）→ 浮层提示；用户确认后（PERIOD_ACK）放行 */
+  if(!PERIOD_ACK){
+    const pc = checkPeriodConsistency();
+    if(pc){ showPeriodAlert(pc); return; }
+  }
   R = { coverage: cov, deviceScope: cov.deviceScope, deviceUnknown: cov.deviceUnknown };
   const hasSearch = FILES.some(f=>f.type==='search');
   if(!hasSearch){
@@ -282,6 +354,8 @@ function runAnalysis(){
   }
 
   R = Object.assign(R, { period, dates, daily, tot, targetCPA, highCost, kws, convKws, coreKws, zeroDays, queries, negList, addList:addFinal, convQueries, modeStats, matchMode, planStats, creGroups, weakCre, topCre, advCompare, geo, geoAvgCtr, geoAvgCpc, geoTot, compare });
+  /* Bug #6 修复：R.coreConvPct 之前从未赋值 → 仪表盘/PDF 中"核心转化词"卡片恒显 0.00% */
+  R.coreConvPct = tot.conv>0 ? coreKws.reduce(function(s,kw){ var k=convKws.find(function(ck){return ck.kw===kw;}); return s+(k?k.conv:0); },0)/tot.conv : 0;
 
   /* ---- 任务12：转化价值 / ROAS ---- */
   const convValue = SET.convValue || 0;
@@ -304,13 +378,13 @@ function runAnalysis(){
   R.stats = analyzeStats();
   R.shift = analyzeConvSearchShift();
   R.convDaily = analyzeConvKeywordDaily();   /* v9：分日转化关键词日度变化追踪（逐日 churn） */
-  R.actions = buildActions(R);
-  R.covar = analyzeCovariation();
-  /* v6 维度专项诊断 */
+  /* v6 维度专项诊断（Bug #2 修复：须在 buildActions 之前赋值，否则排名/oCPC/无效/分时动作建议静默丢失） */
   R.rank = analyzeRank();
   R.invalid = analyzeInvalid();
   R.hour = analyzeHour();
   R.ocpc = analyzeOcpc();
+  R.actions = buildActions(R);
+  R.covar = analyzeCovariation();
 
   /* 保存快照 */
   const convKwObj={}; convKws.forEach(k=>convKwObj[k.kw]=k.conv);
@@ -443,9 +517,10 @@ function analyzeMatchMode(modeStats, tot, SET, queries){
   const bestCPA = modeStats.filter(m=>m.cpa!=null && m.mode && m.cost>0 && (m.conv||0)>0).sort((a,b)=>a.cpa-b.cpa)[0];
   /* 过宽：消费份额>35% 且（零转化词消耗占比>30% 或 CPA 超最优模式1.5倍）。
      但「最佳CPA模式」即便零转化词占比偏高也不收紧匹配(否则伤及高转化词)——仅作否词清理提示(bestModeWaste)。 */
+  /* Bug #1 修复：bestCPA 为 undefined 时 else 分支不再引用 bestCPA.cpa（会 TypeError） */
   const overBroad = bestCPA
     ? broad.filter(m=> m.mode!==bestCPA.mode && m.spendShare>0.35 && (m.zeroConvCostShare>0.30 || (m.cpa!=null && m.cpa > bestCPA.cpa*1.5)) )
-    : broad.filter(m=> m.spendShare>0.35 && (m.zeroConvCostShare>0.30 || (m.cpa!=null && m.cpa > bestCPA.cpa*1.5)) );
+    : broad.filter(m=> m.spendShare>0.35 && m.zeroConvCostShare>0.30);
   const bestModeWaste = bestCPA ? broad.filter(m=> m.mode===bestCPA.mode && m.zeroConvCostShare>0.30) : [];
   const exactBest = exact.length && bestCPA && /精确/.test(bestCPA.mode);
   const recs = overBroad.map(m=>({mode:m.mode, spendShare:m.spendShare, convShare:m.convShare, cpa:m.cpa, zeroConvCostShare:m.zeroConvCostShare}));
@@ -713,20 +788,34 @@ function analyzeCovariation(){
 
   /* —— 账户级共变（仅 oCPC 含转化，无搜索词/排名词级锚点） —— */
   if(anchorLevel==='account'){
+    /* v16 理论修正：dates 为全类型日期并集，锚点(oCPC)无数据的日期属「缺测」而非「真实零转化」，
+       须置 null（pairP 配对时剔除），否则跨周期数据会用伪造的 0 参与 Pearson 相关，扭曲系数 */
     const convByDate={}, costByDate={};
-    dates.forEach(d=>{ const oc=ocpcByDate[d]||[]; convByDate[d]=oc.reduce((s,r)=>s+(r.shallow||0)+(r.deep||0),0); costByDate[d]=oc.reduce((s,r)=>s+(r.cost||0),0); });
+    dates.forEach(d=>{ const oc=ocpcByDate[d]||[]; convByDate[d]= oc.length? oc.reduce((s,r)=>s+(r.shallow||0)+(r.deep||0),0) : null; costByDate[d]= oc.length? oc.reduce((s,r)=>s+(r.cost||0),0) : null; });
+    const anchorDatesA = dates.filter(d=>(ocpcByDate[d]||[]).length>0);
     const ctrByDate={}; if(creRows.length){ dates.forEach(d=>{ const rs=creByDate[d]||[]; const sh=rs.reduce((s,r)=>s+(r.shows||0),0), cl=rs.reduce((s,r)=>s+(r.clicks||0),0); ctrByDate[d]= sh? cl/sh:null; }); }
     const invByDate={}; RAW.invalid.forEach(r=> invByDate[r.date]=r.ratio);
     const geoByDate={}; if(RAW.geo.length){ const byD={}; RAW.geo.forEach(r=>(byD[r.date]=byD[r.date]||[]).push(r)); Object.entries(byD).forEach(([d,rs])=>{ const tot=rs.reduce((s,x)=>s+x.cost,0)||1; const reg={}; rs.forEach(x=>{ reg[x.region]=(reg[x.region]||0)+x.cost; }); const top=Object.entries(reg).sort((a,b)=>b[1]-a[1])[0]; geoByDate[d]={share: top? top[1]/tot : 0}; }); }
     const hourByDate={}; if(RAW.hour.length){ const byD={}; RAW.hour.forEach(r=>(byD[r.date]=byD[r.date]||[]).push(r)); Object.entries(byD).forEach(([d,rs])=>{ const tot=rs.reduce((s,x)=>s+x.cost,0)||1; hourByDate[d]= rs.slice().sort((a,b)=>b.cost-a.cost).slice(0,3).reduce((s,x)=>s+x.cost,0)/tot; }); }
-    const dims=[]; if(creRows.length) dims.push('创意CTR'); if(RAW.invalid.length) dims.push('无效点击过滤比'); if(RAW.geo.length) dims.push('地域集中度'); if(RAW.hour.length) dims.push('时段集中度');
-    const cand = { '创意CTR': dates.map(d=>ctrByDate[d]), '无效点击过滤比': dates.map(d=> invByDate[d]!=null? invByDate[d]/100:null), '地域集中度': dates.map(d=> geoByDate[d]? geoByDate[d].share:null), '时段集中度': dates.map(d=> hourByDate[d]!=null? hourByDate[d]:null) };
+    const rankByDate={}; if(RAW.rank.length){ const rByD={}; RAW.rank.forEach(r=>(rByD[r.date]=rByD[r.date]||[]).push(r)); Object.entries(rByD).forEach(([d,rs])=>{ let rks=0,rkw=0; rs.forEach(r=>{ const devs=Object.values(r.ranks||{}); if(!devs.length) return; const avg=devs.reduce((x,y)=>x+y,0)/devs.length; rks+=avg*(r.shows||1); rkw+=(r.shows||0); }); rankByDate[d]=rkw>0?rks/rkw:null; }); }
+    /* v16 理论修正（与单元级分支同理）：参与共变须与锚点周期重叠 ≥3 天，否则如实标注为周期错位 */
+    /* 重叠天数按「锚点有数据的日期」统计（与 pairP 实际配对口径一致），而非全类型日期并集 */
+    const dimCovA = {
+      '创意CTR':       creRows.length    ? anchorDatesA.filter(d=>ctrByDate[d]!=null).length  : -1,
+      '排名':          RAW.rank.length   ? anchorDatesA.filter(d=>rankByDate[d]!=null).length : -1,
+      '无效点击过滤比': RAW.invalid.length? anchorDatesA.filter(d=>invByDate[d]!=null).length  : -1,
+      '地域集中度':     RAW.geo.length    ? anchorDatesA.filter(d=>geoByDate[d]!=null).length  : -1,
+      '时段集中度':     RAW.hour.length   ? anchorDatesA.filter(d=>hourByDate[d]!=null).length : -1
+    };
+    const dims=[], misaligned=[];
+    Object.entries(dimCovA).forEach(([k,c])=>{ if(c<0) return; if(c>=3) dims.push(k); else misaligned.push(k+'(与锚点周期仅重叠'+c+'天，<3天)'); });
+    const cand = { '创意CTR': dates.map(d=>ctrByDate[d]), '排名': dates.map(d=> rankByDate[d]!=null? rankByDate[d]:null), '无效点击过滤比': dates.map(d=> invByDate[d]!=null? invByDate[d]/100:null), '地域集中度': dates.map(d=> geoByDate[d]? geoByDate[d].share:null), '时段集中度': dates.map(d=> hourByDate[d]!=null? hourByDate[d]:null) };
     const conv=dates.map(d=>convByDate[d]);
-    const drivers=[]; Object.entries(cand).forEach(([dim,arr])=>{ if(!arr.some(v=>v!=null)) return; const r=corrOf(conv,arr); if(!isNaN(r)){ const absR=Math.abs(r); const strength=absR>=0.6?'强':(absR>=0.35?'中':'弱'); let hyp=''; if(dim==='创意CTR') hyp = r>0?'创意吸引力提升伴随转化上升，创意/标题是正向杠杆':'高点击率但转化反而低——标题吸引人（CTR高）但落地页让人失望（转化低），创意吸引力≠转化力'; else if(dim==='无效点击过滤比') hyp = r>0?'过滤比升高日转化更高（无效流量被滤除后质量改善）':'过滤比升高日转化走低（无效流量吞噬预算，真实流量更小）'; else if(dim==='地域集中度') hyp = r>0?'投放越集中于高转化省份转化越好（聚焦策略有效）':'地域越集中转化反而越差（过度聚焦漏掉了其他省份的转化机会）'; else if(dim==='时段集中度') hyp = r>0?'越集中于高效时段转化越好（时段策略有效）':'时段越集中转化反而越差（只砸少数时段漏掉其他转化机会）'; drivers.push({dim,r,dir:r>=0?'↑':'↓',strength,hyp}); } });
+    const drivers=[]; Object.entries(cand).forEach(([dim,arr])=>{ if(!arr.some(v=>v!=null)) return; const r=corrOf(conv,arr); if(!isNaN(r)){ const absR=Math.abs(r); const strength=absR>=0.6?'强':(absR>=0.35?'中':'弱'); let hyp=''; if(dim==='创意CTR') hyp = r>0?'创意吸引力提升伴随转化上升，创意/标题是正向杠杆':'高点击率但转化反而低——标题吸引人（CTR高）但落地页让人失望（转化低），创意吸引力≠转化力'; else if(dim==='排名') hyp = r>0?'排名靠后（数值大）伴随转化上升，靠后位次转化成本可能更低':'排名靠后（数值大）伴随转化走低，抢排名是核心杠杆'; else if(dim==='无效点击过滤比') hyp = r>0?'过滤比升高日转化更高（无效流量被滤除后质量改善）':'过滤比升高日转化走低（无效流量吞噬预算，真实流量更小）'; else if(dim==='地域集中度') hyp = r>0?'投放越集中于高转化省份转化越好（聚焦策略有效）':'地域越集中转化反而越差（过度聚焦漏掉了其他省份的转化机会）'; else if(dim==='时段集中度') hyp = r>0?'越集中于高效时段转化越好（时段策略有效）':'时段越集中转化反而越差（只砸少数时段漏掉其他转化机会）'; drivers.push({dim,r,dir:r>=0?'↑':'↓',strength,hyp}); } });
     drivers.sort((a,b)=>Math.abs(b.r)-Math.abs(a.r));
-    const units = drivers.length? [{ scope:'账户', target:'全账户(oCPC汇总)', plan:'(oCPC投放包汇总)', group:'(全部)', anchorSource, drivers, excludes: dims.filter(d=>!drivers.some(x=>x.dim===d)), convTotal: dates.reduce((s,d)=>s+convByDate[d],0) }] : [];
-    const missing=['创意CTR','排名','无效点击过滤比','地域集中度','时段集中度'].filter(d=>!dims.includes(d));
-    const note='相关性假设，非因果定论。锚点来源：'+anchorSource+'（oCPC 仅到投放包/账户粒度，无法对齐到 计划/组/词，故仅做【账户级】跨维度共变；词/组级波动归因需补导搜索词报告(分日,含转化数) 或 排名分日文件）。已参与共变维度：'+(dims.join('、')||'无')+(missing.length?'；未导入故未参与：'+missing.join('、')+'（补导对应分日报告可解锁）。':'。')+'结论须结合业务常识复核。';
+    const units = drivers.length? [{ scope:'账户', target:'全账户(oCPC汇总)', plan:'(oCPC投放包汇总)', group:'(全部)', anchorSource, drivers, excludes: dims.filter(d=>!drivers.some(x=>x.dim===d)), convTotal: dates.reduce((s,d)=>s+(convByDate[d]||0),0) }] : [];
+    const missing=['创意CTR','排名','无效点击过滤比','地域集中度','时段集中度'].filter(d=>!dims.includes(d) && !misaligned.some(m=>m.startsWith(d)));
+    const note='相关性假设，非因果定论。锚点来源：'+anchorSource+'（oCPC 仅到投放包/账户粒度，无法对齐到 计划/组/词，故仅做【账户级】跨维度共变；词/组级波动归因需补导搜索词报告(分日,含转化数) 或 排名分日文件）。已参与共变维度：'+(dims.join('、')||'无')+(misaligned.length?'；已导入但时间周期与锚点重叠不足、未参与共变：'+misaligned.join('、')+'（请重新导出与锚点相同时间周期的分日报告）':'')+(missing.length?'；未导入故未参与：'+missing.join('、')+'（补导对应分日报告可解锁）。':'。')+'结论须结合业务常识复核。';
     return { units, planTypes:[], emptyRuns:[], note, hasAnchor:true, anchorSource };
   }
 
@@ -766,12 +855,24 @@ function analyzeCovariation(){
     return {conv,cost,shows,ctrC,rank,inv,geo,hour};
   }
 
-  const dims=[];
-  if(creRows.length) dims.push('创意CTR');
-  if(RAW.rank.length) dims.push('排名');
-  if(RAW.invalid.length) dims.push('无效点击过滤比');
-  if(RAW.geo.length) dims.push('地域集中度');
-  if(RAW.hour.length) dims.push('时段集中度');
+  /* v16 理论修正：维度「已参与共变」的前提不只是数据存在，还必须与转化锚点周期重叠 ≥3 天
+     （Pearson 最少3对配对样本）。此前只按 RAW.*.length 判定，跨周期文件会被虚报为"已参与"，
+     实际序列全 null 被 corrOf 静默剔除 → note 结论失真（探针实测确证）。 */
+  const rankDailyDates = new Set(RAW.rank.map(r=>r.date).filter(d=>isSingleDate(d)));
+  const dimCov = {
+    '创意CTR':       creRows.length    ? dates.filter(d=>(creByDate[d]||[]).length>0).length : -1,
+    '排名':          RAW.rank.length   ? dates.filter(d=>rankDailyDates.has(d)).length       : -1,
+    '无效点击过滤比': RAW.invalid.length? dates.filter(d=>invByDate[d]!=null).length          : -1,
+    '地域集中度':     RAW.geo.length    ? dates.filter(d=>geoByDate[d]!=null).length          : -1,
+    '时段集中度':     RAW.hour.length   ? dates.filter(d=>hourByDate[d]!=null).length         : -1
+  };
+  const dims=[], misaligned=[];
+  Object.entries(dimCov).forEach(([k,c])=>{
+    if(c<0) return;
+    if(c>=3) dims.push(k);
+    else if(k==='排名' && !rankDailyDates.size) misaligned.push('排名(周期汇总文件，非分日，无法参与日度共变)');
+    else misaligned.push(k+'(与锚点周期仅重叠'+c+'天，<3天)');
+  });
 
   function driversOf(plan, group, kw){
     const s = seriesFor(plan,group,kw);
@@ -838,8 +939,9 @@ function analyzeCovariation(){
   });
   Object.entries(grpAgg).forEach(([k,o])=>{ if(o.conv===0 && o.cost>=emptyThr) emptyRuns.push({scope:'推广组',name:k.replace('||',' / '),cost:o.cost,conv:0}); });
 
-  const missing=['创意CTR','排名','无效点击过滤比','地域集中度','时段集中度'].filter(d=>!dims.includes(d));
+  const missing=['创意CTR','排名','无效点击过滤比','地域集中度','时段集中度'].filter(d=>!dims.includes(d) && !misaligned.some(m=>m.startsWith(d)));
   const note='相关性假设，非因果定论。锚点来源：'+anchorSource+'。已参与共变的维度：'+(dims.join('、')||'无')+
+    (misaligned.length? '；已导入但时间周期与锚点重叠不足、未参与共变：'+misaligned.join('、')+'（请重新导出与锚点相同时间周期的分日报告）':'')+
     (missing.length? '；未导入故未参与：'+missing.join('、')+'（补导对应分日报告可解锁）。':'。')+
     '硬约束：①地域/小时/无效点击为账户级（无计划/组维度），以账户标量按日对齐各单元；②排名为分日加权平均，但仍属结构性结论，需结合日度创意/无效点击联合解读；③无落地页/竞品拍卖数据，相关原因仅作假设。结论须结合业务常识复核。';
 
@@ -910,11 +1012,13 @@ function analyzeInvalid(){
   if(!RAW.invalid.length) return {daily:[], has:false};
   const daily = RAW.invalid.map(r=>({date:r.date, before:r.before, filtered:r.filtered, ratio:r.ratio, amount:r.amount})).sort((a,b)=>a.date<b.date?-1:1);
   const totalBefore=daily.reduce((s,d)=>s+d.before,0), totalFiltered=daily.reduce((s,d)=>s+d.filtered,0);
+  /* v15：过滤金额合计须用 amount（¥）字段——此前误用 totalFiltered（过滤点击"次数"），单位/语义错配 */
+  const totalAmount = daily.reduce((s,d)=>s+(d.amount||0),0);
   const avgRatio = totalBefore? totalFiltered/totalBefore*100 : 0;
   const flags = daily.filter(d=>d.ratio>15).map(d=>d.date);
   const worst = [...daily].sort((a,b)=>b.amount-a.amount).slice(0,3);
-  return {daily, totalBefore, totalFiltered, avgRatio, flags, worst, has:true,
-    note:'行业合格线：无效点击过滤比 < 15%。本期均值 '+avgRatio.toFixed(1)+'%，过滤金额合计 ¥'+fmt(totalFiltered)+'。过滤比超阈值的日期提示当日原始点击含较多无效流量，真实流量更小——它是"稀释因素"而非唯一决定项，需与排名/创意联合看。防护建议：开启 360 防刷(默认开)、设置 IP 频次过滤(单IP每日最多计费5次)、用商盾/IP排除屏蔽高频异常IP；对「免费/下载/破解」类非目标词加否定词可降无效点击约35%（不同账户过滤比绝对值无横向对比价值，看本账户多日趋势）。'};
+  return {daily, totalBefore, totalFiltered, totalAmount, avgRatio, flags, worst, has:true,
+    note:'行业合格线：无效点击过滤比 < 15%。本期均值 '+avgRatio.toFixed(1)+'%，过滤金额合计 ¥'+fmt(totalAmount)+'。过滤比超阈值的日期提示当日原始点击含较多无效流量，真实流量更小——它是"稀释因素"而非唯一决定项，需与排名/创意联合看。防护建议：开启 360 防刷(默认开)、设置 IP 频次过滤(单IP每日最多计费5次)、用商盾/IP排除屏蔽高频异常IP；对「免费/下载/破解」类非目标词加否定词可降无效点击约35%（不同账户过滤比绝对值无横向对比价值，看本账户多日趋势）。'};
 }
 function analyzeHour(){
   if(!RAW.hour.length) return {byHour:[], has:false};
@@ -1022,7 +1126,8 @@ function analyzeConvSearchShift(){
     const cvrSeries=dates.map(d=>perDay[d].cvr);
     const newSeries=dates.map(d=>perDay[d].newTerms);
     const lowSeries=dates.map(d=>perDay[d].lowQ);
-    const rNew=pearson(cvrSeries,newSeries), rLow=pearson(cvrSeries,lowSeries);
+    const safeCorr=(x,y)=>{ const r=pearson(x,y); return isNaN(r)?null:r; };   // 序列<3点或零方差→相关不可估，存 null（非 NaN）以保持结果可信
+    const rNew=safeCorr(cvrSeries,newSeries), rLow=safeCorr(cvrSeries,lowSeries);
     const drops=dates.filter((d,i)=>{ const prev=cvrSeries[i-1]; return i>0 && prev>0 && cvrSeries[i]<prev*0.7; });
     const conclusions=[];
     drops.forEach(d=>{

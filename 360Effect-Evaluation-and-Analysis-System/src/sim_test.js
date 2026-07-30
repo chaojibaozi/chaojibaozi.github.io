@@ -18,6 +18,9 @@ function loadScript(p){ let code = fs.readFileSync(p,'utf8').replace(/^(let|cons
 loadScript(__dirname+'/part3_core.js');
 global.renderAll = ()=>{};
 loadScript(__dirname+'/part4_analysis.js');
+PERIOD_ACK = true;   // v16：跨源混合轮次（如 xc搜索+盈拓oCPC）周期真不重叠，新周期拦截会正确挡下；
+                     // 本套件验证的是引擎在混合数据下的健壮性，模拟用户确认「仍要继续分析」放行。
+                     // 拦截行为本身由 period_test.js 专项覆盖。
 
 const TD = path.join(__dirname,'..','testdata') + '/';
 const CAP = 5*1048576;

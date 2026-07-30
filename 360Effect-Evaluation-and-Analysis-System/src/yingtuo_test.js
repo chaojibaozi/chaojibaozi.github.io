@@ -22,6 +22,9 @@ function loadScript(p){
 loadScript(__dirname+'/part3_core.js');
 global.renderAll = ()=>{};
 loadScript(__dirname+'/part4_analysis.js');
+PERIOD_ACK = true;   // v16：本测试对大文件截行(MAXROWS)会造成各类型日期覆盖不一致的「伪周期错位」，
+                     // 属测试环境产物（真实全量文件周期一致）。模拟用户点击「仍要继续分析」放行；
+                     // 周期拦截行为本身由 period_test.js 专项覆盖。
 
 const DIR = path.join(__dirname,'..','testdata') + '/';   // 已用真实文件名（含日期前缀）复制到工作区，Node 可访问
 const MAXROWS = 12000;   // 大文件截行（保留表头），避免 OOM

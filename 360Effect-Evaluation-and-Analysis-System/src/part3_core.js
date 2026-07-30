@@ -5,6 +5,8 @@ SET.aiMode = (typeof loadAIMode==='function')? loadAIMode() : '';   // 'offline'
 let RAW = { search:[], geo:[], basic:[], adv:[], rank:[], kw:[], grp:[], plan:[], acct:[], hour:[], invalid:[], ocpc:[], comp:[], pic:[] };   // 清洗后的行对象
 let FILES = [];                                       // {name,type,rows}
 let R = null;                                         // 分析结果
+let PERIOD_ACK = false;                               // v16：用户已确认「周期不一致仍继续分析」；文件列表变更即复位
+let ACTIONS_EXPANDED = false;                         // v17：仪表盘操作预览展开状态
 let PREV = null;                                      // 上一周期快照
 /* 四象限元数据（账户级共享，置于核心层确保 part5/part6 均可见，避免跨文件 const 依赖在导出报告时崩溃） */
 var QUAD_META={
@@ -170,7 +172,10 @@ function rowsToObjects(type, rows){
         query:cleanCell(r[idx('搜索词')]), shows:num(r[idx('展示次数')]), clicks:num(r[idx('点击次数')]),
         cost:num(r[idx('总费用')]), conv:num(r[idx('转化数')]), rev: revIdx>=0 ? num(r[revIdx]) : undefined });
     }else if(type==='geo'){
-      out.push({ date:cleanDate(r[di]), region:cleanCell(r[idx('省级地区')]), city:cleanCell(r[idx('城市')]), method:cleanCell(r[idx('地域定位')]),
+      /* v15：城市列名兼容——盈拓导出为「城市」，xc/新版 360 导出为「市级地区」；只匹配「城市」会使 city 全空、
+         市级分析静默降级为省级（v12 修复F 的遗漏变体）。注意顺序：先精确匹配「城市」，再回退「市级地区」。 */
+      const cityIdx = (idx('城市')>=0) ? idx('城市') : idx('市级地区');
+      out.push({ date:cleanDate(r[di]), region:cleanCell(r[idx('省级地区')]), city:cleanCell(r[cityIdx]), method:cleanCell(r[idx('地域定位')]),
         shows:num(r[idx('展示次数')]), clicks:num(r[idx('点击次数')]), cost:num(r[idx('总费用')]) });
     }else if(type==='basic'){
       out.push({ date:cleanDate(r[di]), plan:cleanCell(r[idx('推广计划')]), group:cleanCell(r[idx('推广组')]),
@@ -281,8 +286,9 @@ function handleFiles(fileList){
   });
 }
 function renderFileList(){
+  PERIOD_ACK = false;   // v16：文件集合已变化，周期一致性须重新校验
   const el=document.getElementById('filelist');
-  el.innerHTML = FILES.map((f,i)=>`<div class="fileitem"><span class="ftype">${TYPE_NAME[f.type]}</span><span>${esc(f.name)}</span><span style="color:var(--muted)">${f.rows.length} 行</span><span class="spacer" style="flex:1"></span><button class="btn sm" onclick="FILES.splice(${i},1);renderFileList()">移除</button></div>`).join('');
+  el.innerHTML = FILES.map((f,i)=>`<div class="fileitem"><span class="ftype">${TYPE_NAME[f.type]}</span><span class="nm" title="${esc(f.name)}">${esc(f.name)}</span><span style="color:var(--muted)">${f.rows.length} 行</span><span class="spacer" style="flex:1"></span><button class="btn sm" onclick="FILES.splice(${i},1);renderFileList()">移除</button></div>`).join('');
   document.getElementById('btnAnalyze').disabled = FILES.length===0;   // 任意维度文件均可触发分析（自适应工作流：缺模块则对应模块安全空占位）
 }
 function clearFiles(){ FILES=[]; renderFileList(); }
@@ -328,21 +334,56 @@ function mergeFiles(){
     /* 地域/无效点击 同维度多粒度 → 仅取最细粒度文件（防重复计数）；其余维度直接全并集（同 schema 靠签名去重） */
     const chosen = (t==='geo'||t==='invalid') ? selectFinest(files, t) : files;
     if(t==='search'){
-      /* 多搜索词文件可能因列集不同（如一份含"触发模式"、另一份含"创意类型"）导致 JSON 签名不同 → 既有签名去重失效、
-         同一条观测被重复计数（中信建投实测消费被双计 +100%）。改用语义键(日期×计划×组×词×搜索词×设备)去重；
-         碰撞时保留含"触发模式"的行（匹配模式分析需要），丢弃重复。仅作用于 search，单文件语义键唯一 → 不影响既有单文件行为。 */
-      const byKey = new Map();
-      chosen.forEach(f=>{
-        const fdev = f.device || detectDevice(f.name, f.rows);
+      /* v15：文件级指纹去重（替代此前的行级语义键去重）。
+         背景：多搜索词文件可能为「同一数据不同列集」导出（一份含"触发模式"、另一份含"创意类型"），
+         直接并集会双计（中信建投实测消费 +100%）；而行级语义键(日期×计划×组×词×搜索词×设备)去重
+         会误删"同语义键、不同创意维度"的合法多行观测——实测 xc 漏计 ~18%、2023批次 ~20%、中信建投 ~8%
+         （黄金基准：搜索词报告全量求和 = 计划报告总消费，三批次均精确成立）。
+         正确口径：判定"同一数据"必须在文件级——对每个文件计算 日期×计划 → (cost,clicks) 聚合指纹，
+         指纹完全一致的文件仅保留一份（优先保留含"触发模式"列的，匹配模式分析需要），其余整文件丢弃；
+         保留文件内的所有行原样并入（同语义键多行观测应求和而非去重）。单文件场景指纹唯一 → 行为不变。
+         注意：指纹只用计费口径 cost+clicks，不含 shows——中信建投实测同一数据按不同维度拆分导出时
+         展示归组口径不同（触发模式版 shows=172316 vs 创意类型版 137783），cost/clicks 则逐单元精确一致。 */
+      const fps = chosen.map(f=>{
+        const m = new Map();
         f.rows.forEach(r=>{
-          r.device = fdev;
-          const k = [r.date,r.plan,r.group,r.kw,r.query,r.device].map(x=>x==null?'':String(x)).join('\u0001');
-          const ex = byKey.get(k);
-          if(!ex) byKey.set(k, r);
-          else if(!ex.mode && r.mode) byKey.set(k, r);   // 优先保留含触发模式的行
+          const k = (r.date||'')+'\u0001'+(r.plan||'');
+          const o = m.get(k)||{cost:0,clicks:0};
+          o.cost+=r.cost||0; o.clicks+=r.clicks||0;
+          m.set(k,o);
         });
+        const fp = [...m.entries()].map(([k,o])=>k+'\u0002'+o.cost.toFixed(2)+','+o.clicks).sort().join('\u0003');
+        return { f, fp, hasMode: f.rows.some(r=>r.mode) };
       });
-      byKey.forEach(r=> RAW.search.push(r));
+      const byFp = new Map();
+      fps.forEach(x=>{
+        const ex = byFp.get(x.fp);
+        if(!ex){ byFp.set(x.fp, x); return; }
+        const drop = (!ex.hasMode && x.hasMode) ? ex : x;   // 优先保留含触发模式的文件
+        dup += drop.f.rows.length;
+        if(drop===ex) byFp.set(x.fp, x);
+      });
+      /* v15 第二层：子集文件剔除。360 常同时导出「全设备报告 + 单设备（如移动端）报告」，
+         单设备报告是全设备报告的严格行级多重集子集（2023 批次实测 151282/151282=100% 包含），
+         直接并集会把该设备部分双计（实测 +19%）。判定：B 的每一行（按 日期|计划|组|词|搜索词|cost|clicks
+         签名，多重集计数）都能在更大的文件 A 中命中 → B 为子集，整文件丢弃。
+         代价说明：丢弃单设备文件会失去该文件的设备标注，但保总量正确（黄金基准=计划报告总消费）优先。 */
+      let kept = [...byFp.values()].sort((a,b)=>b.f.rows.length - a.f.rows.length);
+      const rowSig = r => [r.date,r.plan,r.group,r.kw,r.query,(r.cost||0).toFixed(2),r.clicks||0].map(x=>x==null?'':String(x)).join('\u0001');
+      const isSubset = (small, big)=>{
+        if(small.f.rows.length >= big.f.rows.length) return false;
+        const m = new Map();
+        big.f.rows.forEach(r=>{ const s=rowSig(r); m.set(s,(m.get(s)||0)+1); });
+        return small.f.rows.every(r=>{ const s=rowSig(r); const c=m.get(s)||0; if(!c) return false; m.set(s,c-1); return true; });
+      };
+      kept = kept.filter((x,i)=>{
+        for(let j=0;j<i;j++){ if(isSubset(x, kept[j])){ dup += x.f.rows.length; return false; } }
+        return true;
+      });
+      kept.forEach(x=>{
+        const fdev = x.f.device || detectDevice(x.f.name, x.f.rows);
+        x.f.rows.forEach(r=>{ r.device = fdev; RAW.search.push(r); });
+      });
       return;
     }
     chosen.forEach(f=>{

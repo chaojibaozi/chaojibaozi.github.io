@@ -2,16 +2,22 @@
 function dsReady(){ return SET.dsKey && SET.dsKey.startsWith('sk-'); }
 
 async function callDeepSeek(systemPrompt, userPrompt, targetEl){
+  if(!targetEl) return;
   const box=targetEl; box.classList.add('show');
   const content=box.querySelector('.ai-content');
+  if(!content) return;
   content.innerHTML='<span class="loading-dot"></span>';
+  /* Bug #3 修复：添加 60s 超时控制，防止 API 挂起时 UI 永久转圈 */
+  const ctrl=new AbortController();
+  const timer=setTimeout(function(){ ctrl.abort(); }, 60000);
   try{
     const resp=await fetch(SET.dsUrl||'https://api.deepseek.com/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+SET.dsKey},
       body:JSON.stringify({model:SET.dsModel||'deepseek-chat',
         messages:[{role:'system',content:systemPrompt},{role:'user',content:userPrompt}],
-        temperature:0.3, max_tokens:2500})
+        temperature:0.3, max_tokens:2500}),
+      signal:ctrl.signal
     });
     if(!resp.ok){ const t=await resp.text(); throw new Error('API '+resp.status+'：'+t.slice(0,200)); }
     const data=await resp.json();
@@ -19,6 +25,8 @@ async function callDeepSeek(systemPrompt, userPrompt, targetEl){
     content.innerHTML=mdLite(text);
   }catch(e){
     content.innerHTML='<span style="color:var(--red)">调用失败：'+esc(e.message)+'。请检查 API Key、网络（需联网）或稍后重试。</span>';
+  }finally{
+    clearTimeout(timer);
   }
 }
 /* 轻量markdown渲染 */
@@ -27,8 +35,9 @@ function mdLite(t){
   h=h.replace(/^### (.*)$/gm,'<h3>$1</h3>').replace(/^## (.*)$/gm,'<h2>$1</h2>').replace(/^# (.*)$/gm,'<h1>$1</h1>');
   h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
   h=h.replace(/`([^`]+)`/g,'<code>$1</code>');
-  h=h.replace(/^\s*[-•] (.*)$/gm,'<li>$1</li>').replace(/(<li>.*<\/li>\n?)+/g, m=>'<ul>'+m+'</ul>');
+  h=h.replace(/^\s*[-•] (.*)$/gm,'<li>$1</li>');
   h=h.replace(/^\s*(\d+)[.、] (.*)$/gm,'<li>$2</li>');
+  h=h.replace(/(<li>.*<\/li>\n?)+/g, m=>'<ul>'+m+'</ul>');   /* v15：合并包裹放到两类列表都转换后，修复编号列表产生裸 <li>（无效 HTML） */
   h=h.replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>');
   return '<p>'+h+'</p>';
 }
@@ -150,7 +159,7 @@ function digestDiag(){
 function digestShift(){
   const s=R.shift; if(!s||!s.data.length) return '转化关联诊断：无足够转化数据';
   return `转化关联诊断（高转化词逐日CVR波动 ↔ 搜索词结构变化）：\n`+
-    s.data.map(x=>`${x.kw}(${x.conv}转, 新词↔CVR相关r=${isNaN(x.rNew)?'—':x.rNew.toFixed(2)}, 低质量↔CVR相关r=${isNaN(x.rLow)?'—':x.rLow.toFixed(2)})：`+
+    s.data.map(x=>`${x.kw}(${x.conv}转, 新词↔CVR相关r=${(x.rNew==null||isNaN(x.rNew))?'—':x.rNew.toFixed(2)}, 低质量↔CVR相关r=${(x.rLow==null||isNaN(x.rLow))?'—':x.rLow.toFixed(2)})：`+
       (x.conclusions.length?x.conclusions.join('；'):'CVR与搜索词结构变化（新词涌入/低质量占比）未见明显关联')).join('\n');
 }
 
@@ -173,7 +182,8 @@ function runModuleAI(mod){
   };
   const m=map[mod];
   if(!m){ toast('未知模块'); return; }
-  callDeepSeek(SYS_PROMPT, m.d()+'\n\n'+m.q, document.getElementById('ai-'+mod));
+  const digest=m.d(); if(!digest){ toast('该模块暂无数据，无法生成摘要'); return; }
+  callDeepSeek(SYS_PROMPT, digest+'\n\n'+m.q, document.getElementById('ai-'+mod));
 }
 /* 离线模块摘要：本地计算，数据不出本机，无需联网 */
 function runOfflineModule(mod){
@@ -181,7 +191,8 @@ function runOfflineModule(mod){
   const f=map[mod]; if(!f) return;
   const el=document.getElementById('ai-'+mod);
   if(!el) return;
-  el.querySelector('.ai-content').innerHTML=mdLite('# 离线模块摘要（本地计算，数据不出本机）\n\n'+f());
+  const txt=f(); if(!txt){ toast('该模块暂无数据'); return; }
+  el.querySelector('.ai-content').innerHTML=mdLite('# 离线模块摘要（本地计算，数据不出本机）\n\n'+txt);
   el.classList.add('show');
   toast('已生成离线模块摘要（无需联网）');
 }
@@ -202,7 +213,7 @@ function runGlobalAI(){
   if(!R){ toast('请先完成分析'); return; }
   if(!dsReady() || SET.aiMode!=='deepseek'){ runOfflineGlobal(); return; }
   switchTab(document.querySelector('nav .tab[data-p="p-overview"]'));
-  const digest=[digestCoverage(),digestOverview(),digestQuad(),digestConv(),digestConvDaily(),digestQuery(),digestCreative(),digestGeo(),digestCpa(),digestShift(),digestCovar(),digestDiag()].filter(Boolean).join('\n\n----\n\n');
+  const digest=[digestCoverage(),digestOverview(),digestQuad(),digestConv(),digestConvDaily(),digestQuery(),digestMatchMode(),digestCreative(),digestGeo(),digestCpa(),digestShift(),digestCovar(),digestDiag()].filter(Boolean).join('\n\n----\n\n');
   callDeepSeek(SYS_PROMPT.replace('600字内','1200字内'),
     digest+'\n\n请输出本周期《360搜索推广账户综合诊断周报》：1)整体结论与健康度评分(0-100) 2)转化词深度洞察 3)流量质量与否词策略 4)创意与地域 5)下周期最重要的5个动作(按优先级)。',
     document.getElementById('ai-global'));
@@ -212,9 +223,11 @@ function runOfflineGlobal(){
   if(!R){ toast('请先完成分析'); return; }
   switchTab(document.querySelector('nav .tab[data-p="p-overview"]'));
   const box=document.getElementById('ai-global');
+  if(!box) return;
   const parts=[digestCoverage(),digestOverview(),digestQuad(),digestConv(),digestConvDaily(),digestQuery(),digestMatchMode(),digestCreative(),digestGeo(),digestCpa(),digestShift(),digestCovar(),digestDiag()].filter(Boolean);
   if(R.actions&&R.actions.length){ parts.push('可执行操作清单（P0/P1/P2）：\n'+R.actions.map(a=>'[P'+a.p+']['+a.mod+'] '+a.act).join('\n')); }
-  box.querySelector('.ai-content').innerHTML=mdLite('# 离线智能诊断摘要（本地计算，数据不出本机）\n\n'+parts.join('\n\n'));
+  const c=box.querySelector('.ai-content'); if(!c) return;
+  c.innerHTML=mdLite('# 离线智能诊断摘要（本地计算，数据不出本机）\n\n'+parts.join('\n\n'));
   box.classList.add('show');
   toast('已生成离线诊断摘要（无需联网）');
 }
@@ -250,12 +263,12 @@ function exportReport(){
   const geoRows = R.geo.map(g=>'<tr><td>'+esc(g.region)+'</td><td class="num">¥'+fmt(g.cost)+'</td><td class="num">'+pct(g.ctr)+'</td><td class="num">¥'+fmt(g.cpc)+'</td><td>'+g.diag+'：'+esc(g.advice)+'</td></tr>').join('');
   const shiftHtml = (R.shift && R.shift.data.length)? R.shift.data.map(x=>'<b>'+esc(x.kw)+'</b>：'+(x.conclusions.length?esc(x.conclusions.join('；')):'CVR与搜索词结构变化（新词涌入/低质量占比）未见明显关联')).join('<br><br>') : '无足够转化数据';
   const diagParts = [];
-  if(R.rank && R.rank.has) diagParts.push('排名三分支(分设备)：'+R.rank.diag.slice(0,15).map(d=>{const p=[];if(d.pc)p.push('PC('+d.pc.dev+')'+d.pc.verdict);if(d.mobile)p.push('移动'+d.mobile.verdict);return esc(d.kw)+'→'+(p.join('/')||(d.primary?d.primary.verdict:''))+'（权重'+(d.primary?d.primary.weight:d.weight)+'）';}).join('；')+'。');
+  if(R.rank && R.rank.has) diagParts.push('排名三分支(分设备)：'+R.rank.diag.slice(0,15).map(d=>{const p=[];if(d.pc)p.push('PC('+d.pc.dev+')'+d.pc.verdict);if(d.mobile)p.push('移动'+d.mobile.verdict);return esc(d.kw)+'→'+(p.join('/')||(d.primary?d.primary.verdict:''))+(d.primary&&d.primary.weight!=null?('（权重'+d.primary.weight+'）'):'');}).join('；')+'。');
   if(R.hour && R.hour.has) diagParts.push(' 分时低效时段：'+(R.hour.worst.map(o=>o.hour).join('、')||'无')+'。');
   if(R.invalid && R.invalid.has) diagParts.push(' 无效点击过滤比均值'+R.invalid.avgRatio.toFixed(1)+'%（合格线15%）。');
   if(R.ocpc && R.ocpc.has) diagParts.push(' oCPC投放包'+R.ocpc.pkgs.length+'个，'+(R.ocpc.learning?'学习期(约'+R.ocpc.learnDays+'天)保护':'已稳定')+'。');
   if(!(R.rank&&R.rank.has||R.hour&&R.hour.has||R.invalid&&R.invalid.has||R.ocpc&&R.ocpc.has)) diagParts.push('未导入排名/分时/无效点击/oCPC 报告。');
-  const actRows = R.actions.map(a=>'<p><span class="p'+a.p+'">[P'+a.p+']</span> <b>['+a.mod+']</b> '+esc(a.act)+'</p>').join('');
+  const actRows = (R.actions||[]).map(a=>'<p><span class="p'+a.p+'">[P'+a.p+']</span> <b>['+a.mod+']</b> '+esc(a.act)+'</p>').join('');
   const html = [
     '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>360搜索推广诊断报告 '+R.period+'</title>',
     '<style>body{font-family:"Microsoft YaHei",sans-serif;max-width:1000px;margin:0 auto;padding:30px;color:#1f2937;font-size:14px;line-height:1.7}',
@@ -299,5 +312,226 @@ function exportReport(){
   a.download='360推广诊断报告_'+R.period.replace(/至/,'_')+'.html';
   a.click(); URL.revokeObjectURL(a.href);
   toast('报告已导出下载');
+}
+
+/* ============ PDF 报告导出（新标签页 + 浏览器打印为PDF） ============ */
+function exportPDFReport(){
+  if(!R) return;
+  function escH(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  /* 捕获所有 canvas 图表为图片 */
+  function canvasToImg(cv,w,h){
+    if(!cv||!cv.getContext) return '';
+    try{ return '<img src="'+cv.toDataURL('image/png')+'" style="max-width:100%;width:'+(w||700)+'px;height:auto;display:block;margin:8px 0">'; }
+    catch(e){ return '<p style="color:#999">[图表渲染失败]</p>'; }
+  }
+  var charts={daily:'',geo:'',cpa:''};
+  var cvDaily=document.getElementById('chartDaily');
+  if(cvDaily) charts.daily=canvasToImg(cvDaily,700,190);
+  var cvGeo=document.getElementById('chartGeo');
+  if(cvGeo) charts.geo=canvasToImg(cvGeo,700,200);
+  var cvCpa=document.getElementById('chartCpa');
+  if(cvCpa) charts.cpa=canvasToImg(cvCpa,700,190);
+
+  /* 构建封面数据 */
+  var p0=R.actions.filter(function(a){return a.p===0;}).length;
+  var p1=R.actions.filter(function(a){return a.p===1;}).length;
+  var p2=R.actions.filter(function(a){return a.p===2;}).length;
+  var coreKws=R.coreKws||[];
+  var coreConvTotal=0;
+  if(coreKws.length && R.convKws && R.tot.conv>0){
+    for(var _i=0;_i<coreKws.length;_i++){
+      var _cf=R.convKws.find(function(k){return k.kw===coreKws[_i];});
+      if(_cf) coreConvTotal+=_cf.conv||0;
+    }
+  }
+  var coreConvPctVal = R.tot.conv>0 ? coreConvTotal/R.tot.conv : 0;
+  var topKw=coreKws.slice(0,8).map(function(k){return escH(k);}).join('\u3001');
+
+  /* 四象限数据 */
+  var quadRows=['A','B','C','D'].map(function(q){
+    var l=R.kws.filter(function(k){return k.quad===q;}).sort(function(a,b){return b.cost-a.cost;});
+    return '<tr><td><b>'+QUAD_META[q].name+'</b>\uff08'+l.length+'\u4e2a\uff09</td><td style="font-size:11px">'+l.slice(0,12).map(function(k){return escH(k.kw)+'(\xa5'+fmt(k.cost,0)+'/'+k.conv+'\u8f6c)';}).join('\u3001')+'</td></tr>';
+  }).join('');
+
+  /* 地域表 */
+  var geoRows=R.geo.map(function(g){
+    var diagCls=g.diag==='\u6269\u91cf'?'color:#0a7c45':g.diag==='\u964d\u4ef7'?'color:#9a5b00':g.diag==='\u6536\u7f29'?'color:#c53035':'color:#666';
+    return '<tr><td>'+escH(g.region)+'</td><td>\xa5'+fmt(g.cost)+'</td><td>'+pct(g.ctr)+'</td><td>\xa5'+fmt(g.cpc)+'</td><td style="'+diagCls+'"><b>'+g.diag+'</b>\uff1a'+escH(g.advice)+'</td></tr>';
+  }).join('');
+
+  /* 操作清单 */
+  var actRows=R.actions.map(function(a){
+    var sevCls=a.p===0?'color:#dc2626;font-weight:700':a.p===1?'color:#d97706;font-weight:700':'color:#2563eb;font-weight:700';
+    return '<tr><td style="'+sevCls+'">P'+a.p+'</td><td>'+escH(a.mod)+'</td><td>'+escH(a.act)+'</td></tr>';
+  }).join('');
+
+  /* 否词清单 */
+  var negText=R.negList.length?R.negList.map(function(q){return escH(q.query);}).join('\u3001'):'\u65e0';
+
+  /* 维度专项 */
+  var diagText=[];
+  if(R.rank&&R.rank.has) diagText.push('\u300a\u6392\u540d\u4e09\u5206\u652f\u8bca\u65ad\u300b\uff1a'+R.rank.diag.slice(0,12).map(function(d){
+    var parts=[];if(d.pc) parts.push('PC('+d.pc.dev+')'+d.pc.verdict);if(d.mobile) parts.push('\u79fb\u52a8'+d.mobile.verdict);
+    return escH(d.kw)+'\u2192'+(parts.join('/')||(d.primary?d.primary.verdict:''));
+  }).join('\uff1b'));
+  if(R.hour&&R.hour.has){
+    var worstH=(R.hour.worst||[]).slice(0,4).map(function(o){return o.hour+':00(\u7cfb\u6570'+o.bidMult+')';}).join('\u3001');
+    diagText.push('\u300a\u5206\u65f6\u6548\u7387\u300b\uff1a\u4f4e\u6548\u65f6\u6bb5\uff1a'+worstH);
+  }
+  if(R.invalid&&R.invalid.has) diagText.push('\u300a\u65e0\u6548\u70b9\u51fb\u300b\uff1a\u8fc7\u6ee4\u6bd4\u5747\u503c'+R.invalid.avgRatio.toFixed(1)+'%\uff08\u5408\u683c\u7ebf15%\uff09\u3002\u8d85\u6807\u5929\u6570\uff1a'+(R.invalid.flags||[]).length+'\u5929');
+  if(R.ocpc&&R.ocpc.has) diagText.push('\u300aoCPC\u300b\uff1a'+R.ocpc.pkgs.length+'\u4e2a\u6295\u653e\u5305\uff0c'+(R.ocpc.learning?'\u5904\u4e8e\u5b66\u4e60\u671f(\u7ea6'+R.ocpc.learnDays+'\u5929)\u4e0d\u5b9c\u9891\u7e41\u8c03\u6574':'\u6a21\u578b\u5df2\u7a33\u5b9a'));
+  if(!(R.rank&&R.rank.has||R.hour&&R.hour.has||R.invalid&&R.invalid.has||R.ocpc&&R.ocpc.has)) diagText.push('\u672a\u5bfc\u5165\u6392\u540d/\u5206\u65f6/\u65e0\u6548\u70b9\u51fb/oCPC \u62a5\u544a\u3002');
+
+  /* 转化词日度追踪 */
+  var convDailyText='';
+  if(R.convDaily&&R.convDaily.has){
+    var cd=R.convDaily;
+    /* Bug #1 修复：字段名应为 avgDailyConvKw（非 avgActiveKw），日均转化为 daily 数组推算 */
+    var avgDailyConv = cd.daily && cd.daily.length ? cd.daily.reduce(function(s,x){return s+(x.totalConv||0);},0)/cd.daily.length : 0;
+    convDailyText='<p>\u8f6c\u5316\u8bcd\u65e5\u5747 '+fmt(cd.avgDailyConvKw,1)+' \u4e2a\uff0c\u65e5\u5747\u8f6c\u5316 '+fmt(avgDailyConv,1)+' \u6b21\u3002';
+    if(cd.lostStillSpending&&cd.lostStillSpending.length) convDailyText+='\u26a0\ufe0f \u6d41\u5931\u6838\u5fc3\u8bcd\u4ecd\u5728\u70e7\u94b1('+cd.lostStillSpending.length+'\u4e2a)\uff1a'+cd.lostStillSpending.slice(0,8).map(function(c){return escH(c.kw)+'(\u8fd13\u65e5\xa5'+fmt(c.recentCost)+'/'+c.daysSinceConv+'\u65e5\u65e0\u8f6c\u5316)';}).join('\u3001')+'</p>';
+  }
+
+  /* 波动归因摘要 */
+  var covarText='';
+  if(R.covar&&R.covar.hasAnchor){
+    var units=R.covar.units.slice(0,8);
+    covarText='<p>'+R.covar.note+'</p>';
+    covarText+='<p>\u5173\u8054\u5355\u5143\u793a\u4f8b\uff1a'+units.map(function(u){
+      return escH(u.scope+':'+u.target)+' \u2192 '+(u.drivers||[]).slice(0,3).map(function(d){return d.dim+' r='+d.r.toFixed(2)+d.dir+'('+d.strength+')';}).join('\uff1b');
+    }).join('<br>')+'</p>';
+  }
+
+  /* 拼装完整 PDF 页面 */
+  var aiGlobalEl=document.querySelector('#ai-global .ai-content');
+  var aiHtml=aiGlobalEl?aiGlobalEl.innerHTML:'';
+
+  var html='<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">'+
+    '<title>360\u641c\u7d22\u63a8\u5e7f\u8bca\u65ad\u62a5\u544a '+escH(R.period)+'</title>'+
+    '<style>'+
+    '*{margin:0;padding:0;box-sizing:border-box}'+
+    'body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;max-width:960px;margin:0 auto;padding:30px 36px;color:#1a1a2e;font-size:13px;line-height:1.72}'+
+    '.cover{text-align:center;padding:40px 20px 20px;border-bottom:3px solid #2563eb;margin-bottom:24px}'+
+    '.cover h1{font-size:26px;color:#1a1a2e;margin-bottom:10px}'+
+    '.cover .meta{font-size:14px;color:#666}'+
+    '.cover .logo-row{display:flex;justify-content:center;gap:16px;margin:20px 0}'+
+    '.cover .stat-box{display:inline-block;text-align:center;padding:12px 20px;border-radius:10px;background:#f0f4ff;border:1px solid #d0d8f0}'+
+    '.cover .stat-box .num{font-size:28px;font-weight:800;color:#2563eb}'+
+    '.cover .stat-box .lbl{font-size:11px;color:#888;margin-top:2px}'+
+    '.pg-h{font-size:19px;font-weight:700;color:#1d4ed8;border-left:4px solid #2563eb;padding-left:12px;margin:28px 0 14px;page-break-before:always}'+
+    '.pg-h:first-of-type{page-break-before:avoid}'+
+    '.pg-sub{font-size:15px;font-weight:700;color:#374151;margin:18px 0 8px}'+
+    'table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}'+
+    'th,td{border:1px solid #e5e7eb;padding:6px 10px;text-align:left}'+
+    'th{background:#f3f4f6;font-weight:700;color:#374151;font-size:11px;text-transform:uppercase;letter-spacing:.03em}'+
+    '.num{text-align:right;font-variant-numeric:tabular-nums}'+
+    '.kpi-row{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}'+
+    '.kpi-item{flex:1;min-width:120px;padding:14px 16px;border-radius:10px;background:#f9fafb;border:1px solid #e5e7eb}'+
+    '.kpi-item .v{font-size:24px;font-weight:800;margin:4px 0}'+
+    '.kpi-item .l{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em}'+
+    '.kpi-item .s{font-size:11px;color:#aaa}'+
+    '.alert{border-left:4px solid #f59e0b;background:#fffbeb;padding:12px 16px;margin:10px 0;border-radius:0 8px 8px 0}'+
+    '.alert.danger{border-left-color:#dc2626;background:#fef2f2}'+
+    '.alert.info{border-left-color:#2563eb;background:#eff6ff}'+
+    '.alert.ok{border-left-color:#10b981;background:#f0fdf4}'+
+    '.pg-footer{text-align:center;color:#9ca3af;font-size:11px;margin-top:36px;padding-top:18px;border-top:1px solid #e5e7eb}'+
+    'img.chart{max-width:100%;height:auto;display:block;margin:10px 0}'+
+    '@media print{'+
+    '  body{font-size:10pt}'+
+    '  .pg-h{font-size:14pt;page-break-before:always}'+
+    '  .pg-h:first-of-type{page-break-before:avoid}'+
+    '  table{font-size:9pt}'+
+    '  th{font-size:8pt}'+
+    '}'+
+    '</style></head><body>'+
+    /* ========== 封面 ========== */
+    '<div class="cover">'+
+    '<h1>360\u641c\u7d22\u63a8\u5e7f\u00b7\u6548\u679c\u8bca\u65ad\u62a5\u544a</h1>'+
+    '<p class="meta">\u5206\u6790\u5468\u671f\uff1a<b>'+escH(R.period)+'</b> \uff5c \u751f\u6210\u65f6\u95f4\uff1a'+new Date().toLocaleString('zh-CN')+'</p>'+
+    '<div class="logo-row">'+
+    '<div class="stat-box"><div class="num">\xa5'+fmt(R.tot.cost,0)+'</div><div class="lbl">\u603b\u6d88\u8d39</div></div>'+
+    '<div class="stat-box"><div class="num">'+R.tot.conv+'</div><div class="lbl">\u603b\u8f6c\u5316</div></div>'+
+    '<div class="stat-box"><div class="num">\xa5'+(R.tot.conv?fmt(R.tot.cpa):'\u2014')+'</div><div class="lbl">\u8f6c\u5316\u6210\u672c CPA</div></div>'+
+    '<div class="stat-box"><div class="num">'+R.dates.length+'</div><div class="lbl">\u5206\u6790\u5929\u6570</div></div>'+
+    '</div>'+
+    (R.coverage?'<p style="font-size:12px;color:#888;margin-top:8px">\u5df2\u8f7d\u5165 <b>'+R.coverage.typesPresent.length+'</b> \u7c7b\u62a5\u544a \uff5c \u53ef\u8fd0\u884c <b>'+R.coverage.readyCount+'/'+R.coverage.total+'</b> \u4e2a\u8bca\u65ad\u6a21\u5757 \uff5c \u8bbe\u5907\uff1a'+(R.coverage.deviceScope||'\u672a\u8bc6\u522b')+'</p>':'')+
+    '</div>'+
+
+    /* ========== 一、数据总览 ========== */
+    '<div class="pg-h">\u4e00\u3001\u6570\u636e\u603b\u89c8</div>'+
+    '<div class="kpi-row">'+
+    '<div class="kpi-item"><div class="l">\u6d88\u8d39</div><div class="v">\xa5'+fmt(R.tot.cost,0)+'</div><div class="s">\u5c55\u793a '+fmt0(R.tot.shows)+' \u6b21</div></div>'+
+    '<div class="kpi-item"><div class="l">\u70b9\u51fb</div><div class="v">'+fmt0(R.tot.clicks)+'</div><div class="s">CTR '+pct(R.tot.ctr)+'</div></div>'+
+    '<div class="kpi-item"><div class="l">\u8f6c\u5316</div><div class="v">'+R.tot.conv+'</div><div class="s">CPA \xa5'+(R.tot.conv?fmt(R.tot.cpa):'\u2014')+'</div></div>'+
+    '<div class="kpi-item"><div class="l">\u8bca\u65ad\u64cd\u4f5c</div><div class="v">'+(R.actions||[]).length+'</div><div class="s">P0:'+p0+' P1:'+p1+' P2:'+p2+'</div></div>'+
+    '</div>'+
+    /* 分日趋势表 */
+    '<div class="pg-sub">\u25b6 \u5206\u65e5\u8d8b\u52bf</div>'+
+    '<table><tr><th>\u65e5\u671f</th><th class="num">\u6d88\u8d39</th><th class="num">\u70b9\u51fb</th><th class="num">\u8f6c\u5316</th><th class="num">CPA</th></tr>'+
+    R.daily.map(function(d){return '<tr><td>'+d.date+'</td><td class="num">\xa5'+fmt(d.cost)+'</td><td class="num">'+d.clicks+'</td><td class="num">'+d.conv+'</td><td class="num">'+(d.conv?'\xa5'+fmt(d.cost/d.conv):'\u2014')+'</td></tr>';}).join('')+
+    '</table>'+
+    /* 趋势图 */
+    charts.daily+
+    /* 核心转化词 */
+    (topKw?'<div class="pg-sub">\u25b6 \u6838\u5fc3\u8f6c\u5316\u8bcd</div><p>'+topKw+'\uff08\u5171 '+coreKws.length+'\u4e2a\uff0c\u8d21\u732e '+pct(coreConvPctVal,1)+' \u8f6c\u5316\uff09</p>':'')+
+
+    /* ========== 二、关键词四象限 ========== */
+    '<div class="pg-h">\u4e8c\u3001\u5173\u952e\u8bcd\u56db\u8c61\u9650</div>'+
+    '<table><tr><th>\u8c61\u9650</th><th>\u5173\u952e\u8bcd\uff08TOP\uff09</th></tr>'+quadRows+'</table>'+
+
+    /* ========== 三、转化词分日矩阵 ========== */
+    '<div class="pg-h">\u4e09\u3001\u8f6c\u5316\u8bcd\u5206\u65e5\u77e9\u9635</div>'+
+    '<table><tr><th>\u5173\u952e\u8bcd</th><th class="num">\u8f6c\u5316</th><th class="num">CPA</th>'+R.dates.map(function(d){return '<th>'+d.slice(5)+'</th>';}).join('')+'<th>\u72b6\u6001</th></tr>'+
+    R.convKws.map(function(k){return '<tr><td>'+escH(k.kw)+'</td><td class="num">'+k.conv+'</td><td class="num">\xa5'+fmt(k.cpa)+'</td>'+R.dates.map(function(d){return '<td class="num">'+(k.byDate[d]||0)+'</td>';}).join('')+'<td>'+k.status+'</td></tr>';}).join('')+
+    '</table>'+
+
+    /* ========== 四、搜索词匹配 ========== */
+    '<div class="pg-h">\u56db\u3001\u641c\u7d22\u8bcd\u5339\u914d\u5ea6</div>'+
+    '<div class="alert danger">\u26a0\ufe0f \u5426\u8bcd\u5efa\u8bae\uff08'+R.negList.length+'\u4e2a\uff09\uff1a'+negText+'</div>'+
+    '<div class="alert info">\u2795 \u52a0\u8bcd\u5efa\u8bae\uff1a'+(R.addList.length?R.addList.map(function(q){return escH(q.query)+(q.conv?'('+q.conv+'\u8f6c)':'');}).join('\u3001'):'\u65e0')+'</div>'+
+
+    /* ========== 五、地域诊断 ========== */
+    '<div class="pg-h">\u4e94\u3001\u5730\u57df\u6295\u653e\u6548\u7387</div>'+
+    charts.geo+
+    '<table><tr><th>\u5730\u57df</th><th class="num">\u6d88\u8d39</th><th class="num">CTR</th><th class="num">CPC</th><th>\u8bca\u65ad\u4e0e\u5efa\u8bae</th></tr>'+geoRows+'</table>'+
+
+    /* ========== 六、转化词日度追踪 ========== */
+    (convDailyText?'<div class="pg-h">\u516d\u3001\u8f6c\u5316\u8bcd\u65e5\u5ea6\u8ffd\u8e2a</div>'+convDailyText:'')+
+
+    /* ========== 七、波动归因 ========== */
+    (covarText?'<div class="pg-h">\u4e03\u3001\u6ce2\u52a8\u5f52\u56e0\u00b7\u591a\u53d8\u91cf\u5171\u53d8</div>'+covarText:'')+
+
+    /* ========== 八、维度专项 ========== */
+    '<div class="pg-h">\u516b\u3001\u7ef4\u5ea6\u4e13\u9879\u8bca\u65ad</div>'+
+    '<div style="font-size:12px;line-height:1.8">'+diagText.map(function(t){return '<p style="margin:6px 0">'+t+'</p>';}).join('')+'</div>'+
+
+    /* ========== 九、CPA 基准归因 ========== */
+    (R.cpa&&R.cpa.factors&&R.cpa.factors.length?'<div class="pg-h">\u4e5d\u3001CPA \u57fa\u51c6\u5f52\u56e0</div>'+charts.cpa+'':'');
+
+  /* ========== 十、操作清单 ========== */
+  if(R.actions.length){
+    html+='<div class="pg-h">\u5341\u3001\u4f18\u5316\u64cd\u4f5c\u6e05\u5355\uff08'+R.actions.length+'\u6761\uff09</div>'+
+    '<table><tr><th>\u4f18\u5148\u7ea7</th><th>\u6a21\u5757</th><th>\u64cd\u4f5c\u5efa\u8bae</th></tr>'+actRows+'</table>';
+  }
+
+  /* ========== AI 诊断 ========== */
+  if(aiHtml){
+    html+='<div class="pg-h">\u9644\u5f55\u3001DeepSeek AI \u7efc\u5408\u8bca\u65ad</div>'+
+    '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:16px 20px;font-size:13px;line-height:1.8">'+aiHtml+'</div>';
+  }
+
+  html+='<div class="pg-footer">\u7531 360\u641c\u7d22\u63a8\u5e7f\u6548\u679c\u8bc4\u4f30\u5206\u6790\u7cfb\u7edf \u751f\u6210 \uff5c \u7eaf\u672c\u5730\u79bb\u7ebf\u8fd0\u884c \uff5c \u6570\u636e\u4e0d\u51fa\u672c\u673a</div>'+
+    '</body></html>';
+
+  /* 打开新窗口并触发打印（用户可另存为 PDF） */
+  var w=window.open('','_blank','width=1000,height=700');
+  if(!w){ toast('\u5f39\u7a97\u88ab\u62e6\u622a\uff0c\u8bf7\u5141\u8bb8\u5f39\u7a97\u540e\u91cd\u8bd5'); return; }
+  w.document.write(html);
+  w.document.close();
+  /* 等页面渲染完成后触发打印 */
+  setTimeout(function(){
+    try{ w.print(); }catch(e){ toast('PDF\u6253\u5370\u5931\u8d25\uff0c\u8bf7\u5728\u65b0\u7a97\u53e3\u624b\u52a8 Ctrl+P \u6253\u5370\u4e3a PDF'); }
+  },800);
+  toast('PDF\u62a5\u544a\u5df2\u6253\u5f00\u2014\u2014\u8bf7\u5728\u6253\u5370\u5bf9\u8bdd\u6846\u4e2d\u9009\u62e9\u300c\u53e6\u5b58\u4e3a PDF\u300d');
 }
 

@@ -167,9 +167,13 @@ SCEN.forEach(s=>{
       'geoCost='+R.geoTot.cost.toFixed(0)+' vs 真值='+expGeoCost.toFixed(0));
     assert('地域成本 ≪ 8文件之和(证明无3x重复计数)', R.geoTot.cost <= sumAllGeo*0.6,
       'geoCost='+R.geoTot.cost.toFixed(0)+' / 8文件和='+sumAllGeo.toFixed(0));
-    /* 真实性：Top 省份应与独立解析一致 */
-    assert('地域 Top 省份与文件真值一致', R.geo.length>0 && topRegions.slice(0,3).includes(R.geo[0].region),
-      'systemTop='+(R.geo[0]&&R.geo[0].region)+' / fileTop='+topRegions.slice(0,3).join(','));
+    /* 真实性：Top 地域应与独立解析一致。v15 起 xc「市级地区」列已正确解析 → 系统 Top 为市级实体
+       （如"深圳市（广东省）"），断言改为提取其所属省份（括号内），应落在文件真值省级 Top3 内 */
+    const sysTop = R.geo.length>0 ? String(R.geo[0].region||'') : '';
+    const mProv = sysTop.match(/[（(]([^）)]+)[）)]/);
+    const sysProv = mProv ? mProv[1] : sysTop;
+    assert('地域 Top 所属省份与文件真值一致', R.geo.length>0 && topRegions.slice(0,3).includes(sysProv),
+      'systemTop='+sysTop+' (省='+sysProv+') / fileTop='+topRegions.slice(0,3).join(','));
   }
   /* G2: 无效点击不重复计数 */
   if('noDoubleInvalid' in e){

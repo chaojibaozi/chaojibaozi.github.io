@@ -425,6 +425,8 @@ function showHelp(key, e){
 }
 
 function hideHelp(){
+  /* Bug 修复：先清旧定时器，防止旧定时器泄露导致浮层意外消失 */
+  clearTimeout(helpTimer);
   const tip = document.getElementById('helpTooltip');
   if(!tip) return;
   helpTimer = setTimeout(function(){
@@ -444,7 +446,11 @@ function initHelpTooltips(){
   /* 鼠标进入 ? 按钮 → 显示浮层 */
   document.addEventListener('mouseover', function(e){
     const btn = e.target.closest('.help-btn');
-    if(!btn){ hideHelp(); return; }
+    if(!btn){
+      /* 浮层正在显示且鼠标在浮层上 → 不触发隐藏（用户正在阅读） */
+      if(tip.classList.contains('show') && e.target.closest('.help-tooltip')) return;
+      hideHelp(); return;
+    }
     const key = btn.getAttribute('data-help');
     if(!key) return;
     cancelHideHelp();

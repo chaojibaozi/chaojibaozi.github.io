@@ -17,8 +17,9 @@ function makeEl(id){ let _html=''; const el={ id, style:{}, dataset:{}, disabled
   set innerHTML(v){_html=v;}, get innerHTML(){return _html;} }; return el; }
 global.document = { getElementById(id){ return _els[id]||(_els[id]=makeEl(id)); }, querySelector(){return makeEl('qs');},
   querySelectorAll(){return [];}, createElement(t){ const c=makeEl(t); c.parentElement={clientWidth:900,clientHeight:400}; return c; },
+  addEventListener(){}, removeEventListener(){},   /* v14 图表弹窗在 part5 注册全局 keydown/click，测试壳须提供桩 */
   body:makeEl('body'), documentElement:{ setAttribute(){}, getAttribute(){return 'light';} } };
-global.window = { scrollTo(){}, devicePixelRatio:1 };
+global.window = { scrollTo(){}, devicePixelRatio:1, addEventListener(){}, removeEventListener(){} };
 global.localStorage = { _s:{}, getItem(k){return this._s[k]||null}, setItem(k,v){this._s[k]=v}, removeItem(k){delete this._s[k]} };
 global.navigator = { clipboard:{ writeText:()=>Promise.resolve() } };
 global.confirm = ()=>true; global.fetch = ()=>Promise.reject(new Error('offline test'));
@@ -365,7 +366,9 @@ FILES=[
 ];
 let t21=Date.now(); runAnalysis(); let dt21=Date.now()-t21;
 console.log('   34省×30天 运行耗时: '+dt21+'ms | 地域行:'+R.geo.length);
-assert(R.geo.length===PROV.length*D30.length, 'S21 地域行=34省×30天逐日 ('+R.geo.length+'行，符合逐日设计)');
+/* v16 修正陈旧断言：v12 起 analyzeGeo 按「省|市」聚合键输出聚合实体（本例无市级列→34省），
+   而非逐日行；旧断言 34×30 是 v11 前的逐日设计残留（本套件因壳缺 addEventListener 桩长期未跑，未随重构更新） */
+assert(R.geo.length===PROV.length, 'S21 地域聚合实体=34省 ('+R.geo.length+'行，省|市聚合口径)');
 assert(dt21<4000, 'S21 大体量地域运行 <4s (='+dt21+'ms)');
 try{ renderGeo(); assert(true,'S21 renderGeo 不抛异常'); }catch(e){ assert(false,'S21 renderGeo 抛异常: '+e.message); }
 scanHTML('S21 大体量地域渲染');
@@ -407,7 +410,9 @@ assert(R.deviceScope==='both', 'S23 移动+PC 文件 → 设备作用域=both (�
 // 未识别：文件名无设备信号 → unknown + 计数
 FILES=[{name:'地域分析报告.csv',type:'geo',rows:D7c.map(d=>({date:d,region:'广东',method:'',shows:100,clicks:10,cost:20,cpc:2}))}];
 runAnalysis();
-assert(R.deviceScope==='unknown', 'S23 无设备信号文件名 → 设备作用域=unknown (实='+R.deviceScope+')');
+/* v16 修正陈旧断言：detectCoverage 现行语义（v11+）—无任何设备拆分信号 = 该账户导出为 PC+移动
+   合并口径 → deviceScope='combined'（非 'unknown'）；unknown 仅作为单文件标记进 deviceUnknown 计数 */
+assert(R.deviceScope==='combined', 'S23 无设备信号文件名 → 设备作用域=combined合并口径 (实='+R.deviceScope+')');
 assert(R.deviceUnknown===1, 'S23 deviceUnknown 计数=1 (实='+R.deviceUnknown+')');
 // 表头信号：rank 的 ranks{移动端} 键 → mobile（即使文件名无设备词，对象行亦可识别）
 FILES=[{name:'关键词报告(5).csv',type:'rank',rows:D7c.map((d,i)=>({date:d,plan:'P',group:'G',kw:'K',shows:100,clicks:10,cost:20,conv:1,shallow:1,ranks:{'移动端':3.0}}))}];
